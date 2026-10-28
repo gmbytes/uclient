@@ -1,0 +1,10 @@
+{
+  "envelope_sha256": "907b6c3ceaa0e7491578c36ad46f839302a459e311248e448ed3af23daecc583",
+  "generated_sha256": "7a5ae3935fcc6d278658d5a63efc6cd2f6e7c4c7c76b1df62ffb9f072f33d604",
+  "tok_source_commit": "f550195d60577524e3272dda2789f07ab381d7c1",
+  "frame_version": 3,
+  "canonical_path": "crates/tok-proto/proto/tok/client/v1/client.proto",
+  "protocol_lock_sha256": "52abb06dc4ce57ffcfa48c23454852231ad360c78584cdab8e65cbfc31abc1bb",
+  "protoc_version": "36.2",
+  "protobuf_runtime": "3.36.2"
+}

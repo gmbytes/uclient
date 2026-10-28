@@ -27,3 +27,13 @@
 ## Unity 官方包
 
 uGUI `1.0.0`、TextMeshPro `3.0.6`、Newtonsoft JSON `3.2.1`、Unity Test Framework `1.1.33` 以及其 NUnit `1.0.6` 依赖通过 Unity Package Manager 解析。精确版本见 `dependencies.lock.json` 和 `Packages/packages-lock.json`；各包许可和第三方通知由官方包随附，Unity 编辑器及平台工具链不随本仓库分发。
+
+## Protobuf runtime
+
+N1 installs Google.Protobuf `3.36.2` from its NuGet `netstandard2.0` asset and System.Runtime.CompilerServices.Unsafe package `4.5.2` (assembly `4.0.4.1`) through the shared dependency restore. Unity supplies Memory/Buffers/Numerics; those libraries are not copied into Assets. Installed DLL hashes, exact source references and license hashes are recorded in `Assets/ThirdParty/Protobuf/dependency-provenance.json`, whose hash is pinned by `docs/dependencies.lock.json`.
+
+The protobuf source commit is `2c74169b34066ceb8ddb6b882fcb3fb32d737a55`, as recorded by the pinned NuGet package. Its BSD-3-Clause license is preserved at `Assets/ThirdParty/Protobuf/Google.Protobuf-BSD-3-Clause.txt`. Unsafe source commit `02b11eeee1fbc5f3ef43a1452fe07efd25fa1715` is recorded by that package; the original corefx MIT license is preserved at `Assets/ThirdParty/Protobuf/Unsafe-MIT.txt`. Shared restore copies these immutable license snapshots from `comm/tools/Dependencies/licenses` with the binaries. Generated protocol sources remain owned by this project's shared proto sources.
+
+## Fixed Tok envelope
+
+The AOT fixed envelope is generated from the canonical Tok v3 source pinned in `comm/proto/protocol.lock.json`, Tok commit `f550195d60577524e3272dda2789f07ab381d7c1`. The original Apache-2.0 license is preserved byte-for-byte in `docs/licenses/Tok-Apache-2.0.txt`; its SHA-256 is verified against the shared source lock. Generated `Client.cs` and its co-located provenance bind the exact input and generator versions.

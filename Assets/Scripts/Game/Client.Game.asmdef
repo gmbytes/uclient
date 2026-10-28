@@ -1,5 +1,5 @@
 {
   "name": "Client.Game",
-  "references": ["Client.Contracts"],
+  "references": ["Client.Contracts", "Client.Framework", "Client.Game.Protocol"],
   "autoReferenced": false
 }

@@ -1,5 +1,5 @@
 {
   "name": "Client.Bootstrap.Proof",
-  "references": ["Client.Framework", "Client.Contracts", "Client.Bootstrap", "HybridCLR.Runtime"],
+  "references": ["Client.Framework", "Client.Contracts", "Client.Bootstrap", "Client.Protocol.Envelope", "HybridCLR.Runtime"],
   "autoReferenced": false
 }

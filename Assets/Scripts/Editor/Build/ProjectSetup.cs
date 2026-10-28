@@ -89,8 +89,9 @@ namespace Client.Editor.Build
             settings.useGlobalIl2cpp = false;
             settings.outputLinkFile = "Scripts/Framework/HotUpdate/Generated/link.xml";
             settings.outputAOTGenericReferenceFile = "Scripts/Framework/HotUpdate/Generated/AOTGenericReferences.cs";
-            // Protocol is reserved by its asmdef; N1/F6 adds it once a real DLL exists.
-            settings.hotUpdateAssemblyDefinitions = new[] { AssetDatabase.LoadAssetAtPath<UnityEditorInternal.AssemblyDefinitionAsset>("Assets/Scripts/Game/Client.Game.asmdef") };
+            settings.hotUpdateAssemblyDefinitions = new[] {
+                AssetDatabase.LoadAssetAtPath<UnityEditorInternal.AssemblyDefinitionAsset>("Assets/Scripts/Game/Protocol/Client.Game.Protocol.asmdef"),
+                AssetDatabase.LoadAssetAtPath<UnityEditorInternal.AssemblyDefinitionAsset>("Assets/Scripts/Game/Client.Game.asmdef") };
             settings.hotUpdateAssemblies = System.Array.Empty<string>();
             HybridCLRSettings.Save();
         }

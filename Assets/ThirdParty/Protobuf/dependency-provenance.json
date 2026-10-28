@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "dependencies_lock_sha256": "19b79bd827dec6bde62d640504aa1918bf4c52a9a10a6b9a4dd9c32cbf4da1e8",
+  "protoc_version": "36.2",
+  "runtime_version": "3.36.2",
+  "libraries": [
+    {
+      "name": "Google.Protobuf",
+      "package_version": "3.36.2",
+      "target_framework": "netstandard2.0",
+      "assembly_version": "3.36.2.0",
+      "path": "Assets/ThirdParty/Protobuf/Google.Protobuf.dll",
+      "sha256": "47f3d4534309a33fec7241e995151935628e54511142515a647d67d74710d67a",
+      "license_kind": "BSD-3-Clause",
+      "license": "Assets/ThirdParty/Protobuf/Google.Protobuf-BSD-3-Clause.txt",
+      "license_sha256": "6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d",
+      "source": "https://github.com/protocolbuffers/protobuf/tree/2c74169b34066ceb8ddb6b882fcb3fb32d737a55"
+    },
+    {
+      "name": "System.Runtime.CompilerServices.Unsafe",
+      "package_version": "4.5.2",
+      "target_framework": "netstandard2.0",
+      "assembly_version": "4.0.4.1",
+      "path": "Assets/ThirdParty/Protobuf/System.Runtime.CompilerServices.Unsafe.dll",
+      "sha256": "1ad2dd7225d5162a0fd3a3b337a1949448520e3130a4bc8e010ec02f76097500",
+      "license_kind": "MIT",
+      "license": "Assets/ThirdParty/Protobuf/Unsafe-MIT.txt",
+      "license_sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+      "source": "https://github.com/dotnet/corefx/tree/02b11eeee1fbc5f3ef43a1452fe07efd25fa1715"
+    }
+  ]
+}

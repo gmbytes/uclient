@@ -4,6 +4,12 @@
     <type fullname="Client.Contracts.IClientContext" preserve="all" />
     <type fullname="Client.Contracts.IHotfixEntry" preserve="all" />
   </assembly>
+  <assembly fullname="Client.Framework">
+    <type fullname="Client.Framework.Protocol.IMessageRegistry" preserve="all" />
+  </assembly>
+  <assembly fullname="Google.Protobuf">
+    <type fullname="Google.Protobuf.MessageParser" preserve="all" />
+  </assembly>
   <assembly fullname="netstandard">
     <type fullname="System.Array" preserve="all" />
     <type fullname="System.Byte" preserve="all" />
