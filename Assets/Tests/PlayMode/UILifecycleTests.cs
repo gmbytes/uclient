@@ -42,28 +42,30 @@ namespace Client.Tests
             Required("UIService"); Required("UIViewBridge"); Required("UIBindings");
             GameEntry.Shutdown(ShutdownType.None);
             yield return null;
-            var prefab = new GameObject("UINode", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup), typeof(GraphicRaycaster));
+            var prefab = new GameObject("UIWindow", typeof(RectTransform));
+            var node = new GameObject("UINode", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup), typeof(GraphicRaycaster));
+            node.transform.SetParent(prefab.transform,false); Stretch((RectTransform)node.transform);
             var button = new GameObject("Action", typeof(RectTransform), typeof(Image), typeof(Button));
-            var brand = AdaptiveLayoutTests.Child("Brand", prefab.transform);
-            var viewport = AdaptiveLayoutTests.Child("Viewport", prefab.transform);
+            var brand = AdaptiveLayoutTests.Child("Brand", node.transform);
+            var viewport = AdaptiveLayoutTests.Child("Viewport", node.transform);
             var content = AdaptiveLayoutTests.Child("Content", viewport);
             button.transform.SetParent(content, false);
             var action = (RectTransform)button.transform;
             action.anchorMin = action.anchorMax = new Vector2(.5f, 0); action.pivot = new Vector2(.5f, 0); action.sizeDelta = new Vector2(300, 96);
             var scroll = viewport.gameObject.AddComponent<ScrollRect>(); scroll.viewport = viewport; scroll.content = content;
             scroll.inertia = false; scroll.scrollSensitivity = 100;
-            var layout = prefab.AddComponent<AdaptiveLayout>();
+            var layout = node.AddComponent<AdaptiveLayout>();
             layout.Configure(AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>("Assets/Content/UI/Login/UILogin.Layout.asset"), brand, viewport, scroll, content, action);
-            var keyboard = prefab.AddComponent<KeyboardVisibilityController>(); keyboard.Configure(scroll, action);
+            var keyboard = node.AddComponent<KeyboardVisibilityController>(); keyboard.Configure(scroll, action);
             var mask = new GameObject("Mask", typeof(RectTransform), typeof(Image), typeof(Button));
-            mask.transform.SetParent(prefab.transform, false); mask.transform.SetAsFirstSibling();
+            mask.transform.SetParent(node.transform, false); mask.transform.SetAsFirstSibling(); Stretch((RectTransform)mask.transform);
             var bindings = prefab.AddComponent(Required("UIBindings"));
             var entry = Activator.CreateInstance(Required("UIBindings").GetNestedType("Binding"));
             Field(entry, "Id", "Action"); Field(entry, "Value", button.GetComponent<Button>());
             Field(entry, "ComponentType", typeof(Button).AssemblyQualifiedName);
             var entries = Array.CreateInstance(entry.GetType(), 1); entries.SetValue(entry, 0);
             Call(bindings, "Configure", entries, null);
-            Call(prefab.AddComponent(Required("UIViewBridge")), "Configure", prefab.GetComponent<Canvas>(), prefab.GetComponent<CanvasGroup>(), bindings, layout, keyboard, mask.GetComponent<Button>());
+            Call(prefab.AddComponent(Required("UIViewBridge")), "Configure", node.GetComponent<Canvas>(), node.GetComponent<CanvasGroup>(), bindings, layout, keyboard, mask.GetComponent<Button>());
             PrefabUtility.SaveAsPrefabAsset(prefab, PrefabPath); Object.DestroyImmediate(prefab);
 
             root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Content/UI/Common/AdaptiveUIRoot.prefab"));
@@ -112,6 +114,33 @@ namespace Client.Tests
         private static object Result(Task task) { Assert.That(task.IsCompletedSuccessfully, Is.True, task.Exception?.ToString()); return task.GetType().GetProperty("Result").GetValue(task); }
         private static GameObject Window(object handle) => Property<GameObject>(handle, "Root");
         private static Button ActionButton(GameObject window) => (Button)Call(window.GetComponent(Required("UIViewBridge")), "Resolve", "Action");
+        private static RectTransform Node(GameObject window) => (RectTransform)window.transform.Find("UINode");
+        private static Canvas WindowCanvas(object handle) => Node(Window(handle)).GetComponent<Canvas>();
+        private static CanvasGroup WindowGroup(object handle) => Node(Window(handle)).GetComponent<CanvasGroup>();
+        private static void Stretch(RectTransform rect) { rect.anchorMin=Vector2.zero; rect.anchorMax=Vector2.one; rect.offsetMin=rect.offsetMax=Vector2.zero; }
+        private static void AssertFills(RectTransform child,RectTransform parent)
+        {
+            var corners=new Vector3[4]; child.GetWorldCorners(corners);
+            var min=parent.InverseTransformPoint(corners[0]); var max=parent.InverseTransformPoint(corners[2]);
+            Assert.That(min.x,Is.EqualTo(parent.rect.xMin).Within(.02f)); Assert.That(min.y,Is.EqualTo(parent.rect.yMin).Within(.02f));
+            Assert.That(max.x,Is.EqualTo(parent.rect.xMax).Within(.02f)); Assert.That(max.y,Is.EqualTo(parent.rect.yMax).Within(.02f));
+        }
+        private void AssertMountedHierarchy(object handle)
+        {
+            var window=Window(handle); var bridge=(UIViewBridge)window.GetComponent(Required("UIViewBridge")); var node=Node(window);
+            Assert.That(window.GetComponent<Canvas>(),Is.Null,"Stable GF window root must not own Canvas.");
+            Assert.That(window.GetComponent<CanvasGroup>(),Is.Null);
+            Assert.That(bridge.Bindings,Is.SameAs(window.GetComponent<UIBindings>()));
+            Assert.That(bridge.RootCanvas,Is.SameAs(node.GetComponent<Canvas>()));
+            Assert.That(bridge.RootCanvasGroup,Is.SameAs(node.GetComponent<CanvasGroup>()));
+            Assert.That(node.GetComponent<GraphicRaycaster>(),Is.Not.Null);
+            Assert.That(window.GetComponentsInChildren<CanvasScaler>(true),Is.Empty);
+            Assert.That(window.transform.parent.parent,Is.EqualTo(root.transform.Find("SafeArea/Windows")));
+            Assert.That(bridge.RootCanvas.rootCanvas,Is.SameAs(root.GetComponent<Canvas>()));
+            AssertFills((RectTransform)window.transform,(RectTransform)window.transform.parent);
+            AssertFills(node,(RectTransform)window.transform);
+            AssertFills((RectTransform)node.Find("Mask"),node);
+        }
         private static IEnumerator Await(Task task)
         {
             float deadline = Time.realtimeSinceStartup + 10;
@@ -129,6 +158,7 @@ namespace Client.Tests
             {
                 var task = Open(); yield return Await(task); var handle = Result(task);
                 var window = Window(handle);
+                AssertMountedHierarchy(handle);
                 if (i == 0) firstInstance = window.GetInstanceID();
                 else Assert.That(window.GetInstanceID(), Is.EqualTo(firstInstance), "Native GF pool should reuse the window.");
                 Call(handle, "Listen", "Action", (UnityAction)(() => clicks++));
@@ -203,17 +233,26 @@ namespace Client.Tests
             var t = Open(); yield return Await(t); var page = Result(t);
             t = Open("Popup"); yield return Await(t); var lower = Result(t);
             t = Open("Popup"); yield return Await(t); var upper = Result(t);
-            Assert.That(Window(upper).GetComponent<Canvas>().sortingOrder, Is.GreaterThan(Window(lower).GetComponent<Canvas>().sortingOrder));
-            Assert.That(Window(lower).GetComponent<Canvas>().sortingOrder, Is.GreaterThan(Window(page).GetComponent<Canvas>().sortingOrder));
-            Assert.That(Window(page).GetComponent<CanvasGroup>().blocksRaycasts, Is.False);
-            Assert.That(Window(lower).GetComponent<CanvasGroup>().interactable, Is.False);
-            Assert.That(Window(upper).GetComponent<CanvasGroup>().blocksRaycasts, Is.True);
-            Window(upper).transform.Find("Mask").GetComponent<Button>().onClick.Invoke();
+            AssertMountedHierarchy(page); AssertMountedHierarchy(lower); AssertMountedHierarchy(upper);
+            Assert.That(WindowCanvas(upper).sortingOrder, Is.GreaterThan(WindowCanvas(lower).sortingOrder));
+            Assert.That(WindowCanvas(lower).sortingOrder, Is.GreaterThan(WindowCanvas(page).sortingOrder));
+            Assert.That(WindowGroup(page).blocksRaycasts, Is.False);
+            Assert.That(WindowGroup(lower).interactable, Is.False);
+            Assert.That(WindowGroup(upper).blocksRaycasts, Is.True);
+            Assert.That(ActionButton(Window(page)).IsInteractable(),Is.False,"Child CanvasGroup must block actual descendant Selectables.");
+            Assert.That(ActionButton(Window(lower)).IsInteractable(),Is.False);
+            Assert.That(ActionButton(Window(upper)).IsInteractable(),Is.True);
+            var mask=Node(Window(upper)).Find("Mask").GetComponent<Button>();
+            var point=RectTransformUtility.WorldToScreenPoint(null,mask.transform.position);
+            Assert.That(RectTransformUtility.RectangleContainsScreenPoint((RectTransform)mask.transform,point),Is.True);
+            Assert.That(mask.GetComponent<Image>().Raycast(point,null),Is.True,"Top modal mask must pass real Graphic canvas-group filtering.");
+            Assert.That(ActionButton(Window(page)).GetComponent<Image>().Raycast(point,null),Is.False,"Covered page graphics must fail the child CanvasGroup raycast filter.");
+            mask.onClick.Invoke();
             Assert.That(Property<bool>(upper, "IsClosed"), Is.True);
-            Assert.That(Window(lower).GetComponent<CanvasGroup>().interactable, Is.True);
-            Call(lower, "Close"); Assert.That(Window(page).GetComponent<CanvasGroup>().blocksRaycasts, Is.True);
+            Assert.That(WindowGroup(lower).interactable, Is.True); Assert.That(ActionButton(Window(lower)).IsInteractable(),Is.True);
+            Call(lower, "Close"); Assert.That(WindowGroup(page).blocksRaycasts, Is.True); Assert.That(ActionButton(Window(page)).IsInteractable(),Is.True);
             t = Open("Overlay"); yield return Await(t); var overlay = Result(t);
-            Assert.That(Window(overlay).GetComponent<Canvas>().sortingOrder, Is.GreaterThan(Window(page).GetComponent<Canvas>().sortingOrder));
+            Assert.That(WindowCanvas(overlay).sortingOrder, Is.GreaterThan(WindowCanvas(page).sortingOrder));
         }
 
         [UnityTest]
@@ -238,11 +277,10 @@ namespace Client.Tests
             Assert.That(root.GetComponent<CanvasScaler>().referenceResolution, Is.EqualTo(new Vector2(1920,1080)));
             foreach (var handle in new[] { first, second })
             {
-                Assert.That(Window(handle).GetComponent<CanvasScaler>(), Is.Null);
-                Assert.That(Window(handle).transform.parent.parent, Is.EqualTo(root.transform.Find("SafeArea/Windows")));
-                var brand = Window(handle).transform.Find("Brand") as RectTransform;
+                AssertMountedHierarchy(handle);
+                var brand = Node(Window(handle)).Find("Brand") as RectTransform;
                 Assert.That(brand.anchorMax, Is.EqualTo(new Vector2(.35f, 1)), "Each open window must consume the already-published landscape snapshot.");
-                var keyboard = Window(handle).GetComponent<KeyboardVisibilityController>();
+                var keyboard = Node(Window(handle)).GetComponent<KeyboardVisibilityController>();
                 keyboard.KeyboardVisibleSource = () => true; keyboard.KeyboardAreaSource = () => Rect.zero;
             }
             yield return null;
@@ -260,7 +298,8 @@ namespace Client.Tests
             Assert.That(Window(first).GetInstanceID(), Is.EqualTo(a)); Assert.That(Window(second).GetInstanceID(), Is.EqualTo(b));
             foreach (var handle in new[] { first, second })
             {
-                var brand = Window(handle).transform.Find("Brand") as RectTransform;
+                AssertMountedHierarchy(handle);
+                var brand = Node(Window(handle)).Find("Brand") as RectTransform;
                 Assert.That(brand.anchorMin, Is.EqualTo(new Vector2(0, .75f)), "Both windows consume the next portrait snapshot.");
             }
         }
@@ -277,13 +316,45 @@ namespace Client.Tests
             Canvas.ForceUpdateCanvases(); counter.VerticalBuilds=0;
             screen.Service.Evaluate(new ScreenMetrics(1280,720,new Rect(10,20,1240,680))); screen.Service.FlushPending(Time.frameCount);
             var safe=(RectTransform)root.transform.Find("SafeArea");
-            var viewport=(RectTransform)Window(handle).transform.Find("Viewport");
+            var viewport=(RectTransform)Node(Window(handle)).Find("Viewport");
             Assert.That(root.GetComponent<CanvasScaler>().referenceResolution,Is.EqualTo(new Vector2(1920,1080)));
             Assert.That(safe.anchorMin.x,Is.EqualTo(10f/1280).Within(.0001f));
             Assert.That(safe.anchorMin.y,Is.EqualTo(20f/720).Within(.0001f));
             Assert.That(viewport.rect.height,Is.EqualTo(safe.rect.height-96).Within(1),"Window geometry must use this snapshot's root scaler and safe area, even when the service subscribed first.");
             Canvas.ForceUpdateCanvases();
             Assert.That(counter.VerticalBuilds,Is.EqualTo(1),"The shared root's subscription must not apply the window layout twice.");
+            AssertMountedHierarchy(handle);
+        }
+
+        [UnityTest]
+        public IEnumerator CompliantPrefabPassesAuthoringGateAndNativeChildCanvasOpen()
+        {
+            var validator=Type.GetType("Client.Editor.UI.UIBindingValidator, Client.Editor");
+            Assert.That(validator,Is.Not.Null);
+            var asset=AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            var errors=(System.Collections.Generic.IEnumerable<string>)validator.GetMethod("Validate").Invoke(null,new object[]{asset,null});
+            Assert.That(errors,Is.Empty,"The actual native GF fixture must pass the U4 authoring/build hierarchy gate.");
+            var opening=Open(); yield return Await(opening); var handle=Result(opening);
+            AssertMountedHierarchy(handle);
+            Assert.That(Window(handle).GetComponent<UIForm>(),Is.Not.Null,"Native GF must attach UIForm to the stable root, independent of its child Canvas.");
+        }
+
+        [UnityTest]
+        public IEnumerator ChildUINodeFillsStableRootAcrossSafeAreaResizeAndRotation()
+        {
+            var opening=Open(); yield return Await(opening); var handle=Result(opening);
+            int rootId=Window(handle).GetInstanceID(), nodeId=Node(Window(handle)).GetInstanceID();
+            var metrics=new[]{
+                new ScreenMetrics(720,1280,new Rect(20,40,680,1200)),
+                new ScreenMetrics(1280,720,new Rect(60,20,1160,680)),
+                new ScreenMetrics(720,480,new Rect(0,20,720,440))};
+            foreach(var value in metrics)
+            {
+                screen.Service.Evaluate(value); screen.Service.FlushPending(Time.frameCount);
+                Canvas.ForceUpdateCanvases(); yield return null;
+                AssertMountedHierarchy(handle);
+                Assert.That(Window(handle).GetInstanceID(),Is.EqualTo(rootId)); Assert.That(Node(Window(handle)).GetInstanceID(),Is.EqualTo(nodeId));
+            }
         }
     }
 

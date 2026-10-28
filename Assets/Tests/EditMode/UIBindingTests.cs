@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using Client.Framework.UI;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Build;
@@ -13,7 +14,8 @@ namespace Client.Tests.EditMode
     public sealed class UIBindingTests
     {
         private GameObject root;
-        [TearDown] public void Cleanup() { if(root!=null) Object.DestroyImmediate(root); }
+        private GameObject external;
+        [TearDown] public void Cleanup() { if(root!=null) Object.DestroyImmediate(root); if(external!=null) Object.DestroyImmediate(external); }
         private static Type Required(string name, string assembly = "Client.Framework")
         {
             var type = Type.GetType(name + ", " + assembly); Assert.That(type, Is.Not.Null, "U3 requires " + name); return type;
@@ -72,6 +74,68 @@ namespace Client.Tests.EditMode
         {
             Bindings(); root.AddComponent(Required("Client.Framework.UI.UIViewBridge"));
             Assert.That(Errors(root),Does.Contain("RootCanvas").And.Contain("RootCanvasGroup").And.Contain("Bindings"));
+        }
+
+        private UIViewBridge MainWindow()
+        {
+            var bindings=(UIBindings)Bindings(); root.name="UIWindow";
+            var node=new GameObject("UINode",typeof(RectTransform),typeof(Canvas),typeof(CanvasGroup),typeof(GraphicRaycaster));
+            node.transform.SetParent(root.transform,false);
+            var rect=(RectTransform)node.transform; rect.anchorMin=Vector2.zero; rect.anchorMax=Vector2.one; rect.offsetMin=rect.offsetMax=Vector2.zero;
+            var action=new GameObject("Action",typeof(RectTransform),typeof(Button)); action.transform.SetParent(node.transform,false);
+            bindings.Configure(new[]{new UIBindings.Binding{Id="Action",Value=action.GetComponent<Button>(),ComponentType=typeof(Button).AssemblyQualifiedName}},null);
+            var bridge=root.AddComponent<UIViewBridge>();
+            bridge.Configure(node.GetComponent<Canvas>(),node.GetComponent<CanvasGroup>(),bindings);
+            return bridge;
+        }
+
+        // The authoring/build boundary must admit the stable root + child Canvas template.
+        [Test]
+        public void CompliantHierarchyPassesValidationAndBuildGate()
+        {
+            const string path="Assets/Content/UI/Common/U3ValidHierarchyFixture.prefab";
+            var bridge=MainWindow();
+            Assert.That(root.GetComponent<Canvas>(),Is.Null);
+            Assert.That(bridge.RootCanvas.transform.parent,Is.EqualTo(root.transform));
+            Assert.That(Errors(root),Is.Empty);
+            try
+            {
+                PrefabUtility.SaveAsPrefabAsset(root,path);
+                var validator=Activator.CreateInstance(Required("Client.Editor.UI.UIBindingValidator","Client.Editor"));
+                Assert.DoesNotThrow(()=>validator.GetType().GetMethod("OnPreprocessBuild").Invoke(validator,new object[]{null}));
+            }
+            finally { AssetDatabase.DeleteAsset(path); }
+        }
+
+        [TestCase("all-on-root","Canvas")]
+        [TestCase("external-canvas","RootCanvas")]
+        [TestCase("external-group","RootCanvasGroup")]
+        [TestCase("split-group","RootCanvasGroup")]
+        [TestCase("misplaced-raycaster","GraphicRaycaster")]
+        [TestCase("child-bindings","Bindings")]
+        [TestCase("wrong-node-name","UINode")]
+        public void ValidatorRejectsIncorrectMainWindowHierarchy(string broken,string expected)
+        {
+            var bridge=MainWindow();
+            var canvas=bridge.RootCanvas; var group=bridge.RootCanvasGroup; var bindings=bridge.Bindings;
+            switch(broken)
+            {
+                case "all-on-root":
+                    canvas=root.AddComponent<Canvas>(); group=root.AddComponent<CanvasGroup>(); root.AddComponent<GraphicRaycaster>(); break;
+                case "external-canvas":
+                    external=new GameObject("UINode",typeof(RectTransform),typeof(Canvas)); canvas=external.GetComponent<Canvas>(); break;
+                case "external-group":
+                    external=new GameObject("ExternalGroup",typeof(CanvasGroup)); group=external.GetComponent<CanvasGroup>(); break;
+                case "split-group":
+                    var other=new GameObject("OtherGroup",typeof(RectTransform),typeof(CanvasGroup)); other.transform.SetParent(root.transform,false); group=other.GetComponent<CanvasGroup>(); break;
+                case "misplaced-raycaster":
+                    Object.DestroyImmediate(canvas.GetComponent<GraphicRaycaster>());
+                    var raycaster=new GameObject("OtherRaycaster",typeof(RectTransform),typeof(Canvas),typeof(GraphicRaycaster)); raycaster.transform.SetParent(root.transform,false); break;
+                case "child-bindings": bindings=canvas.gameObject.AddComponent<UIBindings>(); break;
+                case "wrong-node-name": canvas.name="OtherCanvas"; break;
+            }
+            bridge.Configure(canvas,group,bindings);
+            Assert.That(Errors(root),Does.Contain(expected));
         }
 
         [Test]
