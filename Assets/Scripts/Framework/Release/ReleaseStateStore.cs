@@ -19,6 +19,8 @@ namespace Client.Framework.Release
     }
     public sealed class ReleaseStateStore
     {
+        // Applies to the complete schema-1 UTF-8 document on both read and write; never truncate IDs.
+        public const int MaximumDocumentBytes = 256 * 1024;
         private readonly ManifestVerifier verifier;
         private readonly PlayerIdentity player;
         private readonly IFileFaultInjector faults;
@@ -44,8 +46,10 @@ namespace Client.Framework.Release
                         string path = ReleaseFileSystem.Child(Root, name);
                         if (Directory.Exists(path)) throw new InvalidDataException("State source is a directory.");
                         if (!File.Exists(path)) continue;
-                        if (new FileInfo(path).Length > 256 * 1024) throw new InvalidDataException("State document is too large.");
-                        ReleaseState state = Parse(File.ReadAllText(path, new UTF8Encoding(false, true)));
+                        if (new FileInfo(path).Length > MaximumDocumentBytes) throw new InvalidDataException("State document is too large.");
+                        byte[] bytes = File.ReadAllBytes(path);
+                        if (bytes.Length > MaximumDocumentBytes) throw new InvalidDataException("State document is too large.");
+                        ReleaseState state = Parse(new UTF8Encoding(false, true).GetString(bytes));
                         Validate(state);
                         RecoveryDiagnostics = Array.AsReadOnly(errors.ToArray());
                         return state;
@@ -63,17 +67,19 @@ namespace Client.Framework.Release
             lock (sync)
             {
                 Validate(state);
-                Directory.CreateDirectory(Root);
-                string primary = ReleaseFileSystem.Child(Root, "state.json");
-                string backup = ReleaseFileSystem.Child(Root, "state.json.bak");
-                string temp = ReleaseFileSystem.Child(Root, "state." + Guid.NewGuid().ToString("N") + ".partial");
                 var json = new JObject
                 {
                     ["schemaVersion"] = 1, ["knownGood"] = state.KnownGood, ["previousGood"] = state.PreviousGood,
                     ["candidate"] = state.Candidate, ["attempt"] = state.Attempt, ["badReleaseIds"] = new JArray(state.BadReleaseIds)
                 };
+                byte[] bytes = Encoding.UTF8.GetBytes(json.ToString(Formatting.None));
+                if (bytes.Length > MaximumDocumentBytes) throw new InvalidDataException("State document is too large.");
+                Directory.CreateDirectory(Root);
+                string primary = ReleaseFileSystem.Child(Root, "state.json");
+                string backup = ReleaseFileSystem.Child(Root, "state.json.bak");
+                string temp = ReleaseFileSystem.Child(Root, "state." + Guid.NewGuid().ToString("N") + ".partial");
                 faults.Hit("state.write.before");
-                ReleaseFileSystem.WriteDurable(temp, Encoding.UTF8.GetBytes(json.ToString(Formatting.None)));
+                ReleaseFileSystem.WriteDurable(temp, bytes);
                 faults.Hit("state.write.after");
                 faults.Hit("state.replace.before");
                 if (File.Exists(primary)) File.Replace(temp, primary, backup);
