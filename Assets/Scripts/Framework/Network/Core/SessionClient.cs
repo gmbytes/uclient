@@ -25,6 +25,11 @@ namespace Client.Framework.Network
         public SessionState State => state;
         public SessionIdentity Identity => identity;
         public event Action<SessionState> StateChanged;
+#if UNITY_EDITOR
+        // Per-instance scheduling seam for the split mailbox publication regression only.
+        // Excluded from normal Player/managed builds; never set by production callers.
+        internal Action MailboxOccupiedForTest;
+#endif
 
         public SessionClient(IFrameConnection connection, SessionOptions options, RequestIdSequence ids = null,
             ITransportClock clock = null, SynchronizationContext context = null)
@@ -103,15 +108,31 @@ namespace Client.Framework.Network
         {
             // Only one parsed frame can await the owner context. A burst cannot create an
             // unbounded second receive queue outside the transport's budget.
-            if (Interlocked.CompareExchange(ref attempt.FramePending, 1, 0) != 0)
-            { Interlocked.Exchange(ref attempt.FrameOverflow, 1); return; }
+            lock (attempt.MailboxGate)
+            {
+                if (attempt.FramePending)
+                {
+#if UNITY_EDITOR
+                    MailboxOccupiedForTest?.Invoke();
+#endif
+                    attempt.FrameOverflow = true;
+                    return;
+                }
+                attempt.FramePending = true;
+            }
             Frame frame = null;
             try { frame = FrameCodec.Decode(bytes); } catch (TransportException) { }
             Dispatch(() =>
             {
-                Interlocked.Exchange(ref attempt.FramePending, 0);
+                bool overflow;
+                lock (attempt.MailboxGate)
+                {
+                    overflow = attempt.FrameOverflow;
+                    attempt.FrameOverflow = false;
+                    attempt.FramePending = false;
+                }
                 if (!IsCurrent(attempt)) return;
-                if (Interlocked.Exchange(ref attempt.FrameOverflow, 0) != 0 || frame == null || frame.Version != 3 || state != SessionState.Authenticating)
+                if (overflow || frame == null || frame.Version != 3 || state != SessionState.Authenticating)
                 { End(attempt, LoginError.ProtocolError); return; }
                 if (Expired(attempt)) { End(attempt, LoginError.Timeout); return; }
                 if (frame.ContentCase == Frame.ContentOneofCase.Error)
@@ -229,7 +250,8 @@ namespace Client.Framework.Network
             public TimeSpan Deadline;
             public Action<byte[]> FrameHandler;
             public Action<TransportException> ErrorHandler;
-            public int FramePending, FrameOverflow;
+            public readonly object MailboxGate = new object();
+            public bool FramePending, FrameOverflow;
             public Attempt(long epoch, ulong requestId, TaskCompletionSource<LoginResult> result) { Epoch = epoch; RequestId = requestId; Result = result; }
         }
     }

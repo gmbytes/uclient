@@ -113,6 +113,66 @@ namespace Client.Tests
             }
             context.Drain();
         }
+        [Test] public void ConcurrentMailboxTransitionsCannotLoseUnsupportedFrame()
+        {
+            var context = new Context(); var wire = new Connection();
+            using (var session = new SessionClient(wire, new SessionOptions("localhost", 1), context: context))
+            {
+                session.LoginAsync(Input, CancellationToken.None); context.Drain(); wire.Deliver(Success(1));
+                var attempt = typeof(SessionClient).GetField("current", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(session);
+                var mailboxGate = attempt.GetType().GetField("MailboxGate").GetValue(attempt);
+                var observer = typeof(SessionClient).GetField("MailboxOccupiedForTest", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                Exception producerError = null, consumerError = null;
+                bool occupiedTransitionIsAtomic = false;
+                using (var occupied = new ManualResetEventSlim())
+                using (var releaseProducer = new ManualResetEventSlim())
+                using (var consumerStarted = new ManualResetEventSlim())
+                using (var consumerFinished = new ManualResetEventSlim())
+                {
+                    observer.SetValue(session, (Action)(() =>
+                    {
+                        // Select a legal schedule only: the fixed atomic transition must
+                        // finish publishing before its blocked consumer can run.
+                        occupiedTransitionIsAtomic = Monitor.IsEntered(mailboxGate);
+                        occupied.Set();
+                        if (!releaseProducer.Wait(4000)) throw new TimeoutException("Mailbox producer barrier exceeded guard.");
+                    }));
+                    var producer = new Thread(() =>
+                    {
+                        try { wire.Deliver(new Frame { Version = 3, Notify = new Notify { MessageId = 1 } }); }
+                        catch (Exception error) { producerError = error; }
+                    }) { IsBackground = true };
+                    var consumer = new Thread(() =>
+                    {
+                        consumerStarted.Set();
+                        try { context.Drain(); } catch (Exception error) { consumerError = error; }
+                        finally { consumerFinished.Set(); }
+                    }) { IsBackground = true };
+                    try
+                    {
+                        producer.Start();
+                        Assert.That(occupied.Wait(4000), Is.True, "Producer did not observe the occupied mailbox.");
+                        consumer.Start(); Assert.That(consumerStarted.Wait(4000), Is.True, "Owner consumer did not start.");
+                        if (!occupiedTransitionIsAtomic)
+                            Assert.That(consumerFinished.Wait(4000), Is.True, "Unprotected owner did not consume before late publication.");
+                        releaseProducer.Set();
+                    }
+                    finally
+                    {
+                        releaseProducer.Set();
+                        bool producerStopped = (producer.ThreadState & ThreadState.Unstarted) != 0 || producer.Join(4000);
+                        bool consumerStopped = (consumer.ThreadState & ThreadState.Unstarted) != 0 || consumer.Join(4000);
+                        observer.SetValue(session, null);
+                        Assert.That(producerStopped && consumerStopped, Is.True, "Mailbox participants did not finish after release.");
+                    }
+                }
+                context.Drain();
+                Assert.That(producerError, Is.Null); Assert.That(consumerError, Is.Null);
+                Assert.That(session.State, Is.EqualTo(SessionState.Disconnected)); Assert.That(session.Identity, Is.Null);
+                Assert.That(wire.Closed, Is.True); Assert.That(wire.SubscriberCount, Is.Zero); Assert.That(wire.SendCount, Is.EqualTo(1));
+            }
+            context.Drain();
+        }
         [Test] public void NullInputAndAlreadyCancelledLoginDoNotConnect()
         {
             var wire = new Connection(); using (var session = New(wire))
