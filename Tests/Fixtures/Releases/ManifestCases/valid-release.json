@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "keyId": "test-f4",
+  "releaseId": "release-1",
+  "player": {
+    "playerBuildId": "player-1",
+    "platform": "Windows",
+    "architecture": "x64",
+    "unityVersion": "2022.3.25f1",
+    "contractVersion": "1",
+    "envelopeSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "aotMetadataSetId": "aot-1"
+  },
+  "protocolSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "resourceVersionListPath": "Resources/GameFrameworkVersion.dat",
+  "files": [
+    { "path": "Resources/GameFrameworkVersion.dat", "length": 3, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "kind": "NativeResource" },
+    { "path": "Hotfix/Client.Game.Protocol.dll", "length": 3, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "kind": "HotfixDll" },
+    { "path": "Hotfix/Client.Game.dll", "length": 3, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "kind": "HotfixDll" },
+    { "path": "Metadata/mscorlib.dll", "length": 3, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "kind": "AotMetadata" }
+  ],
+  "assemblies": [
+    { "name": "Client.Game.Protocol", "path": "Hotfix/Client.Game.Protocol.dll", "dependencies": ["Client.Contracts"] },
+    { "name": "Client.Game", "path": "Hotfix/Client.Game.dll", "dependencies": ["Client.Game.Protocol", "Client.Contracts"] }
+  ],
+  "assemblyOrder": ["Client.Game.Protocol", "Client.Game"]
+}
