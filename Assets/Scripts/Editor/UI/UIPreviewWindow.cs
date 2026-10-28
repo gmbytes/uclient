@@ -33,9 +33,9 @@ namespace Client.Editor.UI
             {
                 var global=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(AdaptiveUIAssetBuilder.RootPath),scene);
                 Canvas=global.GetComponent<AdaptiveCanvas>();source=global.GetComponent<ScreenLayoutComponent>();safeArea=global.GetComponentInChildren<SafeAreaRoot>(true);
-                Instance=(GameObject)PrefabUtility.InstantiatePrefab(prefab,scene);Instance.transform.SetParent(global.transform.Find("SafeArea/Windows"),false);
+                Instance=(GameObject)PrefabUtility.InstantiatePrefab(prefab,scene);Instance.transform.SetParent(global.transform.Find("Windows"),false);
                 bridge=Instance.GetComponent<UIViewBridge>();
-                Canvas.Configure(safeArea,bridge.Layout,bridge.Keyboard);source.MetricsSource=()=>metrics;
+                Canvas.Configure(safeArea,null,null);source.MetricsSource=()=>metrics;
                 if(bridge.Keyboard!=null)
                 {
                     bridge.Keyboard.KeyboardVisibleSource=()=>keyboardVisible;bridge.Keyboard.KeyboardAreaSource=()=>keyboardArea;bridge.Keyboard.FocusSource=()=>focus;
@@ -43,7 +43,7 @@ namespace Client.Editor.UI
                 var cameraObject=new GameObject("UI Preview Camera",typeof(Camera));SceneManager.MoveGameObjectToScene(cameraObject,scene);
                 camera=cameraObject.GetComponent<Camera>();camera.orthographic=true;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.02f,.025f,.04f);camera.transform.position=new Vector3(0,0,-10);
                 var rootCanvas=global.GetComponent<UnityEngine.Canvas>();rootCanvas.renderMode=RenderMode.ScreenSpaceCamera;rootCanvas.worldCamera=camera;rootCanvas.planeDistance=1;
-                if(source.Service.Current!=null)Canvas.Apply(source.Service.Current);
+                if(source.Service.Current!=null){Canvas.Apply(source.Service.Current);bridge.Apply(source.Service.Current);}
             }
             catch{EditorSceneManager.CloseScene(scene,true);throw;}
         }
@@ -52,16 +52,20 @@ namespace Client.Editor.UI
             if(value.Width<=0 || value.Height<=0)throw new ArgumentOutOfRangeException(nameof(value));
             metrics=value;keyboardVisible=visible;keyboardArea=area;focus=focused;
             bool graphics=SystemInfo.graphicsDeviceType!=UnityEngine.Rendering.GraphicsDeviceType.Null;
+            bool resized=false;
             if(graphics && (Texture==null || Texture.width!=value.Width || Texture.height!=value.Height))
             {
                 if(Texture!=null){camera.targetTexture=null;Texture.Release();Object.DestroyImmediate(Texture);}
-                Texture=new RenderTexture(value.Width,value.Height,24){name="UIEdit Preview",hideFlags=HideFlags.HideAndDontSave};Texture.Create();camera.targetTexture=Texture;
+                Texture=new RenderTexture(value.Width,value.Height,24){name="UIEdit Preview",hideFlags=HideFlags.HideAndDontSave};Texture.Create();camera.targetTexture=Texture;resized=true;
             }
+            // A changed render target updates Canvas pixel dimensions at its render boundary.
+            // Settle that Unity-owned geometry before the single per-window layout application.
+            if(resized){UnityEngine.Canvas.ForceUpdateCanvases();camera.Render();}
             source.Service.Evaluate(source.MetricsSource());source.Service.FlushPending(++frame);
             // EditMode has no player Update; execute the existing scaler component's update policy.
             typeof(CanvasScaler).GetMethod("Handle",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(Canvas.GetComponent<CanvasScaler>(),null);
             UnityEngine.Canvas.ForceUpdateCanvases();
-            if(source.Service.Current!=null)Canvas.Apply(source.Service.Current);
+            if(source.Service.Current!=null){Canvas.Apply(source.Service.Current);bridge.Apply(source.Service.Current);}
             if(bridge.Keyboard!=null)bridge.Keyboard.Apply(source.Service.Current,bridge.Keyboard.KeyboardAreaSource(),bridge.Keyboard.FocusSource());
             UnityEngine.Canvas.ForceUpdateCanvases();if(graphics)camera.Render();
         }

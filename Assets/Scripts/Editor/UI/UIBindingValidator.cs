@@ -37,6 +37,9 @@ namespace Client.Editor.UI
                 if (bridge.RootCanvasGroup == null) errors.Add("RootCanvasGroup is required.");
                 else if (bridge.RootCanvas == null || bridge.RootCanvasGroup.gameObject != bridge.RootCanvas.gameObject)
                     errors.Add("RootCanvasGroup must share the referenced child UINode Canvas.");
+                if (bridge.LocalSafeArea == null) errors.Add("LocalSafeArea is required.");
+                else if (bridge.RootCanvas == null || bridge.LocalSafeArea.transform.parent != bridge.RootCanvas.transform || bridge.LocalSafeArea.name != "SafeArea")
+                    errors.Add("LocalSafeArea must reference the direct child SafeArea of UINode.");
                 if (bridge.Bindings == null) errors.Add("Bindings is required.");
                 else if (bridge.Bindings.gameObject != root) errors.Add("Bindings must reference UIBindings on the stable prefab root.");
                 if (bridge.GetComponentsInChildren<CanvasScaler>(true).Length != 0) errors.Add("Window must use the shared root CanvasScaler.");

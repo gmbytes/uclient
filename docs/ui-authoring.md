@@ -53,7 +53,8 @@ UILogin                                    RectTransform + UIViewBridge + UIBind
 └─ PoolNode                                非显示的临时池/模板节点
 ```
 
-- 根名称与Prefab名称一致，默认localScale=1、localRotation=0，根不挂Canvas。UIViewBridge引用窗口RootCanvas/CanvasGroup/UIBindings；绑定表只引用该窗口内部组件。
+- 根名称与Prefab名称一致，默认localScale=1、localRotation=0，根不挂Canvas。UIViewBridge引用窗口RootCanvas/CanvasGroup/UIBindings及LocalSafeArea；绑定表只引用该窗口内部组件。
+- 全局挂载路径为AdaptiveUIRoot/Windows/<GF Group>/UI{Name}；Windows为全局SafeArea的全屏同级节点。窗口根、UINode、Background与模态Mask铺满完整画面；交互只在窗口自己的UINode/SafeArea下。UIViewBridge.Apply统一按LocalSafeArea→AdaptiveLayout→Keyboard基线顺序消费同一U1快照，运行时与UIEdit共用该流程；全局SafeArea仅服务全局内容，不能再包裹Windows。
 - 主窗口Canvas放在UINode；根保持稳定宿主。主窗口配置有唯一ViewID，子控件不登记成独立窗口。
 - 首期由GameRoot的UI根统一使用Screen Space Overlay和CanvasScaler；窗口内Canvas继承根画布环境，不再挂独立CanvasScaler。后续3D UI另设模板。
 - Bootstrap的UIUpdate是主包内置启动界面：在GameRoot启用前使用独立AOT Canvas/Scaler和UIUpdate.cs，复用统一缩放策略，不走资源加载或Game绑定；GameRoot就绪后关闭启动Canvas。此界面单独校验AOT引用闭包，不套用UIViewDefinition窗口的Bridge要求。

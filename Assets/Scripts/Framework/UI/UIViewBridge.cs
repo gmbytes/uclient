@@ -15,29 +15,33 @@ namespace Client.Framework.UI
         [SerializeField] private AdaptiveLayout m_Layout;
         [SerializeField] private KeyboardVisibilityController m_Keyboard;
         [SerializeField] private Button m_Mask;
+        [SerializeField] private SafeAreaRoot m_LocalSafeArea;
         public Canvas RootCanvas => m_RootCanvas;
         public CanvasGroup RootCanvasGroup => m_RootCanvasGroup;
         public UIBindings Bindings => m_Bindings;
         public AdaptiveLayout Layout => m_Layout;
         public KeyboardVisibilityController Keyboard => m_Keyboard;
         public Button Mask => m_Mask;
+        public SafeAreaRoot LocalSafeArea => m_LocalSafeArea;
         public event Action<bool> VisibilityChanged;
         public event Action Closed;
         internal event Action OrderChanged;
 
         public void Configure(Canvas rootCanvas, CanvasGroup rootCanvasGroup, UIBindings bindings,
-            AdaptiveLayout layout = null, KeyboardVisibilityController keyboard = null, Button mask = null)
+            AdaptiveLayout layout = null, KeyboardVisibilityController keyboard = null, Button mask = null, SafeAreaRoot localSafeArea = null)
         {
             m_RootCanvas = rootCanvas; m_RootCanvasGroup = rootCanvasGroup; m_Bindings = bindings;
-            m_Layout = layout; m_Keyboard = keyboard; m_Mask = mask;
+            m_Layout = layout; m_Keyboard = keyboard; m_Mask = mask; m_LocalSafeArea = localSafeArea;
         }
 
         public Component Resolve(string bindingId) => m_Bindings != null
             ? m_Bindings.Resolve(bindingId) : throw new InvalidOperationException("Window has no UIBindings.");
 
-        internal void Apply(ScreenLayoutSnapshot snapshot)
+        /// <summary>Shared runtime/preview ordering: local safe content, layout, then keyboard baseline.</summary>
+        public void Apply(ScreenLayoutSnapshot snapshot)
         {
             if (snapshot == null) return;
+            if (m_LocalSafeArea != null) m_LocalSafeArea.Apply(snapshot.ClampedSafeArea, new Vector2(snapshot.Width, snapshot.Height));
             if (m_Layout != null) m_Layout.Apply(snapshot);
             if (m_Keyboard != null) m_Keyboard.SetLayoutSnapshot(snapshot);
         }

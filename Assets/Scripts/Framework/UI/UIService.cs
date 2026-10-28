@@ -29,7 +29,10 @@ namespace Client.Framework.UI
             this.events = events != null ? events : throw new ArgumentNullException(nameof(events));
             this.canvas = canvas != null ? canvas : throw new ArgumentNullException(nameof(canvas));
             if (catalog == null) throw new ArgumentNullException(nameof(catalog));
-            if (windows == null || !windows.IsChildOf(canvas.transform)) throw new ArgumentException("Windows must belong to the shared UI root.", nameof(windows));
+            if (windows == null || windows.parent != canvas.transform || windows.name != "Windows" || !(windows is RectTransform)) throw new ArgumentException("Windows must be the full-frame direct child of the shared UI root.", nameof(windows));
+            var mount=(RectTransform)windows;
+            if(mount.anchorMin!=Vector2.zero || mount.anchorMax!=Vector2.one || mount.offsetMin!=Vector2.zero || mount.offsetMax!=Vector2.zero)
+                throw new ArgumentException("Windows must be the full-frame direct child with stretch anchors and zero offsets.",nameof(windows));
             context = SynchronizationContext.Current; threadId = Thread.CurrentThread.ManagedThreadId;
             foreach (var definition in catalog.Definitions)
             {
@@ -47,7 +50,7 @@ namespace Client.Framework.UI
                 var helper = (MonoBehaviour)nativeGroup.Helper;
                 helper.transform.SetParent(windows, false);
                 // Native default groups are Transform-only. A RectTransform mounting layer keeps
-                // their full safe-area bounds without introducing a per-window scaler/policy.
+                // their full-frame bounds without introducing a per-window scaler/policy.
                 var rect = helper.GetComponent<RectTransform>();
                 if (rect == null) rect = helper.gameObject.AddComponent<RectTransform>();
                 rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
@@ -100,8 +103,8 @@ namespace Client.Framework.UI
             try
             {
                 var bridge = form.Logic as UIViewBridge;
-                if (bridge == null || bridge.RootCanvas == null || bridge.RootCanvasGroup == null || bridge.Bindings == null)
-                    throw new InvalidOperationException("Window requires UIViewBridge RootCanvas, RootCanvasGroup and Bindings.");
+                if (bridge == null || bridge.RootCanvas == null || bridge.RootCanvasGroup == null || bridge.Bindings == null || bridge.LocalSafeArea == null)
+                    throw new InvalidOperationException("Window requires UIViewBridge RootCanvas, RootCanvasGroup, Bindings and LocalSafeArea.");
                 if (bridge.GetComponentInChildren<UnityEngine.UI.CanvasScaler>(true) != null)
                     throw new InvalidOperationException("Window must use the shared root CanvasScaler.");
                 if (request.Definition.Modal && bridge.Mask == null) throw new InvalidOperationException("Modal window requires an explicit mask Button.");

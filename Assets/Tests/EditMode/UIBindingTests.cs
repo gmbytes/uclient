@@ -82,10 +82,11 @@ namespace Client.Tests.EditMode
             var node=new GameObject("UINode",typeof(RectTransform),typeof(Canvas),typeof(CanvasGroup),typeof(GraphicRaycaster));
             node.transform.SetParent(root.transform,false);
             var rect=(RectTransform)node.transform; rect.anchorMin=Vector2.zero; rect.anchorMax=Vector2.one; rect.offsetMin=rect.offsetMax=Vector2.zero;
-            var action=new GameObject("Action",typeof(RectTransform),typeof(Button)); action.transform.SetParent(node.transform,false);
+            var safe=new GameObject("SafeArea",typeof(RectTransform),typeof(SafeAreaRoot));safe.transform.SetParent(node.transform,false);
+            var action=new GameObject("Action",typeof(RectTransform),typeof(Button)); action.transform.SetParent(safe.transform,false);
             bindings.Configure(new[]{new UIBindings.Binding{Id="Action",Value=action.GetComponent<Button>(),ComponentType=typeof(Button).AssemblyQualifiedName}},null);
             var bridge=root.AddComponent<UIViewBridge>();
-            bridge.Configure(node.GetComponent<Canvas>(),node.GetComponent<CanvasGroup>(),bindings);
+            bridge.Configure(node.GetComponent<Canvas>(),node.GetComponent<CanvasGroup>(),bindings,localSafeArea:safe.GetComponent<SafeAreaRoot>());
             return bridge;
         }
 
@@ -114,10 +115,13 @@ namespace Client.Tests.EditMode
         [TestCase("misplaced-raycaster","GraphicRaycaster")]
         [TestCase("child-bindings","Bindings")]
         [TestCase("wrong-node-name","UINode")]
+        [TestCase("missing-local-safe","LocalSafeArea")]
+        [TestCase("external-local-safe","LocalSafeArea")]
+        [TestCase("wrong-safe-parent","LocalSafeArea")]
         public void ValidatorRejectsIncorrectMainWindowHierarchy(string broken,string expected)
         {
             var bridge=MainWindow();
-            var canvas=bridge.RootCanvas; var group=bridge.RootCanvasGroup; var bindings=bridge.Bindings;
+            var canvas=bridge.RootCanvas; var group=bridge.RootCanvasGroup; var bindings=bridge.Bindings;var localSafe=bridge.LocalSafeArea;
             switch(broken)
             {
                 case "all-on-root":
@@ -133,8 +137,11 @@ namespace Client.Tests.EditMode
                     var raycaster=new GameObject("OtherRaycaster",typeof(RectTransform),typeof(Canvas),typeof(GraphicRaycaster)); raycaster.transform.SetParent(root.transform,false); break;
                 case "child-bindings": bindings=canvas.gameObject.AddComponent<UIBindings>(); break;
                 case "wrong-node-name": canvas.name="OtherCanvas"; break;
+                case "missing-local-safe": localSafe=null;break;
+                case "external-local-safe": external=new GameObject("SafeArea",typeof(RectTransform),typeof(SafeAreaRoot));localSafe=external.GetComponent<SafeAreaRoot>();break;
+                case "wrong-safe-parent": localSafe.transform.SetParent(root.transform,false);break;
             }
-            bridge.Configure(canvas,group,bindings);
+            bridge.Configure(canvas,group,bindings,localSafeArea:localSafe);
             Assert.That(Errors(root),Does.Contain(expected));
         }
 
