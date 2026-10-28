@@ -37,11 +37,14 @@
 
 **Interfaces:** `Check-TokProtocol.ps1 -TokRoot E:/sgame/tok -ProtoRoot E:/sgame/comm/proto -Check` 只读校验；成功输出`TASK_PASS N0`和protocol-contract-result.json，源缺失/不兼容/错误锁非零退出。共享来源锁记录canonical相对路径、实际Tok提交、FrameVersion=3、信封原始SHA、网关error.rs原始SHA和采用的错误码。
 
-- [ ] **Step 1:** 准备负例fixture：不存在的ProtoRoot、改LoginRequest字段编号、改Frame oneof编号、错来源hash；运行检查入口观察缺失/不兼容时失败，不能零文件通过。
-- [ ] **Step 2:** 从当前Tok canonical逐字节在comm/proto建立完整client.proto兼容副本，保留所有消息和字段；创建来源锁及request/notify均为空的准入表。game/只写边界说明，不添加业务消息；demo/v1业务协议本Task不纳入运行产物。
-- [ ] **Step 3:** 实现检查脚本：验证来源锁、完整文件SHA、Frame版本来源以及必要路径，区分工具链锁与共享协议来源锁；Tok源只读，共享信封漂移直接拒绝。记录错误码0/3/7等实际来源，不猜数字。
-- [ ] **Step 4:** 运行`./Tool/Client/Check-TokProtocol.ps1 -TokRoot E:/sgame/tok -ProtoRoot E:/sgame/comm/proto -Check`，预期`TASK_PASS N0`；各负例、共享源缺失或空目录必须非零。证据输出到Builds/Tests/N0/<runId>。
-- [ ] **Step 5:** 分别提交comm协议定义和client检查工具，提交说明`feat(protocol): 定义共享Tok兼容信封与来源锁`。只证明协议源契约；尚未生成C#或联机。
+- [x] **Step 1:** 准备负例fixture：不存在的ProtoRoot、改LoginRequest字段编号、改Frame oneof编号、错来源hash；运行检查入口观察缺失/不兼容时失败，不能零文件通过。
+- [x] **Step 2:** 从当前Tok canonical逐字节在comm/proto建立完整client.proto兼容副本，保留所有消息和字段；创建来源锁及request/notify均为空的准入表。game/只写边界说明，不添加业务消息；demo/v1业务协议本Task不纳入运行产物。
+- [x] **Step 3:** 实现检查脚本：验证来源锁、完整文件SHA、Frame版本来源以及必要路径，区分工具链锁与共享协议来源锁；Tok源只读，共享信封漂移直接拒绝。记录错误码0/3/7等实际来源，不猜数字。
+- [x] **Step 4:** 运行`./Tool/Client/Check-TokProtocol.ps1 -TokRoot E:/sgame/tok -ProtoRoot E:/sgame/comm/proto -Check`，预期`TASK_PASS N0`；各负例、共享源缺失或空目录必须非零。证据输出到Builds/Tests/N0/<runId>。
+- [x] **Step 5:** 分别提交comm协议定义和client检查工具，提交说明`feat(protocol): 定义共享Tok兼容信封与来源锁`。只证明协议源契约；尚未生成C#或联机。
+
+
+N0验收：client c5f5a79 / comm467e131，24/24用例通过，独立规范与质量审查通过；详见实施进度。
 
 ### Task N1：共享生成器 CSharp 目标与 Unity 依赖
 

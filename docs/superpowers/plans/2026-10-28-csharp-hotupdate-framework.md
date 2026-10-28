@@ -8,7 +8,7 @@
 
 **Tech Stack:** Unity 2022.3.25f1（兼容门槛后锁定）、GameFramework/UnityGameFramework 官方基线、HybridCLR 9.0.0 社区版、uGUI、TextMeshPro、Google.Protobuf 3.36.2、C#、IL2CPP。
 
-**Spec:** [设计基线](../specs/2026-10-28-csharp-hotupdate-framework-design.md)。状态：待审阅规划，未开始实施。
+**Spec:** [设计基线](../specs/2026-10-28-csharp-hotupdate-framework-design.md)。2026-10-29用户已要求实现并检测；当前执行状态见[实施进度](../../implementation-progress.md)。
 
 ## Global Constraints
 
@@ -181,4 +181,4 @@ client/
 
 推荐按子计划逐任务实施，并在 F2、F8、N4、D2 设独立评审点。核心热更新链涉及 AOT、资源事务和跨平台发布，适合任务实现与独立审查交替推进。也可在当前会话由同一实现者按接口顺序完成，再做整体审查。
 
-本轮不开始实施，不执行安装、生成、构建、提交或推送。用户审阅本计划并确定实施方式后再进入实现。
+2026-10-29用户已明确要求实现本计划并进行检测，现按Task及实施进度持续推进。本地实现、依赖安装、生成、构建、测试和提交在目标范围内；外部发布、推送和合并另按实际授权执行。
