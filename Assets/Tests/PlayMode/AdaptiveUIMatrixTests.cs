@@ -93,6 +93,88 @@ namespace Client.Tests
             report.passed=true; File.WriteAllText(Path.Combine(output,"matrix.json"),JsonUtility.ToJson(report,true));
             Assert.That(report.cases.Count,Is.EqualTo(40)); Debug.Log("U2_MATRIX_PASS "+output);
         }
+        [Serializable] private sealed class KeyboardMatrixReport
+        {
+            public string profile="Editor manual-scroll fallback preview; test occlusion is not keyboard geometry";
+            public bool passed;
+            public List<KeyboardCase> cases=new List<KeyboardCase>();
+        }
+        [Serializable] private sealed class KeyboardCase
+        {
+            public int width,height;
+            public Rect viewport,action,testOcclusion;
+            public float manualTravelPixels;
+            public bool restoredOnClose;
+            public string screenshot;
+        }
+
+        [UnityTest, Category("UIKeyboardMatrix")]
+        public IEnumerator EditorUnknownKeyboardCanScrollActionAboveTestOcclusion()
+        {
+            string output=Argument("-uiMatrixOutput")??Path.GetFullPath("Builds/Tests/U2Matrix/Keyboard-"+Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(output);
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Content/UI/Common/AdaptiveUIRoot.prefab");
+            Assert.That(prefab,Is.Not.Null);
+            root=Object.Instantiate(prefab);root.GetComponent<ScreenLayoutComponent>().enabled=false;
+            var canvas=root.GetComponent<Canvas>();var adaptive=root.GetComponent<AdaptiveCanvas>();
+            cameraRoot=new GameObject("KeyboardMatrixCamera",typeof(Camera));var camera=cameraRoot.GetComponent<Camera>();camera.orthographic=true;
+            canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;
+            var safe=root.GetComponentInChildren<SafeAreaRoot>();
+            var brand=AdaptiveLayoutTests.Child("Brand",safe.transform);Stretch(Label("Brand",brand,"MANUAL SCROLL\nKeyboard area unavailable",40).rectTransform);
+            var viewport=AdaptiveLayoutTests.Child("FormViewport",safe.transform);viewport.gameObject.AddComponent<RectMask2D>();
+            var scroll=viewport.gameObject.AddComponent<ScrollRect>();scroll.inertia=false;scroll.scrollSensitivity=100;
+            var content=AdaptiveLayoutTests.Child("Content",viewport);scroll.viewport=viewport;scroll.content=content;
+            Place(Label("Form",content,"Existing form controls",32).rectTransform,0,-40,0,96);
+            var primary=AdaptiveLayoutTests.Child("Primary",content);primary.anchorMin=new Vector2(0,0);primary.anchorMax=new Vector2(1,0);primary.pivot=new Vector2(.5f,0);primary.sizeDelta=new Vector2(0,96);
+            primary.gameObject.AddComponent<Image>().color=new Color(.13f,.5f,.7f);primary.gameObject.AddComponent<Button>();
+            Stretch(Label("Label",primary,"Reachable primary action",30).rectTransform);
+            var layout=safe.gameObject.AddComponent<AdaptiveLayout>();
+            layout.Configure(AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>("Assets/Content/UI/Login/UILogin.Layout.asset"),brand,viewport,scroll,content,primary);
+            var keyboard=root.AddComponent<KeyboardVisibilityController>();keyboard.Configure(scroll,primary);
+            bool visible=true;keyboard.KeyboardVisibleSource=()=>visible;keyboard.KeyboardAreaSource=()=>Rect.zero;keyboard.FocusSource=()=>null;
+            adaptive.Configure(safe,layout,keyboard);
+            // This visual obstruction belongs only to the test, and is never supplied as a measured area.
+            var obstruction=AdaptiveLayoutTests.Child("TestOcclusion",root.transform);obstruction.anchorMin=Vector2.zero;obstruction.anchorMax=new Vector2(1,.55f);obstruction.offsetMin=obstruction.offsetMax=Vector2.zero;
+            var obstructionImage=obstruction.gameObject.AddComponent<Image>();obstructionImage.color=new Color(.19f,.2f,.23f);obstructionImage.raycastTarget=false;
+            Stretch(Label("Explanation",obstruction,"TEST OCCLUSION\nNo area reported to controller",30).rectTransform);
+            var report=new KeyboardMatrixReport();int[,] sizes={{720,1280},{1280,720},{720,480}};
+            for(int i=0;i<sizes.GetLength(0);i++)
+            {
+                int w=sizes[i,0],h=sizes[i,1];
+                if(texture!=null){camera.targetTexture=null;texture.Release();Object.DestroyImmediate(texture);}
+                texture=new RenderTexture(w,h,24);texture.Create();camera.targetTexture=texture;
+                // A test changes the render target mid-frame; let Canvas observe its new pixel dimensions first.
+                yield return null;
+                visible=true;var snapshot=AdaptiveLayoutTests.Snapshot(w,h,new Rect(0,0,w,h));
+                adaptive.Apply(snapshot);Canvas.ForceUpdateCanvases();yield return null;
+                var rootRect=(RectTransform)root.transform;
+                Assert.That(rootRect.rect.width*canvas.scaleFactor,Is.EqualTo(w).Within(1),"preview width");
+                Assert.That(rootRect.rect.height*canvas.scaleFactor,Is.EqualTo(h).Within(1),"preview height");
+                Rect originalViewport=Pixels(viewport,rootRect,w,h);float originalContentHeight=content.rect.height;
+                AssertInside(originalViewport,new Rect(0,0,w,h),"fallback viewport inside actual screen");
+                float before=content.anchoredPosition.y;
+                KeyboardLayoutTests.ScrollUp(scroll);keyboard.Apply(snapshot,Rect.zero,null);Canvas.ForceUpdateCanvases();
+                Rect action=Pixels(primary,rootRect,w,h);Rect occlusion=new Rect(0,0,w,h*.55f);
+                AssertInside(action,originalViewport,"unknown-area manual action");
+                Assert.That(action.yMin,Is.GreaterThanOrEqualTo(originalViewport.center.y-1));
+                Assert.That(action.yMin,Is.GreaterThanOrEqualTo(occlusion.yMax-1),"Manual movement must lift the action above the test-only occlusion.");
+                Assert.That(content.anchoredPosition.y-before,Is.GreaterThan(1));
+                Assert.That(Pixels(viewport,rootRect,w,h),Is.EqualTo(originalViewport),"Unmeasured fallback must preserve viewport geometry.");
+                Assert.That(content.rect.height,Is.EqualTo(originalContentHeight));
+                camera.Render();var previous=RenderTexture.active;RenderTexture.active=texture;
+                var png=new Texture2D(w,h,TextureFormat.RGB24,false);png.ReadPixels(new Rect(0,0,w,h),0,0);png.Apply();
+                string filename=$"{w}x{h}-UnknownKeyboard.png";File.WriteAllBytes(Path.Combine(output,filename),png.EncodeToPNG());Object.DestroyImmediate(png);RenderTexture.active=previous;
+                float travel=(content.anchoredPosition.y-before)*canvas.scaleFactor;
+                visible=false;keyboard.Apply(snapshot,Rect.zero,null);
+                Assert.That(scroll.movementType,Is.EqualTo(ScrollRect.MovementType.Clamped));
+                Assert.That(content.rect.height,Is.EqualTo(originalContentHeight));Assert.That(Pixels(viewport,rootRect,w,h),Is.EqualTo(originalViewport));
+                AssertInside(Pixels(primary,rootRect,w,h),originalViewport,"closed-keyboard restored action");
+                report.cases.Add(new KeyboardCase {width=w,height=h,viewport=originalViewport,action=action,testOcclusion=occlusion,manualTravelPixels=travel,restoredOnClose=true,screenshot=filename});
+                File.WriteAllText(Path.Combine(output,"keyboard-fallback-matrix.json"),JsonUtility.ToJson(report,true));
+            }
+            report.passed=true;File.WriteAllText(Path.Combine(output,"keyboard-fallback-matrix.json"),JsonUtility.ToJson(report,true));
+            Debug.Log("U2_KEYBOARD_MATRIX_PASS "+output);
+        }
         private static void AssertInside(Rect inner,Rect outer,string context)
         { Assert.That(inner.xMin,Is.GreaterThanOrEqualTo(outer.xMin-1),context); Assert.That(inner.yMin,Is.GreaterThanOrEqualTo(outer.yMin-1),context); Assert.That(inner.xMax,Is.LessThanOrEqualTo(outer.xMax+1),context); Assert.That(inner.yMax,Is.LessThanOrEqualTo(outer.yMax+1),context); }
         private static Rect Pixels(RectTransform target,RectTransform root,int w,int h)
