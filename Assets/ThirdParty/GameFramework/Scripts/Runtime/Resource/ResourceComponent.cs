@@ -26,6 +26,9 @@ namespace UnityGameFramework.Runtime
         private const int DefaultPriority = 0;
         private const int OneMegaBytes = 1024 * 1024;
 
+        private bool m_HasStarted = false;
+        private string m_CustomReadOnlyPath = null;
+        private string m_CustomReadWritePath = null;
         private IResourceManager m_ResourceManager = null;
         private EventComponent m_EventComponent = null;
         private bool m_EditorResourceMode = false;
@@ -590,6 +593,7 @@ namespace UnityGameFramework.Runtime
 
         private void Start()
         {
+            m_HasStarted = true;
             BaseComponent baseComponent = GameEntry.GetComponent<BaseComponent>();
             if (baseComponent == null)
             {
@@ -624,8 +628,12 @@ namespace UnityGameFramework.Runtime
             m_ResourceManager.ResourceUpdateFailure += OnResourceUpdateFailure;
             m_ResourceManager.ResourceUpdateAllComplete += OnResourceUpdateAllComplete;
 
-            m_ResourceManager.SetReadOnlyPath(Application.streamingAssetsPath);
-            if (m_ReadWritePathType == ReadWritePathType.TemporaryCache)
+            m_ResourceManager.SetReadOnlyPath(m_CustomReadOnlyPath ?? Application.streamingAssetsPath);
+            if (m_CustomReadWritePath != null)
+            {
+                m_ResourceManager.SetReadWritePath(m_CustomReadWritePath);
+            }
+            else if (m_ReadWritePathType == ReadWritePathType.TemporaryCache)
             {
                 m_ResourceManager.SetReadWritePath(Application.temporaryCachePath);
             }
@@ -712,6 +720,30 @@ namespace UnityGameFramework.Runtime
                     GC.Collect();
                 }
             }
+        }
+
+        /// <summary>
+        /// Sets optional resource paths before this component starts initialization.
+        /// </summary>
+        public void SetCustomResourcePaths(string readOnlyPath, string readWritePath)
+        {
+            if (m_HasStarted)
+            {
+                throw new InvalidOperationException("Resource paths cannot change after Start.");
+            }
+
+            if (string.IsNullOrEmpty(readOnlyPath))
+            {
+                throw new ArgumentException("Read-only path is required.", nameof(readOnlyPath));
+            }
+
+            if (string.IsNullOrEmpty(readWritePath))
+            {
+                throw new ArgumentException("Read-write path is required.", nameof(readWritePath));
+            }
+
+            m_CustomReadOnlyPath = readOnlyPath;
+            m_CustomReadWritePath = readWritePath;
         }
 
         /// <summary>

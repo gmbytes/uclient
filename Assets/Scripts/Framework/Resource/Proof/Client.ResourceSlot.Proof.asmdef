@@ -1,0 +1,6 @@
+{
+  "name": "Client.ResourceSlot.Proof",
+  "references": ["Client.Framework", "UnityGameFramework.Runtime"],
+  "defineConstraints": ["UNITY_EDITOR || RESOURCE_SLOT_PROOF"],
+  "autoReferenced": true
+}

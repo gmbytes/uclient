@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 7058902429438805175}
   - component: {fileID: 4069074389572747192}
   - component: {fileID: 6964886256149134779}
+  - component: {fileID: 3633294084409857990}
   m_Layer: 0
   m_Name: GameFramework
   m_TagString: Untagged
@@ -87,3 +88,16 @@ MonoBehaviour:
   m_DownloadAgentHelperCount: 3
   m_Timeout: 30
   m_FlushSize: 1048576
+--- !u!114 &3633294084409857990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7688636434699604205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a0deae7a12e9b144d97f11338364d41b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_GameRootPrefab: {fileID: 4231903935487918528, guid: 07aea4575730b734cb76fa6d7373f77a, type: 3}

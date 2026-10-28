@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityGameFramework.Runtime;
 using HybridCLR.Installer;
 using HybridCLR.Settings;
+using Client.Framework.Resource;
 
 namespace Client.Editor.Build
 {
@@ -19,6 +20,16 @@ namespace Client.Editor.Build
             host.AddComponent<BaseComponent>().EditorResourceMode = false;
             host.AddComponent<EventComponent>();
             host.AddComponent<DownloadComponent>();
+            var gameRoot = new GameObject("GameRoot");
+            gameRoot.SetActive(false);
+            gameRoot.AddComponent<ResourceComponent>();
+            gameRoot.AddComponent<UIComponent>();
+            var gameRootPrefab = PrefabUtility.SaveAsPrefabAsset(gameRoot, "Assets/Prefabs/App/GameRoot.prefab");
+            Object.DestroyImmediate(gameRoot);
+            var bootstrap = host.AddComponent<ResourceSlotBootstrap>();
+            var bootstrapSettings = new SerializedObject(bootstrap);
+            bootstrapSettings.FindProperty("m_GameRootPrefab").objectReferenceValue = gameRootPrefab;
+            bootstrapSettings.ApplyModifiedPropertiesWithoutUndo();
             PrefabUtility.SaveAsPrefabAssetAndConnect(host, "Assets/Prefabs/App/GameFramework.prefab", InteractionMode.AutomatedAction);
             EditorSceneManager.SaveScene(scene, "Assets/Scenes/Bootstrap.unity");
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene("Assets/Scenes/Bootstrap.unity", true) };
