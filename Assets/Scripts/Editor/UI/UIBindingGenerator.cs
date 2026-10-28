@@ -21,6 +21,22 @@ namespace Client.Editor.UI
         static readonly HashSet<string> Keywords=new HashSet<string>(("__arglist __makeref __reftype __refvalue abstract as base bool break byte case catch char checked class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof stackalloc static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using virtual void volatile while add alias and ascending async await by descending dynamic equals file from get global group init into join let managed nameof nint not notnull nuint on or orderby partial record remove required scoped select set unmanaged value var when where with yield BindComponents ClearBindings").Split(' '),StringComparer.Ordinal);
         public static bool ValidName(string name)=>name!=null && Regex.IsMatch(name,@"^UI[A-Z][A-Za-z0-9]*$");
         public static bool ValidIdentifier(string id)=>id!=null && Regex.IsMatch(id,@"^[A-Za-z_][A-Za-z0-9_]*$") && !Keywords.Contains(id);
+        public static bool ValidNamespace(string value)=>value!=null && (value=="Client.Game" || value.StartsWith("Client.Game.",StringComparison.Ordinal)) && value.Split('.').All(ValidIdentifier);
+        public static string NamespaceFor(string contentDirectory)
+        {
+            string value="Client.Game."+Path.GetFileName((contentDirectory??"").Replace('\\','/').TrimEnd('/'));
+            if(!ValidNamespace(value))throw new InvalidOperationException("UI_NAMESPACE: invalid feature namespace.");
+            return value;
+        }
+        public static string NamespaceFromHand(string hand,string className)
+        {
+            if(!File.Exists(hand))throw new InvalidOperationException("UI_PARTIAL: handwritten partial is required.");
+            string text=File.ReadAllText(hand);
+            var matches=Regex.Matches(text,@"\bnamespace\s+([^\s\{;]+)\s*\{");
+            if(matches.Count!=1 || !ValidNamespace(matches[0].Groups[1].Value) || !Regex.IsMatch(text,@"sealed\s+partial\s+class\s+"+Regex.Escape(className)+@"\b"))
+                throw new InvalidOperationException("UI_PARTIAL: one valid matching handwritten sealed partial namespace is required.");
+            return matches[0].Groups[1].Value;
+        }
         public static string CodeDirectory(string contentDirectory)=>"Assets/Scripts/Game/"+Path.GetFileName(contentDirectory.TrimEnd('/'));
         public static string OutputFor(string contentDirectory,string className)=>CodeDirectory(contentDirectory)+"/Generated/"+className+".G.Bindings.cs";
         public static BindingGenerationResult Generate(UIBindings source,string namespaceName,string className,string outputFile)
@@ -38,7 +54,7 @@ namespace Client.Editor.UI
                 string sourceAsset=AssetDatabase.GetAssetPath(source.gameObject);
                 if(!string.IsNullOrEmpty(sourceAsset) && Path.GetFullPath(OutputFor(Path.GetDirectoryName(sourceAsset).Replace('\\','/'),className))!=full)throw new InvalidOperationException("UI_OUTPUT: output must belong to the selected prefab feature.");
                 string hand=Path.Combine(parent,className+".cs");
-                if(!File.Exists(hand) || !Regex.IsMatch(File.ReadAllText(hand),@"namespace\s+"+Regex.Escape(namespaceName)+@"\s*\{") || !Regex.IsMatch(File.ReadAllText(hand),@"sealed\s+partial\s+class\s+"+Regex.Escape(className)+@"\b"))
+                if(NamespaceFromHand(hand,className)!=namespaceName)
                     throw new InvalidOperationException("UI_PARTIAL: matching handwritten sealed partial is required.");
                 if(File.Exists(path) && File.ReadAllText(path)==code){ result.Success=true;return result; }
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -53,7 +69,7 @@ namespace Client.Editor.UI
         public static string Render(UIBindings source,string namespaceName,string className)
         {
             if(source==null || !ValidName(className) || source.name!=className)throw new InvalidOperationException("UI_NAME: class and binding root must share a valid UI name.");
-            if(namespaceName!="Client.Game")throw new InvalidOperationException("UI_NAMESPACE: UI partials belong to Client.Game.");
+            if(!ValidNamespace(namespaceName))throw new InvalidOperationException("UI_NAMESPACE: UI partials belong to Client.Game or a valid feature namespace.");
             var errors=UIBindingValidator.Validate(source.gameObject);
             if(errors.Count>0)throw new InvalidOperationException("UI_BINDING: "+string.Join("\n",errors));
             var ids=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -89,8 +105,14 @@ namespace Client.Editor.UI
             var source=Selection.activeGameObject?.GetComponent<UIBindings>();
             string asset=AssetDatabase.GetAssetPath(Selection.activeGameObject);
             if(source==null || string.IsNullOrEmpty(asset)){Debug.LogError("Select a saved UI prefab root.");return;}
-            var result=Generate(source,"Client.Game",source.name,OutputFor(Path.GetDirectoryName(asset).Replace('\\','/'),source.name));
+            var result=Regenerate(source,Path.GetDirectoryName(asset).Replace('\\','/'));
             if(!result.Success)Debug.LogError(result.Error,source);else { AssetDatabase.Refresh();Debug.Log("UI_BINDINGS_GENERATED "+result.OutputFile,source); }
+        }
+        public static BindingGenerationResult Regenerate(UIBindings source,string contentDirectory)
+        {
+            string output=OutputFor(contentDirectory,source.name);
+            try{return Generate(source,NamespaceFromHand(CodeDirectory(contentDirectory)+"/"+source.name+".cs",source.name),source.name,output);}
+            catch(Exception e){return new BindingGenerationResult{OutputFile=output,Error=e.Message};}
         }
     }
 }

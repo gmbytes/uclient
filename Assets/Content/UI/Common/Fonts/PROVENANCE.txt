@@ -1,0 +1,9 @@
+Noto Sans CJK SC Regular
+Source: https://github.com/notofonts/noto-cjk
+Font: https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf
+License: https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE
+License family: SIL Open Font License 1.1 (full text in LICENSE.txt)
+Downloaded: 2026-10-29
+Font SHA256: 2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B
+License SHA256: 6A73F9541C2DE74158C0E7CF6B0A58EF774F5A780BF191F2D7EC9CC53EFE2BF2
+Unmodified upstream font. Serialized UGUI Font references are saved in UILogin.prefab.

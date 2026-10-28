@@ -11,5 +11,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ea625f12fb954645b171e46246fe10a, type: 3}
   m_Name: UIViewDefinitions
-  m_EditorClassIdentifier:
-  m_Definitions: []
+  m_EditorClassIdentifier: 
+  m_Definitions:
+  - ViewID: UILogin
+    PrefabAddress: Assets/Content/UI/Login/UILogin.prefab
+    Group: Page
+    Modal: 0
+    CloseOnMask: 0
+    LayoutDefinition: {fileID: 11400000, guid: 1352bb0565bfa564c8556af1a9c3cd8b, type: 2}
