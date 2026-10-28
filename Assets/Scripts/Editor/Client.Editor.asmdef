@@ -1,0 +1,6 @@
+{
+  "name": "Client.Editor",
+  "references": ["Client.Framework", "UnityGameFramework.Runtime", "HybridCLR.Editor"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}

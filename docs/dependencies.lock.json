@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "unity": {
+    "version": "2022.3.25f1",
+    "revision": "530ae0ba3889",
+    "apiCompatibility": ".NET Standard 2.1",
+    "platforms": [
+      "Windows x64 IL2CPP",
+      "Android ARM64 IL2CPP"
+    ]
+  },
+  "unityGameFramework": {
+    "repository": "https://github.com/EllanJiang/UnityGameFramework.git",
+    "commit": "e7eb3ef11393df0ac504204c480cdb839752b05f",
+    "packageVersion": "2021.05.31",
+    "snapshot": "Assets/ThirdParty/GameFramework",
+    "gameFrameworkLibrary": {
+      "path": "Assets/ThirdParty/GameFramework/Libraries/GameFramework.dll",
+      "sha256": "765c0e15ede1adbdb6892133f60e5095168ef5bd121b37d062f3dc7ead18afe9",
+      "version": "2021.05.31"
+    },
+    "license": "Assets/ThirdParty/GameFramework/LICENSE.md",
+    "sharpZipLib": {
+      "version": "0.86.0.518",
+      "path": "Assets/ThirdParty/GameFramework/Libraries/ICSharpCode.SharpZipLib.dll",
+      "sha256": "40b3d590f95191f3e33e5d00e534fa40f823d9b1bb2a9afe05f139c4e0a3af8d",
+      "sourceRepository": "https://github.com/icsharpcode/SharpZipLib.git",
+      "sourceTag": "0.86.0.518",
+      "sourceCommit": "cfc69a68fefbc5858fe70b35f7b69fc505b8c2d6",
+      "license": "docs/licenses/SharpZipLib-GPL-2.0.txt",
+      "exception": "docs/licenses/SharpZipLib-linking-exception.txt"
+    }
+  },
+  "hybridCLR": {
+    "repository": "https://github.com/focus-creative-games/hybridclr_unity.git",
+    "tag": "v9.0.0",
+    "version": "9.0.0",
+    "commit": "86e6407a35d7da0b7697f055c7488ef859c51ea4",
+    "delivery": "embedded UPM official source snapshot",
+    "package": "Packages/com.code-philosophy.hybridclr",
+    "installer": {
+      "path": "Packages/com.code-philosophy.hybridclr/Editor/Installer/InstallerController.cs",
+      "sha256": "97f28529293ee107f0afbeada09476455a880ff4c06f24374655e449198fc2c0"
+    },
+    "runtime": {
+      "repository": "https://github.com/focus-creative-games/hybridclr.git",
+      "tag": "v9.0.0",
+      "commit": "8b9baff42f818cdb916a819d69a4bb1d6f0d96fe"
+    },
+    "il2cppPlus": {
+      "repository": "https://github.com/focus-creative-games/il2cpp_plus.git",
+      "tag": "v2022.3.x-9.0.0",
+      "commit": "b98e98305bbdf75efe6a315d24858531eadd9766"
+    },
+    "license": "Packages/com.code-philosophy.hybridclr/LICENSE"
+  },
+  "unityPackages": {
+    "com.unity.ugui": "1.0.0",
+    "com.unity.textmeshpro": "3.0.6",
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.unity.test-framework": "1.1.33",
+    "com.unity.ext.nunit": "1.0.6"
+  },
+  "resolvedPackages": "Packages/packages-lock.json",
+  "protobuf": "Not installed by F1; owned by N1."
+}

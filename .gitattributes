@@ -12,3 +12,7 @@
 *.png binary
 *.ttf binary
 *.otf binary
+
+# Preserve pinned upstream snapshots byte-for-byte, including original line endings.
+Assets/ThirdParty/GameFramework/** -text
+Packages/com.code-philosophy.hybridclr/** -text

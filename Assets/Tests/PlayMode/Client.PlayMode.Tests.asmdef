@@ -1,0 +1,5 @@
+{
+  "name": "Client.PlayMode.Tests",
+  "references": ["Client.Framework", "UnityGameFramework.Runtime"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
