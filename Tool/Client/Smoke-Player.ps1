@@ -19,7 +19,7 @@ if (Test-Path -LiteralPath $buildResult) {
     $build = Get-Content -LiteralPath $buildResult -Raw | ConvertFrom-Json
     $passed = $exitCode -eq 0 -and $build.result -eq 'Succeeded' -and $build.errors -eq 0 -and $build.backend -eq 'IL2CPP' -and (Test-Path -LiteralPath $build.artifact -PathType Leaf)
 }
-Write-RunJson (Join-Path $runRoot 'result.json') ([ordered]@{ platform=$Platform; editor=$editor; arguments=$unityArguments; exitCode=$exitCode; passed=$passed; buildResult=$buildResult })
+Write-RunJson (Join-Path $runRoot 'result.json') ([ordered]@{ platform=$Platform; editor=$editor; arguments=$unityArguments; environment=[ordered]@{ ANDROID_SDK_ROOT=$env:ANDROID_SDK_ROOT; ANDROID_NDK_ROOT=$env:ANDROID_NDK_ROOT; JAVA_HOME=$env:JAVA_HOME; SDK_TEST_BASE_URL=$env:SDK_TEST_BASE_URL }; exitCode=$exitCode; passed=$passed; buildResult=$buildResult })
 Write-Host "Evidence: $runRoot"
 if (-not $passed) { Write-Host "SMOKE_FAIL $Platform"; exit 1 }
 Write-Host "SMOKE_PASS $Platform"

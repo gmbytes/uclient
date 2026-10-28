@@ -30,4 +30,10 @@ UGF 源码完整快照和 HybridCLR 嵌入 UPM 包已入库，官方 Unity 包�
 
 测试按 NUnit Category 选择 Task，零测试、跳过或失败均不会输出 `TASK_PASS`。测试 XML、完整 Editor 日志、命令参数和退出码保存在 `Builds/Tests/<Task>/<runId>`。每次平台构建使用新目录 `Builds/Player/<Platform>/<runId>/Player`，记录 Editor 日志和 JSON 构建结果；成功必须退出 0、有平台产物且 backend 为 IL2CPP。
 
+构建结果的 `totalBuildBytes` 是 Unity BuildReport.summary.totalSize；`artifactBytes` 才是输出 APK/EXE 文件的实际长度。Windows EXE 长度不代表整个 Player 目录大小。早期 F1 归档中的 `bytes` 字段只表示前者，原始证据保持不变。
+
+Android 工具安装在 Unity 默认模块目录以外时，可设置 `ANDROID_SDK_ROOT`、`ANDROID_NDK_ROOT`、`JAVA_HOME`。构建入口会使用这些已有目录，并把实际 SDK/NDK/JDK 路径记录在 `build-result.json`；这些机器路径不写入仓库的 ProjectSettings。
+
+仓库清单查询受网络限制时，官方 SDK manager 支持 `SDK_TEST_BASE_URL` 指向经校验的原始 repository XML 基址（URL 以 `/` 结尾，也支持 `file:///`）。该环境变量会由构建进程继承，并与工具链环境一起记录在每次构建的 `result.json`；SDK 工具、原生编译和 APK 生成仍照常执行。
+
 Bootstrap 只含一个 GameFramework prefab 根节点，带 Base、Event、Download。Resource 和 UI 留待后续任务初始化；HybridCLR 暂无热更程序集配置，因此 F1 构建会保留官方插件的对应提示。

@@ -67,5 +67,28 @@ namespace Client.Tests
                 Assert.That(packages[package.Name].version, Is.EqualTo((string)package.Value), package.Name);
             Assert.That(packages["com.code-philosophy.hybridclr"].version, Is.EqualTo((string)dependencyLock["hybridCLR"]["version"]));
         }
+
+        [Test, Category("F1")]
+        public void BuildResultSeparatesArtifactBytesFromBuildSummaryBytes()
+        {
+            var directory = Path.Combine("Temp", "F1ArtifactSize", System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            var artifact = Path.Combine(directory, "Client.exe");
+            File.WriteAllBytes(artifact, new byte[] { 1, 2, 3, 4 });
+            try
+            {
+                var json = Client.Editor.Build.SmokeBuild.CreateResultJson("Windows64", artifact,
+                    UnityEditor.Build.Reporting.BuildResult.Succeeded, 0, 0, 1000UL);
+                var result = JObject.Parse(json);
+                Assert.That((ulong)result["totalBuildBytes"], Is.EqualTo(1000UL));
+                Assert.That((long)result["artifactBytes"], Is.EqualTo(4L));
+                Assert.That(result["bytes"], Is.Null, "Do not leave an ambiguous bytes field in the result contract.");
+            }
+            finally
+            {
+                File.Delete(artifact);
+                Directory.Delete(directory);
+            }
+        }
     }
 }

@@ -22,6 +22,8 @@
 
 官方 UPM 包以嵌入源码快照保存在 `Packages/com.code-philosophy.hybridclr`；版本 `9.0.0`、tag `v9.0.0`，固定提交 `86e6407a35d7da0b7697f055c7488ef859c51ea4`，来源 `https://github.com/focus-creative-games/hybridclr_unity.git`。保留包内 MIT 许可及 UnityHook 等随带第三方许可。InstallerController 源码 hash、HybridCLR runtime 和 il2cpp_plus 的精确提交记录于依赖锁。安装后的本地编译器位于该版本官方 `Library/HybridCLR` 路径，不进入版本管理。
 
+包内 `Plugins/dnlib.dll` 的程序集版本为 `4.3.0.0`。对应官方来源 `https://github.com/0xd4d/dnlib.git`，tag `v4.3.0`、提交 `8f7edaf55d5e3dd8627e6776440cc7fcf6d43b28`；该 tag 的原始 MIT 许可保存在 `docs/licenses/dnlib-MIT.txt`，二进制及许可 SHA-256 记录于依赖锁。
+
 ## Unity 官方包
 
 uGUI `1.0.0`、TextMeshPro `3.0.6`、Newtonsoft JSON `3.2.1`、Unity Test Framework `1.1.33` 以及其 NUnit `1.0.6` 依赖通过 Unity Package Manager 解析。精确版本见 `dependencies.lock.json` 和 `Packages/packages-lock.json`；各包许可和第三方通知由官方包随附，Unity 编辑器及平台工具链不随本仓库分发。

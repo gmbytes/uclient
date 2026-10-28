@@ -52,7 +52,17 @@
       "tag": "v2022.3.x-9.0.0",
       "commit": "b98e98305bbdf75efe6a315d24858531eadd9766"
     },
-    "license": "Packages/com.code-philosophy.hybridclr/LICENSE"
+    "license": "Packages/com.code-philosophy.hybridclr/LICENSE",
+    "dnlib": {
+      "version": "4.3.0.0",
+      "path": "Packages/com.code-philosophy.hybridclr/Plugins/dnlib.dll",
+      "sha256": "bb83dedc11d6ec41a4ae8f289cc1a35231be7e53e09fd7359c5c10dfbb9bfe5c",
+      "sourceRepository": "https://github.com/0xd4d/dnlib.git",
+      "sourceTag": "v4.3.0",
+      "sourceCommit": "8f7edaf55d5e3dd8627e6776440cc7fcf6d43b28",
+      "license": "docs/licenses/dnlib-MIT.txt",
+      "licenseSha256": "420d7871726a5010b8376d4dd6f0e8708cef41ece119fde1cf2a889b57541412"
+    }
   },
   "unityPackages": {
     "com.unity.ugui": "1.0.0",
@@ -62,5 +72,29 @@
     "com.unity.ext.nunit": "1.0.6"
   },
   "resolvedPackages": "Packages/packages-lock.json",
-  "protobuf": "Not installed by F1; owned by N1."
+  "protobuf": "Not installed by F1; owned by N1.",
+  "nativeToolchains": {
+    "windows": {
+      "module": "Windows Build Support (IL2CPP) 2022.3.25f1",
+      "officialArchiveMd5": "1722a2a6faa63299520be664a59dbcd3",
+      "compiler": "Visual Studio 2022 C++ and Windows SDK",
+      "redistributed": false
+    },
+    "android": {
+      "sdkPlatform": "android-32 revision 1",
+      "buildTools": "32.0.0",
+      "platformTools": "32.0.0",
+      "ndk": "23.1.7779620 (r23b)",
+      "jdk": "Temurin 11.0.14.1+1",
+      "commandlineTools": "6.0 (8092744)",
+      "verifiedArchives": {
+        "ndkSha1": "6e3fb50022c611a2b13d02f5de5c21cc7206a298",
+        "commandlineSha384": "6GxY+DdT0kW+u6YxLeijGDgzUR+rDn4K4f33Q/awCCRT+WarEskTttnkiAFsukA1",
+        "platform32Sha1": "afae86ed55d29733d50996ffed832f2d1bd75b9a",
+        "jdkSha256": "85218201fea144521d643808d167605d6d46cd4fe44ee4001991a3a4b76fdd64",
+        "buildToolsSha1": "2134fdd4a00b3501b87597d100182e169eaa8c6a"
+      },
+      "redistributed": false
+    }
+  }
 }
