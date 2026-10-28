@@ -62,6 +62,48 @@
       "sourceCommit": "8f7edaf55d5e3dd8627e6776440cc7fcf6d43b28",
       "license": "docs/licenses/dnlib-MIT.txt",
       "licenseSha256": "420d7871726a5010b8376d4dd6f0e8708cef41ece119fde1cf2a889b57541412"
+    },
+    "referenceFacade": {
+      "path": "Packages/com.code-philosophy.hybridclr/Data~/NetStandard/netstandard2.1.dll",
+      "sha256": "c2abb88d6218d5835be5aa4978f95869e62c188285f2db8dc30e6102b1a45f8d",
+      "assembly": "netstandard, Version=2.1.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51",
+      "kind": "Pure type-forwarding facade; never RuntimeApi AOT metadata",
+      "exportedTypes": 2708,
+      "forwardedTargets": [
+        "mscorlib",
+        "System.Core",
+        "System",
+        "System.Data",
+        "System.Data.DataSetExtensions",
+        "System.Drawing",
+        "System.IO.Compression",
+        "System.IO.Compression.FileSystem",
+        "System.ComponentModel.Composition",
+        "System.Net.Http",
+        "System.Numerics",
+        "System.Runtime.Serialization",
+        "System.Transactions",
+        "System.Xml",
+        "System.Xml.Linq"
+      ],
+      "compilerReference": "UnityEditor/Data/NetStandard/ref/2.1.0/netstandard.dll",
+      "compilerReferenceRole": "Separate full-byte compiler-input evidence, never implementation/API proof",
+      "nativeForwarding": {
+        "runtimeCommit": "8b9baff42f818cdb916a819d69a4bb1d6f0d96fe",
+        "source": "hybridclr/metadata/Image.cpp",
+        "sourceSha256": "e3231b4aded6264f2a4c1e5c2ac0ee88ec1c177e9735b76dc2fcf1449cda340c",
+        "functions": [
+          "Image::FindNetStandardExportedType",
+          "Image::GetIl2CppType"
+        ],
+        "sourceLines": [
+          743,
+          772
+        ]
+      },
+      "license": "Packages/com.code-philosophy.hybridclr/LICENSE",
+      "licenseSha256": "9749ca152248ec9a22ccc0d77bdf01fe4491782f38e7ffb8e1d29d2c1bda564b",
+      "notice": "docs/licenses/HybridCLR-netstandard-facade-NOTICE.txt"
     }
   },
   "unityPackages": {
@@ -72,7 +114,15 @@
     "com.unity.ext.nunit": "1.0.6"
   },
   "resolvedPackages": "Packages/packages-lock.json",
-  "protobuf": "Not installed by F1; owned by N1.",
+  "protobuf": {
+    "runtime_version": "3.36.2",
+    "protoc_version": "36.2",
+    "target_framework": "netstandard2.0",
+    "unsafe_version": "4.5.2",
+    "inventory": "Assets/ThirdParty/Protobuf/dependency-provenance.json",
+    "inventory_sha256": "1b294913274a5796a746a76122a5d512b2d055874b89520797f3bf42b4a4191c",
+    "shared_package_lock": "../comm/tools/Dependencies/packages.lock.json"
+  },
   "nativeToolchains": {
     "windows": {
       "module": "Windows Build Support (IL2CPP) 2022.3.25f1",

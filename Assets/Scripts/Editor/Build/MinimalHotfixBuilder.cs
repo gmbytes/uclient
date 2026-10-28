@@ -53,7 +53,11 @@ namespace Client.Editor.Build
                 if (aotFiles.Length == 0 || aotFiles.Any(f => Path.GetFileNameWithoutExtension(f).StartsWith("Client.Game", StringComparison.Ordinal)))
                     throw new BuildFailedException("Final stripped AOT archive is missing or includes hotfix code.");
                 foreach (string file in aotFiles) File.Copy(file, Path.Combine(metadata, Path.GetFileName(file)));
-                File.WriteAllText(Path.Combine(metadata, "player-build-id.txt"), Guid.NewGuid().ToString("N") + "\n");
+                string buildId = Guid.NewGuid().ToString("N");
+                File.WriteAllText(Path.Combine(metadata, "player-build-id.txt"), buildId + "\n");
+                File.WriteAllText(Path.Combine(metadata, "metadata-source.json"), JsonUtility.ToJson(new MetadataSource {
+                    playerBuildId = buildId, platform = "StandaloneWindows64", sourceDirectory = Path.GetFullPath(finalStripped),
+                    buildResult = Path.Combine(output, "build-result.json") }, true) + "\n");
                 CompileFixture(output, "v1", "HOTFIX_PROOF_V1");
                 CompileFixture(output, "v2", "HOTFIX_PROOF_V2");
                 Debug.Log("MINIMAL_HOTFIX_BUILD_PASS");
@@ -76,6 +80,10 @@ namespace Client.Editor.Build
                 throw new BuildFailedException("Actual Client.Game assembly compilation failed: " + version);
             string target = Path.Combine(output, "Dlls", version);
             Directory.CreateDirectory(target);
+            string protocol = Path.Combine(compileRoot, "Client.Game.Protocol.dll");
+            if (!result.assemblies.Any(a => Path.GetFileName(a) == "Client.Game.Protocol.dll") || !File.Exists(protocol))
+                throw new BuildFailedException("The real generated protocol module did not compile: " + version);
+            File.Copy(protocol, Path.Combine(target, "Client.Game.Protocol.dll"));
             File.Copy(dll, Path.Combine(target, "Client.Game.dll"));
         }
 
@@ -85,6 +93,15 @@ namespace Client.Editor.Build
             int index = Array.IndexOf(args, name);
             if (index < 0 || index + 1 >= args.Length) throw new ArgumentException(name + " is required.");
             return args[index + 1];
+        }
+
+        [Serializable]
+        private sealed class MetadataSource
+        {
+            public string playerBuildId;
+            public string platform;
+            public string sourceDirectory;
+            public string buildResult;
         }
     }
 }

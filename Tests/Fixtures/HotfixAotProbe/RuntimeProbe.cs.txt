@@ -1,0 +1,67 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
+using Client.Bootstrap;
+using Client.Contracts;
+using Client.Framework.HotUpdate;
+using Client.Framework.Release;
+using Client.Framework.Resource;
+using UnityEngine;
+
+namespace Client.Framework.F6Probe
+{
+    public sealed class RuntimeProbe : MonoBehaviour
+    {
+        [Serializable] private sealed class Identity { public string playerBuildId, platform, architecture, unityVersion, contractVersion, envelopeSha256, aotMetadataSetId; }
+        [Serializable] private sealed class Result { public bool passed, secondLoadRejected, resourcesInitialized; public int processId, metadataCount, readyCount; public string playerBuildId, platform, metadataSetId, protocolHash, gameHash, probes, error; }
+        private async void Start()
+        {
+            var result = new Result { processId = System.Diagnostics.Process.GetCurrentProcess().Id };
+            string output = Arg("-f6Result");
+            Application.LogCallback observe = (message, stack, type) => { if (message.StartsWith("F6_METADATA ", StringComparison.Ordinal) && message.EndsWith(" OK", StringComparison.Ordinal)) result.metadataCount++; };
+            Application.logMessageReceived += observe;
+            try
+            {
+                string baseline = Path.Combine(Application.streamingAssetsPath, "F6Baseline");
+                var baked = JsonUtility.FromJson<Identity>(File.ReadAllText(Path.Combine(Application.streamingAssetsPath, "F6PlayerIdentity.json")));
+                var player = new PlayerIdentity(baked.playerBuildId, baked.platform, baked.architecture, baked.unityVersion, baked.contractVersion, baked.envelopeSha256, baked.aotMetadataSetId);
+                result.playerBuildId = player.PlayerBuildId; result.platform = player.Platform; result.metadataSetId = player.AotMetadataSetId;
+                var verifier = TestVerifier.Create();
+                var release = verifier.Verify(File.ReadAllBytes(Path.Combine(baseline, "release.json")), File.ReadAllBytes(Path.Combine(baseline, "release.sig")), player);
+                string root = Path.GetFullPath(Arg("-f6Store"));
+                var state = new ReleaseStateStore(root, verifier, player);
+                var prepared = await new BaseReleaseInstaller(root, new PlatformReleaseStreamReader(baseline, false, Path.Combine(root, "streams")), state).InstallAsync(release, null, CancellationToken.None);
+                result.protocolHash = HotfixLoadPlan.Hash(File.ReadAllBytes(Path.Combine(prepared.Root, "Hotfix/Client.Game.Protocol.dll")));
+                result.gameHash = HotfixLoadPlan.Hash(File.ReadAllBytes(Path.Combine(prepared.Root, "Hotfix/Client.Game.dll")));
+                var resources = FindObjectOfType<ResourceSlotBootstrap>(); resources.Activate(prepared.Root); await resources.Initialization; result.resourcesInitialized = true;
+                var host = FindObjectOfType<ClientBootstrap>();
+                await host.InitializeAsync(prepared, player, "Client.Game.F6Probe.Entry", new Context(host.Lifetime, resources.Service, result), CancellationToken.None);
+                if (result.readyCount != 1 || result.metadataCount != release.Files.CountFileKind(ReleaseFileKind.AotMetadata) || string.IsNullOrEmpty(result.probes)) throw new InvalidOperationException("Native probe evidence is incomplete.");
+                try { new HotfixAssemblyLoader("Client.Game.F6Probe.Entry").LoadOnce(prepared, player); }
+                catch (InvalidOperationException) { result.secondLoadRejected = true; }
+                if (!result.secondLoadRejected) throw new InvalidOperationException("Second process load attempt was accepted.");
+                await host.ShutdownAsync(CancellationToken.None);
+                result.passed = true;
+            }
+            catch (Exception error) { result.error = error.ToString(); Debug.LogException(error); }
+            finally { Application.logMessageReceived -= observe; File.WriteAllText(output, JsonUtility.ToJson(result, true) + "\n"); Application.Quit(result.passed ? 0 : 1); }
+        }
+        private static string Arg(string name) { var args = Environment.GetCommandLineArgs(); int i = Array.IndexOf(args, name); if (i < 0 || i + 1 >= args.Length) throw new ArgumentException(name); return args[i + 1]; }
+        private sealed class Context : IClientContext, ILogService
+        {
+            private readonly Result result;
+            public Context(CancellationToken lifetime, IResourceService resources, Result result) { Lifetime = lifetime; Resources = resources; this.result = result; }
+            public IResourceService Resources { get; }
+            public IUIService UI => throw new NotSupportedException();
+            public ISessionClient Session => throw new NotSupportedException();
+            public ILogService Log => this;
+            public CancellationToken Lifetime { get; }
+            public void ReportReady() { result.readyCount++; }
+            public void Write(ClientLogLevel level, string code, string message) { if (code != "F6_AOT_PROBE") throw new InvalidOperationException("Unexpected probe log."); result.probes = message; Debug.Log(code + " " + message); }
+        }
+    }
+    internal static class ProbeInventory { internal static int CountFileKind(this IReadOnlyList<ReleaseFile> files, ReleaseFileKind kind) { int count = 0; foreach (var file in files) if (file.Kind == kind) count++; return count; } }
+}

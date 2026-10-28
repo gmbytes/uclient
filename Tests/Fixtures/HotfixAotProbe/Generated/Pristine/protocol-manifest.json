@@ -1,0 +1,34 @@
+{
+  "api_version": 1,
+  "target": "csharp",
+  "schema_sha256": "9ffc22affe948727d95a0d59eaef35a25a49b1e52178e82dedb1331548929343",
+  "registry_sha256": "d034b62e4e6b84b255a057afaa3da93ffb9b852890c116ecae28c9579d63d9bb",
+  "envelope_sha256": "907b6c3ceaa0e7491578c36ad46f839302a459e311248e448ed3af23daecc583",
+  "protoc_version": "36.2",
+  "protobuf_runtime": "3.36.2",
+  "tok_source_commit": "f550195d60577524e3272dda2789f07ab381d7c1",
+  "frame_version": 3,
+  "protocol_lock_sha256": "52abb06dc4ce57ffcfa48c23454852231ad360c78584cdab8e65cbfc31abc1bb",
+  "source_sha256": {
+    "client-messages.json": "7ee6c1a63027da022653fa1da66e86f048da6f03d670d2b6898b833465605714",
+    "game/aot_probe.proto": "ff6d6ea9fdf33177f5e8e91c2aa0ab305bdb2a37c04741a12135014c6483a207",
+    "tok/client/v1/client.proto": "907b6c3ceaa0e7491578c36ad46f839302a459e311248e448ed3af23daecc583"
+  },
+  "generated_sha256": {
+    "AotProbe.cs": "e2cd67b0f09bfbc5ecaa268c18a793b808bf50d1b72c5061508b38dd97aed06d",
+    "GameMessageRegistry.cs": "d034b62e4e6b84b255a057afaa3da93ffb9b852890c116ecae28c9579d63d9bb"
+  },
+  "messages": [
+    {
+      "id": 101,
+      "type": "fixture.f6.ProbeRequest",
+      "direction": "request",
+      "response_id": 102
+    },
+    {
+      "id": 102,
+      "type": "fixture.f6.ProbeResponse",
+      "direction": "response"
+    }
+  ]
+}

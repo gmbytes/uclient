@@ -1,0 +1,10 @@
+[
+  "//server/share/file",
+  "Resources/./GameFrameworkVersion.dat",
+  "Resources/../../outside",
+  "Resources/bad\u0000name",
+  "Resources/name ",
+  "Resources/file?query",
+  "Resources/file#fragment",
+  "Resources/file*wildcard"
+]

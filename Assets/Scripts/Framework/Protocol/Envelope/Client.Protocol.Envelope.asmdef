@@ -1,0 +1,6 @@
+{
+  "name": "Client.Protocol.Envelope",
+  "references": [],
+  "precompiledReferences": ["Google.Protobuf.dll"],
+  "autoReferenced": false
+}

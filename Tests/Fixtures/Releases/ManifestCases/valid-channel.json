@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "keyId": "test-f4",
+  "releaseId": "release-1",
+  "manifestRelativePath": "releases/release-1/release.json",
+  "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

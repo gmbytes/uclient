@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <SGameClientRoot Condition="'$(SGameClientRoot)' == ''">$(MSBuildThisFileDirectory)../..</SGameClientRoot>
+    <BaseOutputPath>$(SGameClientRoot)/Builds/Managed/$(MSBuildProjectName)/bin/</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(SGameClientRoot)/Builds/Managed/$(MSBuildProjectName)/obj/</BaseIntermediateOutputPath>
+    <RestorePackagesPath>$(SGameClientRoot)/Builds/tools/nuget</RestorePackagesPath>
+  </PropertyGroup>
+</Project>

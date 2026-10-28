@@ -3,6 +3,7 @@
   "references": [
     "Client.Contracts",
     "Client.Framework",
+    "Client.Game.Protocol",
     "UnityEngine.UI",
     "Unity.TextMeshPro"
   ],

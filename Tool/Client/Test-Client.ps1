@@ -6,6 +6,10 @@ param(
 )
 . "$PSScriptRoot/Unity-Common.ps1"
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+if ($Task -eq 'N3' -and $Mode -eq 'PlayMode') {
+    & dotnet build (Join-Path $projectRoot 'Tests/Fixtures/LoginServer/LoginServer.csproj') -o (Join-Path $projectRoot 'Builds/Fixtures/LoginServer') --nologo
+    if ($LASTEXITCODE -ne 0) { throw 'N3 LoginServer fixture build failed.' }
+}
 $editor = Resolve-UnityEditor $UnityEditor
 $runId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
 $output = Join-Path $projectRoot "Builds/Tests/$Task/$runId"

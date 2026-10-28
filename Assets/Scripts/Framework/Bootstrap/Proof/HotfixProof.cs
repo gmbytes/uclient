@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Client.Contracts;
 using Client.Framework.HotUpdate;
 using HybridCLR;
+using Google.Protobuf;
+using Tok.Client.V1;
 using UnityEngine;
 
 namespace Client.Bootstrap.Proof
@@ -35,16 +37,26 @@ namespace Client.Bootstrap.Proof
                     result.metadataCount++;
                 }
                 if (result.metadataCount == 0) throw new InvalidOperationException("This Player's metadata archive is empty.");
+                var original = new Frame { Version = 3, Request = new BusinessRequest { RequestId = ulong.MaxValue, MessageId = 101, Body = ByteString.CopyFrom(new byte[] { 8, 1 }) } };
+                var decoded = Frame.Parser.ParseFrom(original.ToByteArray());
+                result.envelopeVerified = decoded.Version == 3 && decoded.ContentCase == Frame.ContentOneofCase.Request && decoded.Request.RequestId == ulong.MaxValue && decoded.Request.Body.Equals(original.Request.Body);
+                if (!result.envelopeVerified) throw new InvalidOperationException("The AOT envelope did not preserve uint64, bytes and oneof.");
+                byte[] protocol = File.ReadAllBytes(Path.Combine(root, "Client.Game.Protocol.dll"));
+                result.protocolDllSha256 = Hash(protocol);
                 byte[] bytes = File.ReadAllBytes(Path.Combine(root, "Client.Game.dll"));
                 result.dllSha256 = Hash(bytes);
                 var loader = new HotfixAssemblyLoader("Client.Game.Proof.Entry");
-                var entry = loader.LoadOnce(new[] { new VerifiedAssembly("Client.Game", bytes, result.dllSha256, new[] { "Client.Contracts" }) });
+                var entry = loader.LoadOnce(new[] {
+                    new VerifiedAssembly("Client.Game.Protocol", protocol, result.protocolDllSha256, new[] { "Client.Framework", "Google.Protobuf" }),
+                    new VerifiedAssembly("Client.Game", bytes, result.dllSha256, new[] { "Client.Contracts", "Client.Game.Protocol" }) });
+                result.loadOrder = new[] { "Client.Game.Protocol", "Client.Game" };
                 result.addedTypePresent = entry.GetType().Assembly.GetType("Client.Game.Proof.AddedAnswer", false) != null;
                 var host = FindObjectOfType<ClientBootstrap>();
                 if (host == null) throw new InvalidOperationException("The AOT bootstrap host is missing.");
                 var context = new ProofContext(host.Lifetime, result);
                 await host.InitializeAsync(entry, context, CancellationToken.None);
                 if (result.marker != expected || result.readyCount != 1) throw new InvalidOperationException("Unexpected hotfix execution result.");
+                if (!result.emptyRegistryVerified) throw new InvalidOperationException("The hot entry did not execute the generated empty registry.");
                 if (result.addedTypePresent != (expected == "proof-v2:42")) throw new InvalidOperationException("New-type presence does not match the selected DLL.");
                 try { loader.LoadOnce(new[] { new VerifiedAssembly("Client.Game", bytes, result.dllSha256, Array.Empty<string>()) }); }
                 catch (InvalidOperationException) { result.secondLoadRejected = true; }
@@ -82,6 +94,13 @@ namespace Client.Bootstrap.Proof
             public void ReportReady() { result.readyCount++; }
             public void Write(ClientLogLevel level, string code, string message)
             {
+                if (level == ClientLogLevel.Info && code == "PROTOCOL_PROOF" && message == "empty-registry")
+                {
+                    if (result.emptyRegistryVerified) throw new InvalidOperationException("The protocol proof executed twice.");
+                    result.emptyRegistryVerified = true;
+                    Debug.Log(code + " " + message);
+                    return;
+                }
                 if (level != ClientLogLevel.Info || code != "HOTFIX_PROOF") throw new InvalidOperationException("Unexpected proof log.");
                 if (result.marker != null) throw new InvalidOperationException("The hotfix executed more than one marker branch.");
                 result.marker = message;
@@ -98,8 +117,12 @@ namespace Client.Bootstrap.Proof
             public int readyCount;
             public bool addedTypePresent;
             public bool secondLoadRejected;
+            public bool envelopeVerified;
+            public bool emptyRegistryVerified;
             public string playerBuildId;
             public string dllSha256;
+            public string protocolDllSha256;
+            public string[] loadOrder;
             public string marker;
             public string error;
         }

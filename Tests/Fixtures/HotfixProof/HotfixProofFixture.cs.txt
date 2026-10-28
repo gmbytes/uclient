@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Client.Contracts;
+using Client.Game.Protocol;
 
 namespace Client.Game.Proof
 {
@@ -10,6 +11,10 @@ namespace Client.Game.Proof
         public Task InitializeAsync(IClientContext context, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
+            var registry = new GameMessageRegistry();
+            if (registry.TryGetParser(101, out _) || registry.TryGetResponseId(101, out _))
+                throw new System.InvalidOperationException("The formal business admission must remain empty.");
+            context.Log.Write(ClientLogLevel.Info, "PROTOCOL_PROOF", "empty-registry");
 #if HOTFIX_PROOF_V1
             context.Log.Write(ClientLogLevel.Info, "HOTFIX_PROOF", "proof-v1");
 #elif HOTFIX_PROOF_V2

@@ -1,5 +1,6 @@
 {
   "name": "Client.Game.Protocol",
-  "references": ["Client.Contracts"],
+  "references": ["Client.Contracts", "Client.Framework"],
+  "precompiledReferences": ["Google.Protobuf.dll"],
   "autoReferenced": false
 }

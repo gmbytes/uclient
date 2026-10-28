@@ -38,12 +38,19 @@ if ($exitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $output 'build-resul
     $metadataRoot = Join-Path $output 'Metadata'
     $metadataBefore = Get-Snapshot $metadataRoot
     $playerBuildId = (Get-Content -LiteralPath (Join-Path $metadataRoot 'player-build-id.txt') -Raw).Trim()
+    $metadataSource = Get-Content -LiteralPath (Join-Path $metadataRoot 'metadata-source.json') -Raw | ConvertFrom-Json
+    if ($metadataSource.playerBuildId -ne $playerBuildId -or $metadataSource.platform -ne 'StandaloneWindows64' -or $metadataSource.buildResult -ne (Join-Path $output 'build-result.json')) { throw 'The metadata archive is not bound to this actual Player build.' }
+    foreach ($aot in Get-ChildItem -LiteralPath $metadataRoot -Filter '*.dll' -File) {
+        $source = Join-Path $metadataSource.sourceDirectory $aot.Name
+        if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -cne (Get-FileHash -LiteralPath $aot.FullName -Algorithm SHA256).Hash) { throw "Archived metadata differs from this build's stripped output: $($aot.Name)" }
+    }
     Write-RunJson (Join-Path $runRoot 'native-before.json') $nativeBefore
     Write-RunJson (Join-Path $runRoot 'metadata.json') $metadataBefore
     foreach ($version in @('v1','v2')) {
         $expected = if ($version -eq 'v1') { 'proof-v1' } else { 'proof-v2:42' }
         $dllRoot = Join-Path $output "Dlls/$version"
         $dllHash = (Get-FileHash -LiteralPath (Join-Path $dllRoot 'Client.Game.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
+        $protocolHash = (Get-FileHash -LiteralPath (Join-Path $dllRoot 'Client.Game.Protocol.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
         $result = Join-Path $runRoot "Player-$version.json"
         $log = Join-Path $runRoot "Player-$version.log"
         $arguments = @('-batchmode','-nographics','-hotfixRoot',$dllRoot,'-metadataRoot',$metadataRoot,'-hotfixExpected',$expected,'-hotfixResult',$result,'-logFile',$log)
@@ -59,11 +66,12 @@ if ($exitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $output 'build-resul
         $logText = if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Raw } else { '' }
         $otherMarker = if ($version -eq 'v1') { 'HOTFIX_PROOF proof-v2' } else { 'HOTFIX_PROOF proof-v1' }
         $runPassed = $natural -and $process.ExitCode -eq 0 -and $null -ne $observation -and $observation.passed -and $observation.marker -eq $expected -and $observation.readyCount -eq 1 -and $observation.secondLoadRejected -and $observation.metadataCount -gt 0 -and $observation.playerBuildId -eq $playerBuildId -and $observation.dllSha256 -eq $dllHash -and $observation.addedTypePresent -eq ($version -eq 'v2') -and $logText.Contains("HOTFIX_PROOF $expected") -and -not $logText.Contains($otherMarker)
+        $runPassed = $runPassed -and $observation.envelopeVerified -and $observation.emptyRegistryVerified -and $observation.protocolDllSha256 -eq $protocolHash -and ($observation.loadOrder -join ',') -ceq 'Client.Game.Protocol,Client.Game' -and $logText.Contains('PROTOCOL_PROOF empty-registry')
         $nativeAfter = Get-Snapshot $playerRoot
         Write-RunJson (Join-Path $runRoot "native-after-$version.json") $nativeAfter
         if (($nativeAfter | ConvertTo-Json -Depth 10 -Compress) -cne ($nativeBefore | ConvertTo-Json -Depth 10 -Compress)) { throw 'The native Player changed between hotfix runs.' }
         if (((Get-Snapshot $metadataRoot) | ConvertTo-Json -Depth 10 -Compress) -cne ($metadataBefore | ConvertTo-Json -Depth 10 -Compress)) { throw 'The archived metadata changed.' }
-        $runs += [ordered]@{ version=$version; processId=$process.Id; arguments=$arguments; naturalExit=$natural; exitCode=$process.ExitCode; passed=$runPassed; dllSha256=$dllHash; result=$result; log=$log }
+        $runs += [ordered]@{ version=$version; processId=$process.Id; arguments=$arguments; naturalExit=$natural; exitCode=$process.ExitCode; passed=$runPassed; dllSha256=$dllHash; protocolDllSha256=$protocolHash; result=$result; log=$log }
     }
     $passed = $runs.Count -eq 2 -and @($runs | Where-Object { -not $_.passed }).Count -eq 0 -and $runs[0].processId -ne $runs[1].processId -and $runs[0].dllSha256 -ne $runs[1].dllSha256
 }
