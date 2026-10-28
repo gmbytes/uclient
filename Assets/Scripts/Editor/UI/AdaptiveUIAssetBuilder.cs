@@ -1,0 +1,54 @@
+using System.IO;
+using Client.Framework.UI;
+using UnityEditor;
+
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Client.Editor.UI
+{
+    public static class AdaptiveUIAssetBuilder
+    {
+        public const string RootPath="Assets/Content/UI/Common/AdaptiveUIRoot.prefab";
+        public const string LayoutPath="Assets/Content/UI/Login/UILogin.Layout.asset";
+        [MenuItem("Game/UI/Generate Adaptive Foundation")]
+        public static void Generate()
+        {
+            Directory.CreateDirectory("Assets/Content/UI/Common"); Directory.CreateDirectory("Assets/Content/UI/Login");
+            var definition=AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>(LayoutPath);
+            if(definition==null) { definition=ScriptableObject.CreateInstance<AdaptiveLayoutDefinition>(); AssetDatabase.CreateAsset(definition,LayoutPath); }
+            var root=new GameObject("AdaptiveUIRoot",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster),typeof(AdaptiveCanvas));
+            root.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;
+            var scaler=root.GetComponent<CanvasScaler>(); scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.MatchWidthOrHeight; scaler.matchWidthOrHeight=.5f; scaler.referenceResolution=new Vector2(1080,1920);
+            var background=Child("Background",root.transform); Stretch(background);
+            var image=background.gameObject.AddComponent<Image>(); image.color=new Color(.035f,.055f,.09f); image.raycastTarget=false;
+            var safe=Child("SafeArea",root.transform); Stretch(safe); var safeRoot=safe.gameObject.AddComponent<SafeAreaRoot>();
+            var windows=Child("Windows",safe); Stretch(windows);
+            root.GetComponent<AdaptiveCanvas>().Configure(safeRoot,null,null);
+            var prefab=PrefabUtility.SaveAsPrefabAsset(root,RootPath); Object.DestroyImmediate(root);
+            // The shared AOT canvas exists under the inactive GameRoot and adds no EventSystem.
+            string gameRootPath="Assets/Prefabs/App/GameRoot.prefab";
+            var gameRoot=PrefabUtility.LoadPrefabContents(gameRootPath);
+            if(gameRoot.GetComponentInChildren<AdaptiveCanvas>(true)==null) PrefabUtility.InstantiatePrefab(prefab,gameRoot.transform);
+            PrefabUtility.SaveAsPrefabAsset(gameRoot,gameRootPath); PrefabUtility.UnloadPrefabContents(gameRoot);
+            string startupPath="Assets/Prefabs/App/UIUpdate.prefab";
+            var startup=PrefabUtility.LoadPrefabContents(startupPath);
+            var startupCanvas=startup.GetComponent<AdaptiveCanvas>()??startup.AddComponent<AdaptiveCanvas>();
+            var startupSafe=startup.GetComponentInChildren<SafeAreaRoot>(true);
+            if(startupSafe==null)
+            {
+                var status=startup.GetComponentInChildren<Text>(true);
+                var safeRect=Child("SafeArea",startup.transform); Stretch(safeRect); startupSafe=safeRect.gameObject.AddComponent<SafeAreaRoot>();
+                if(status!=null) status.transform.SetParent(safeRect,false);
+            }
+            startupCanvas.Configure(startupSafe,null,null);
+            PrefabUtility.SaveAsPrefabAsset(startup,startupPath); PrefabUtility.UnloadPrefabContents(startup);
+            AssetDatabase.SaveAssets(); AssetDatabase.Refresh();
+            Debug.Log("U2_ASSETS_PASS");
+        }
+        private static RectTransform Child(string name,Transform parent)
+        { var go=new GameObject(name,typeof(RectTransform)); go.transform.SetParent(parent,false); return (RectTransform)go.transform; }
+        private static void Stretch(RectTransform rect) { rect.anchorMin=Vector2.zero; rect.anchorMax=Vector2.one; rect.offsetMin=rect.offsetMax=Vector2.zero; }
+    }
+}

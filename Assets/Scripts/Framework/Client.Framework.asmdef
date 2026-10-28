@@ -1,5 +1,5 @@
 {
   "name": "Client.Framework",
-  "references": ["UnityGameFramework.Runtime", "Client.Contracts"],
+  "references": ["UnityGameFramework.Runtime", "Client.Contracts", "UnityEngine.UI"],
   "autoReferenced": true
 }
