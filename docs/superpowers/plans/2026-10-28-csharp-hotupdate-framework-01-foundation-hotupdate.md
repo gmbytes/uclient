@@ -152,7 +152,7 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 - Modify: `Assets/Scripts/Framework/Bootstrap/ClientBootstrap.cs`、`UIUpdate.cs`。
 - Create: `Tests/EditMode/TrialLaunchTests.cs`、`Tests/PlayMode/BootstrapLifecycleTests.cs`。
 
-**Interfaces:** `ReleaseCoordinator.PrepareLaunchAsync(CancellationToken token):Task<LaunchSelection>`；`BeginTrial(LaunchSelection selection):void` 在资源初始化前持久化；`ReportReady(string releaseId):void` 只提交当前代次一次；`FailCurrent(ReleaseErrorCode code):void` 标记坏候选并进入RestartRequired。一个未完成trial下次启动即排除候选并回退，不无限循环尝试。
+**Interfaces:** `ReleaseCoordinator.PrepareLaunchAsync(CancellationToken token):Task<LaunchSelection>`；`BeginTrial(LaunchSelection selection):void` 在资源初始化前持久化；实际提交只接受绑定当前selection/context/epoch的Ready请求，稳定`IClientContext.ReportReady()`由该捕获上下文转发。兼容形状`ReportReady(string releaseId):void`缺少调用者代次，必须有限拒绝且不得推断当前上下文提交。`FailCurrent(ReleaseErrorCode code):void`标记坏候选并进入RestartRequired。一个未完成trial下次启动即排除候选并回退，不无限循环尝试。
 
 - [ ] **Step 1:** 写 `UnfinishedTrialRollsBackOnNextProcess`：模拟重建协调器，选择PreviousGood；写 `ServerLoginFailureDoesNotBlacklistRelease`：网络/认证失败不改变known-good；写 `StaleReadyCannotCommitAnotherRelease`。
 - [ ] **Step 2:** 运行 F7 EditMode，确认默认状态机无法满足上述断言。
