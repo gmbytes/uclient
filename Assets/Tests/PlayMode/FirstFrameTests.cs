@@ -10,6 +10,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
+using UnityGameFramework.Runtime;
 using Object = UnityEngine.Object;
 
 namespace Client.Tests
@@ -176,6 +177,57 @@ namespace Client.Tests
                 try { yield return Await(wait); Assert.That(wait.IsCanceled, Is.True); }
                 finally { Canvas.willRenderCanvases -= atRender; }
             }
+        }
+
+        // Native UIForm pause deactivates the Bridge GameObject; its coroutine must not be stranded.
+        [UnityTest]
+        public IEnumerator NativePauseBeforePresentationThenResumeWaitsForNewFrame()
+        {
+            PublishSnapshot(); var open = Open(); yield return Await(open); var handle = Result(open);
+            var native = Window(handle).GetComponent<UIForm>();
+            var wait = WaitForFrame(handle);
+            native.OnPause();
+            Assert.That(Window(handle).activeSelf, Is.False, "Exercise native GF pause/deactivation.");
+            for (int i = 0; i < 3; i++) yield return null;
+            Assert.That(wait.IsCompleted, Is.False, "Hidden views cannot publish evidence.");
+            native.OnResume(); int resumedFrame = Time.frameCount;
+            Assert.That(Window(handle).activeSelf, Is.True);
+            Assert.That(wait.IsCompleted, Is.False, "Resume itself is not a rendered frame.");
+            yield return Await(wait);
+            Assert.That(wait.IsCompletedSuccessfully, Is.True, wait.Exception?.ToString());
+            Assert.That(Time.frameCount, Is.GreaterThan(resumedFrame));
+        }
+
+        // Each terminal path must detach the global render callback even while the native view is hidden.
+        [UnityTest]
+        public IEnumerator HiddenCancelCloseAndServiceDisposeRestoreRenderListenerBaseline()
+        {
+            PublishSnapshot();
+            for (int mode = 0; mode < 3; mode++)
+            {
+                var open = Open(); yield return Await(open); var handle = Result(open);
+                int baseline = CanvasListenerCount();
+                using (var cancel = new CancellationTokenSource())
+                {
+                    var wait = WaitForFrame(handle, cancel.Token);
+                    Window(handle).GetComponent<UIForm>().OnPause();
+                    for (int i = 0; i < 2; i++) yield return null;
+                    Assert.That(wait.IsCompleted, Is.False);
+                    if (mode == 0) cancel.Cancel();
+                    else if (mode == 1) Call(handle, "Close");
+                    else ((IDisposable)service).Dispose();
+                    yield return Await(wait); Assert.That(wait.IsCanceled, Is.True);
+                    Assert.That(CanvasListenerCount(), Is.EqualTo(baseline), "Hidden terminal paths must detach the observer.");
+                }
+                Call(handle, "Close"); yield return null;
+            }
+        }
+
+        private static int CanvasListenerCount()
+        {
+            var field = typeof(Canvas).GetField("willRenderCanvases", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(field, Is.Not.Null, "Unity Canvas render event backing field is required by this leak check.");
+            return (field.GetValue(null) as Delegate)?.GetInvocationList().Length ?? 0;
         }
 
     }
