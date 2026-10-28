@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using Client.Contracts;
@@ -179,6 +180,10 @@ namespace Client.Framework.UI
             if (disposed || handle.IsClosed || !active.Contains(handle)) throw new ObjectDisposedException(nameof(UIViewHandle));
             return new FirstFrameObservation(this, handle, token).Start();
         }
+
+        // The native UI host outlives pooled window activation/pause/resume transitions.
+        internal Coroutine StartFrameObservation(IEnumerator routine) => ui.StartCoroutine(routine);
+        internal void StopFrameObservation(Coroutine routine) { if (ui != null) ui.StopCoroutine(routine); }
 
         internal bool CanPresent(UIViewHandle handle)
         {
