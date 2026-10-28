@@ -294,6 +294,7 @@ namespace Client.Framework.Network
                     this.error = error; Connected = false;
                     Incoming.Clear(); IncomingItems = IncomingBytes = DeliveredLength = 0;
                     ActiveWrite?.Completion.TrySetException(error);
+                    ActiveWrite = null;
                     while (Outgoing.Count > 0) Outgoing.Dequeue().Completion.TrySetException(error);
                     OutgoingItems = OutgoingBytes = 0;
                     try { Client.Close(); } finally { Lifetime.Cancel(); }
