@@ -96,11 +96,11 @@ N0验收：client c5f5a79 / comm467e131，24/24用例通过，独立规范与质
 
 **Interfaces:** `SessionClient : ISessionClient` 使用F3的LoginInput/LoginResult/SessionIdentity/SessionState；`RequestIdSequence.Next():ulong` 溢出拒绝且不回零。`DevelopmentCredentialProvider.Create(string account):LoginInput` 只接受正整数，构造 `credential=demo:<id>`、空resumeToken。测试服务 `dotnet run --project Tests/Fixtures/LoginServer -- --port <port> --case success|reject|timeout|half-frame`。
 
-- [ ] **Step 1:** 写 `LoginCredentialAndTokenAreExclusive`、`ConcurrentLoginReturnsBusy`、`LoginFailureNeverBecomesAuthenticated`；成功需匹配request_id、version3、error_code0及有效Identity，控制错误映射有限LoginError。
-- [ ] **Step 2:** 写 `CancelledOldResponseCannotChangeNewSession`、`DisconnectRestoresUIState`、`RequestIdsAbove2Pow53RemainExact`（输入9,007,199,254,740,993，往返不变）、`OverflowRequiresNewSession`；运行N3 EditMode确认红灯。
-- [ ] **Step 3:** 实现Idle→Connecting→Authenticating→Authenticated/Disconnected；Connect和Login各5秒，使用同一连接epoch过滤。按N0锁定错误码映射0成功/3认证拒绝/7超时，未知非零保留ServerErrorCode且不得判成功。未匹配消息为ProtocolError；首期未支持的业务/恢复下行明确断开，不虚假ACK、不静默丢失。
-- [ ] **Step 4:** 创建C#回环登录fixture并覆盖成功、拒绝、超时、取消、错误版本、半帧、服务器关闭、登录后空闲断开；token仅保内存，日志不含credential/token。登录后停止在演示状态，不实现业务初始化和自动Resume。
-- [ ] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task N3 -Mode EditMode` 与PlayMode，检查清理后无残留socket/重复事件。提交 `feat(session): 接通最小Protobuf登录控制`。
+- [x] **Step 1:** 写 `LoginCredentialAndTokenAreExclusive`、`ConcurrentLoginReturnsBusy`、`LoginFailureNeverBecomesAuthenticated`；成功需匹配request_id、version3、error_code0及有效Identity，控制错误映射有限LoginError。
+- [x] **Step 2:** 写 `CancelledOldResponseCannotChangeNewSession`、`DisconnectRestoresUIState`、`RequestIdsAbove2Pow53RemainExact`（输入9,007,199,254,740,993，往返不变）、`OverflowRequiresNewSession`；运行N3 EditMode确认红灯。
+- [x] **Step 3:** 实现Idle→Connecting→Authenticating→Authenticated/Disconnected；Connect和Login各5秒，使用同一连接epoch过滤。按N0锁定错误码映射0成功/3认证拒绝/7超时，未知非零保留ServerErrorCode且不得判成功。未匹配消息为ProtocolError；首期未支持的业务/恢复下行明确断开，不虚假ACK、不静默丢失。
+- [x] **Step 4:** 创建C#回环登录fixture并覆盖成功、拒绝、超时、取消、错误版本、半帧、服务器关闭、登录后空闲断开；token仅保内存，日志不含credential/token。登录后停止在演示状态，不实现业务初始化和自动Resume。
+- [x] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task N3 -Mode EditMode` 与PlayMode，检查清理后无残留socket/重复事件。提交 `feat(session): 接通最小Protobuf登录控制`。
 
 ### Task N4：C#/Tok 双向互操作与热更协议验证
 

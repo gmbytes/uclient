@@ -122,11 +122,11 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 
 **Interfaces:** `ReleaseStore.PrepareAsync(VerifiedRelease release,IProgress<ReleaseProgress> progress,CancellationToken token):Task<PreparedRelease>`；`PreparedRelease` 只指完整目录。`ReleaseStateStore.Read():ReleaseState`、`WriteAtomic(ReleaseState state):void`；`ReleaseState` 保存 KnownGood、PreviousGood、Candidate、Attempt、BadReleaseIds。`IFileFaultInjector.Hit(string checkpoint)` 仅测试注入，发布默认空实现。
 
-- [ ] **Step 1:** 写 `InterruptedPreparePreservesKnownGood`：在下载/拷贝/hash/改名/写状态每个边界失败，断言旧known-good不变且候选不会返回prepared；写 `ChangedOnlyDownloadStillCreatesFullSnapshot`：两文件中仅一文件下载，但新slot两文件齐全且hash正确。
-- [ ] **Step 2:** 写 `NoSpaceAndCancellationNeverActivate`、`AndroidBaselineUsesStreamReader`、`StateRecoveryUsesValidPrimaryOrBackup`；运行 F5 EditMode/PlayMode 确认红灯。
-- [ ] **Step 3:** 实现并发2、单文件最多3次传输尝试（退避1/2秒，取消/校验/兼容错误不重试）的 UGF Download 适配；`.partial` 暂存，同卷改名。准备前检查“待物化完整slot+临时文件+64MiB余量”，不足返回NoSpace；禁止写稳定slot。断点续传最终仍整文件hash校验。
-- [ ] **Step 4:** 包内基线在 Android 用平台读取流物化；复用旧文件先hash再复制，不使用可变共享或硬链接。状态使用同目录临时文件+替换/备份，启动恢复仅接受结构及引用有效的一份，所有错误保留足够诊断。
-- [ ] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode EditMode` 与 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode PlayMode`，预期 `TASK_PASS F5`，无临时文件被解析为活跃资源。提交 `feat(release): 原子准备完整版本目录`。
+- [x] **Step 1:** 写 `InterruptedPreparePreservesKnownGood`：在下载/拷贝/hash/改名/写状态每个边界失败，断言旧known-good不变且候选不会返回prepared；写 `ChangedOnlyDownloadStillCreatesFullSnapshot`：两文件中仅一文件下载，但新slot两文件齐全且hash正确。
+- [x] **Step 2:** 写 `NoSpaceAndCancellationNeverActivate`、`AndroidBaselineUsesStreamReader`、`StateRecoveryUsesValidPrimaryOrBackup`；运行 F5 EditMode/PlayMode 确认红灯。
+- [x] **Step 3:** 实现并发2、单文件最多3次传输尝试（退避1/2秒，取消/校验/兼容错误不重试）的 UGF Download 适配；`.partial` 暂存，同卷改名。准备前检查“待物化完整slot+临时文件+64MiB余量”，不足返回NoSpace；禁止写稳定slot。断点续传最终仍整文件hash校验。
+- [x] **Step 4:** 包内基线在 Android 用平台读取流物化；复用旧文件先hash再复制，不使用可变共享或硬链接。状态使用同目录临时文件+替换/备份，启动恢复仅接受结构及引用有效的一份，所有错误保留足够诊断。
+- [x] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode EditMode` 与 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode PlayMode`，预期 `TASK_PASS F5`，无临时文件被解析为活跃资源。提交 `feat(release): 原子准备完整版本目录`。
 
 ### Task F6：生产加载器、AOT 补充元数据与裁剪门禁
 

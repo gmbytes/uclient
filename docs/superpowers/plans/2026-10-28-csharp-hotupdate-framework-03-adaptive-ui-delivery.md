@@ -68,11 +68,11 @@
 
 **Interfaces:** `UIService:IUIService`使用F3 OpenAsync/Close契约；`UIViewBridge:UIFormLogic`只用于主窗口，序列化RootCanvas:Canvas、RootCanvasGroup:CanvasGroup、Bindings:UIBindings，提供可见性/关闭通知和`Component Resolve(string bindingId)`。通用AOT `UIBindings:MonoBehaviour`持显式单项/数组引用表，提供`Component Resolve(string id)`与`IReadOnlyList<Component> ResolveMany(string id)`；UIViewBridge委托单项Resolve，子组件只挂UIBindings。UIViewDefinition包含ViewID/PrefabAddress/Group/Modal/CloseOnMask/LayoutDefinition。UIGroups固定Background/Page/Popup/Loading/System。Open取消后迟到资源必须释放，Close幂等；Bridge.Awake不启动资源/网络流程，独立预览不依赖Game.Entry。
 
-- [ ] **Step 1:** 写 `OpenCloseReuseHasOneSubscription`：连续开关20次，活动监听数回基线、点击只触发一次；`CancelledOpenReleasesLateAsset`；`ClosedWindowIgnoresLateCallback`；`PopupOrderingAndInputBlockRemainCorrect`。
-- [ ] **Step 2:** 运行U3 PlayMode确认缺少生命周期处理时失败。
-- [ ] **Step 3:** 通过GF UI组和UIForm生命周期实现句柄；热更Presenter接收句柄并自行绑定/解绑，不把热更MonoBehaviour写进启动场景或Prefab。UI Prefab由GF UI模块及其原生Resource helper唯一加载/释放，UIViewHandle只持UIForm生命周期，不先经IResourceService重复预加载同一Prefab；其他显式资源使用IAssetHandle管理。
-- [ ] **Step 4:** 编辑器绑定校验检查必要引用、类型、重复ID和缺失字体；构建时失败阻止发布。运行 `./Tool/Client/Test-Client.ps1 -Task U3 -Mode EditMode` 和PlayMode，预期 `TASK_PASS U3`。
-- [ ] **Step 5:** 提交 `feat(ui): 建立可热更窗口绑定与生命周期`。
+- [x] **Step 1:** 写 `OpenCloseReuseHasOneSubscription`：连续开关20次，活动监听数回基线、点击只触发一次；`CancelledOpenReleasesLateAsset`；`ClosedWindowIgnoresLateCallback`；`PopupOrderingAndInputBlockRemainCorrect`。
+- [x] **Step 2:** 运行U3 PlayMode确认缺少生命周期处理时失败。
+- [x] **Step 3:** 通过GF UI组和UIForm生命周期实现句柄；热更Presenter接收句柄并自行绑定/解绑，不把热更MonoBehaviour写进启动场景或Prefab。UI Prefab由GF UI模块及其原生Resource helper唯一加载/释放，UIViewHandle只持UIForm生命周期，不先经IResourceService重复预加载同一Prefab；其他显式资源使用IAssetHandle管理。
+- [x] **Step 4:** 编辑器绑定校验检查必要引用、类型、重复ID和缺失字体；构建时失败阻止发布。运行 `./Tool/Client/Test-Client.ps1 -Task U3 -Mode EditMode` 和PlayMode，预期 `TASK_PASS U3`。
+- [x] **Step 5:** 提交 `feat(ui): 建立可热更窗口绑定与生命周期`。
 
 ### Task U4：UI制作模板、配置与C#绑定工具
 
