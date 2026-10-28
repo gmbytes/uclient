@@ -139,11 +139,11 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 
 **Interfaces:** `AotMetadataLoader.Load(ArchivedMetadataSet set):void`；每次 `RuntimeApi.LoadMetadataForAOTAssembly` 检查返回码；只读匹配 platform/playerBuildId。`HotfixCompatibilityCheck.Check(string playerArchive,string compiledHotfixRoot):CompatibilityReport`，输出缺失AOT引用、程序集依赖/顺序及是否需要新Player。
 
-- [ ] **Step 1:** 写 `RejectsMetadataFromAnotherPlatform`、`MissingAotApiRequiresNewPlayer`、`AssemblyOrderIsTopologicalAndComplete`，断言错集/缺DLL/循环/未预留程序集名在加载前失败；运行 F6 EditMode 确认失败。
-- [ ] **Step 2:** 实现正式启动只接受F4/F5的Verified/Prepared产物。按元数据→Client.Game.Protocol→Client.Game顺序加载，移除产品对F3 Proof fixture的所有引用。
-- [ ] **Step 3:** 主包构建先编译热DLL、生成link/桥接/泛型引用和目标AOT输出，封装基线，再构建Player；将最终post-strip输出与用于包内基线的元数据逐文件比对，不一致使构建失败并重建基线。归档不可变PlayerBuildId、依赖锁、裁剪配置、平台、元数据hash和原生产物hash。
-- [ ] **Step 4:** 补丁构建只从选定Player归档取元数据，使用锁定HybridCLR的 MissingMetadataChecker 或同等官方检查入口；新增未保留AOT API、库升级或稳定契约改变返回RequiresNewPlayer。
-- [ ] **Step 5:** 跑 F6 EditMode，并用 Release IL2CPP probe 覆盖 `List<热更struct>`、`Dictionary<uint,IMessage>`、async/Task状态机、Protobuf RepeatedField/MapField、注册Parser与未知字段；任一失败不能发布。提交 `feat(hotfix): 绑定AOT归档并拦截不兼容补丁`。
+- [x] **Step 1:** 写 `RejectsMetadataFromAnotherPlatform`、`MissingAotApiRequiresNewPlayer`、`AssemblyOrderIsTopologicalAndComplete`，断言错集/缺DLL/循环/未预留程序集名在加载前失败；运行 F6 EditMode 确认失败。
+- [x] **Step 2:** 实现正式启动只接受F4/F5的Verified/Prepared产物。按元数据→Client.Game.Protocol→Client.Game顺序加载，移除产品对F3 Proof fixture的所有引用。
+- [x] **Step 3:** 主包构建先编译热DLL、生成link/桥接/泛型引用和目标AOT输出，封装基线，再构建Player；将最终post-strip输出与用于包内基线的元数据逐文件比对，不一致使构建失败并重建基线。归档不可变PlayerBuildId、依赖锁、裁剪配置、平台、元数据hash和原生产物hash。
+- [x] **Step 4:** 补丁构建只从选定Player归档取元数据，使用锁定HybridCLR的 MissingMetadataChecker 或同等官方检查入口；新增未保留AOT API、库升级或稳定契约改变返回RequiresNewPlayer。
+- [x] **Step 5:** 跑 F6 EditMode，并用 Release IL2CPP probe 覆盖 `List<热更struct>`、`Dictionary<uint,IMessage>`、async/Task状态机、Protobuf RepeatedField/MapField、注册Parser与未知字段；任一失败不能发布。提交 `feat(hotfix): 绑定AOT归档并拦截不兼容补丁`。
 
 ### Task F7：启动状态机、试运行提交与下进程回退
 
@@ -152,13 +152,13 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 - Modify: `Assets/Scripts/Framework/Bootstrap/ClientBootstrap.cs`、`UIUpdate.cs`。
 - Create: `Tests/EditMode/TrialLaunchTests.cs`、`Tests/PlayMode/BootstrapLifecycleTests.cs`。
 
-**Interfaces:** `ReleaseCoordinator.PrepareLaunchAsync(CancellationToken token):Task<LaunchSelection>`；`BeginTrial(LaunchSelection selection):void` 在资源初始化前持久化；`ReportReady(string releaseId):void` 只提交当前代次一次；`FailCurrent(ReleaseErrorCode code):void` 标记坏候选并进入RestartRequired。一个未完成trial下次启动即排除候选并回退，不无限循环尝试。
+**Interfaces:** `ReleaseCoordinator.PrepareLaunchAsync(CancellationToken token):Task<LaunchSelection>`；`BeginTrial(LaunchSelection selection):void` 在资源初始化前持久化；实际提交只接受绑定当前selection/context/epoch的Ready请求，稳定`IClientContext.ReportReady()`由该捕获上下文转发。兼容形状`ReportReady(string releaseId):void`缺少调用者代次，必须有限拒绝且不得推断当前上下文提交。`FailCurrent(ReleaseErrorCode code):void`标记坏候选并进入RestartRequired。一个未完成trial下次启动即排除候选并回退，不无限循环尝试。
 
-- [ ] **Step 1:** 写 `UnfinishedTrialRollsBackOnNextProcess`：模拟重建协调器，选择PreviousGood；写 `ServerLoginFailureDoesNotBlacklistRelease`：网络/认证失败不改变known-good；写 `StaleReadyCannotCommitAnotherRelease`。
-- [ ] **Step 2:** 运行 F7 EditMode，确认默认状态机无法满足上述断言。
-- [ ] **Step 3:** 实现 Check→Prepare→Select→Trial→ResourceInit→Metadata→Hotfix→LoginReady；Check先下载并验签channel.json/channel.sig，再按指定hash读取并验签release清单；使用F4结果驱动F5。启动场景AOT UI显示有限状态、进度、重试/退出。准备阶段失败保留旧版本；Resource开始初始化后失败进入RestartRequired，禁止同进程再次切根/Assembly.Load。
-- [ ] **Step 4:** `ReportReady` 必须由本地资源加载、热入口、Protobuf自检和登录首帧共同触发；服务器不可用不能阻止本地版本成为known-good。取消/退出清理下载和监听，旧代次回调无效；只清理不被任何状态引用的版本，保留至少当前和上一可用版本。
-- [ ] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task F7 -Mode EditMode` 与 PlayMode，预期全过。提交 `feat(release): 支持试启动与重启后回退`。
+- [x] **Step 1:** 写 `UnfinishedTrialRollsBackOnNextProcess`：重建协调器后隔离未完成的Candidate C，选择仍有效的KnownGood K并保留PreviousGood P；`FailedKnownGoodPromotesSurvivingPreviousAtomically`另验证KnownGood自身失败时原子转向PreviousGood。写 `ServerLoginFailureDoesNotBlacklistRelease`：网络/认证失败不改变known-good；写 `StaleReadyCannotCommitAnotherRelease`。
+- [x] **Step 2:** 运行 F7 EditMode，确认默认状态机无法满足上述断言。
+- [x] **Step 3:** 实现 Check→Prepare→Select→Trial→ResourceInit→Metadata→Hotfix→LoginReady；Check先下载并验签channel.json/channel.sig，再按指定hash读取并验签release清单；使用F4结果驱动F5。启动场景AOT UI显示有限状态、进度、重试/退出。准备阶段失败保留旧版本；Resource开始初始化后失败进入RestartRequired，禁止同进程再次切根/Assembly.Load。
+- [x] **Step 4:** `ReportReady` 必须由本地资源加载、热入口、Protobuf自检和登录首帧共同触发；服务器不可用不能阻止本地版本成为known-good。取消/退出清理下载和监听，旧代次回调无效；只清理不被任何状态引用的版本，保留至少当前和上一可用版本。
+- [x] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task F7 -Mode EditMode` 与 PlayMode，预期全过。提交 `feat(release): 支持试启动与重启后回退`。
 
 ### Task F8：Android/Windows 核心热更新门槛
 

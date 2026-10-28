@@ -4,7 +4,7 @@
 
 ## 1. 已确认要求与范围
 
-- 新客户端目录：`E:/sgame/client`；尚无Unity工程，当前仅本轮规划文档。
+- 新客户端目录：`E:/sgame/client`；Unity工程已建立，已实施范围及验收证据见[实施进度](../../implementation-progress.md)。
 - 自研代码使用传统`Assets/Scripts/Framework`、`Assets/Scripts/Game`、`Assets/Scripts/Editor`结构；分别承载AOT基础设施、C#热更应用和编辑器工具。完整目录规范见[工程目录规划](../../project-layout.md)。
 - 参考项目：`E:/hygd/work/client`；参考其组织和工具经验，不复制完整游戏。
 - 项目自有运行时代码全部使用 C#，不引入 Lua、XLua 或脚本语言业务层。
@@ -34,7 +34,7 @@ UGF 原生 Resource 是唯一的资产地址、依赖与 Bundle 索引。发布�
 
 旧 `UICanvasScaler` 只在 Awake 调整，固定 1920×1080，且宽高比使用整数除法，不能搬来满足新 UI 要求。`UISafeArea` 的归一化锚点算法可参考，旧机型补丁和默认关闭 X 轴适配不直接保留。详细迁移矩阵见总计划。
 
-协议统一由`E:/sgame/comm/proto`提供共享构建源和来源锁；该目录当前为空，N0将按Tok当前canonical定义建立必需文件。Tok v3固定信封来自`tok/crates/tok-proto/proto/tok/client/v1/client.proto`的完整兼容副本，客户端不能单方面改线格式。生成工具显式接收共享ProtoRoot和protocol.lock；客户端只保留C#生成物。首期使用LoginRequest/LoginResponse/ControlError，业务准入为空；详细定义见[Tok demo接入契约](../../tok-demo-protocol.md)。
+协议统一由`E:/sgame/comm/proto`提供共享构建源和来源锁；N0已按Tok canonical定义建立必需文件，测试源隔离在共享fixtures目录。Tok v3固定信封来自`tok/crates/tok-proto/proto/tok/client/v1/client.proto`的完整兼容副本，客户端不能单方面改线格式。生成工具显式接收共享ProtoRoot和protocol.lock；客户端只保留C#生成物。首期使用LoginRequest/LoginResponse/ControlError，正式业务准入保持为空；详细定义见[Tok demo接入契约](../../tok-demo-protocol.md)。
 
 ## 4. 程序集与目录边界
 

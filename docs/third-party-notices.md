@@ -10,7 +10,7 @@
 - 网关错误码来源：`crates/tok-gateway/src/error.rs`，包含 Ok=0、AuthenticationFailed=3、Timeout=7；完整值及文件 hash 记录于共享 `protocol.lock.json`。
 - 实际许可：Tok 仓库根 `LICENSE` 中的 Apache License 2.0；完整原文复制至 `../comm/proto/LICENSE-Tok.txt`，原始 SHA-256 为 `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4`。当前来源仓库根无单独 NOTICE 文件。
 
-上述来源锁独立于 protoc 与 protobuf runtime 工具链锁。N0 仅建立共享源契约，尚未生成或分发 C# 协议代码。
+上述来源锁独立于protoc与protobuf runtime工具链锁。N0阶段仅建立共享源契约；此后的N1已交付生成C#与运行库，对应来源和许可见下文及依赖锁。
 
 ## Unity Game Framework / Game Framework
 

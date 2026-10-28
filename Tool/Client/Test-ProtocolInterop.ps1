@@ -42,6 +42,10 @@ try{
             $result.sourceFiles+=@{path=$file.FullName;sha256=(Hash $file.FullName)}
         }
     }
+    foreach($relative in 'Assets/Scripts/Framework/Contracts/SessionContracts.cs','Assets/Scripts/Framework/Contracts/ISessionClient.cs','Assets/Scripts/Game/Login/DevelopmentCredentialProvider.cs'){
+        $file=Join-Path $ClientRoot $relative
+        $result.sourceFiles+=@{path=$file;sha256=(Hash $file)}
+    }
     foreach($file in @($PSCommandPath,(Join-Path $commTools 'Test-Managed.ps1'),(Join-Path $commTools 'Test-TokFrames.ps1'),(Join-Path $commTools 'Validate-Boundaries.ps1'),(Join-Path $commTools 'Managed/SGame.Client.Managed.csproj'),(Join-Path $commTools 'TokInterop/build.rs'),(Join-Path $commTools 'TokInterop/src/main.rs'),(Join-Path $commTools 'TokInterop/Cargo.lock'))){
         $result.sourceFiles+=@{path=$file;sha256=(Hash $file)}
     }
