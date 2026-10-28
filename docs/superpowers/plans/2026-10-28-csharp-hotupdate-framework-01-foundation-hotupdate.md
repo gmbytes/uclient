@@ -91,11 +91,14 @@ F2验收：9a2982c，原生Windows Package同Player A/B自然退出0、资源快
 - `ISessionClient.LoginAsync(LoginInput input,CancellationToken token):Task<LoginResult>`、`Disconnect()`、`event Action<SessionState> StateChanged`。`LoginInput(string credential,string resumeToken)` 恰好一个非空。`LoginResult` 含 `Succeeded:bool`、`Error:LoginError`、`ServerErrorCode:uint32`、`Identity:SessionIdentity`、`SafeMessage:string`；Identity含PlayerId/SessionId字符串、Epoch:uint64、ResumeToken字符串与ResumeTokenTtlMs:uint64。`SessionState` 为 Idle/Connecting/Authenticating/Authenticated/Disconnected；LoginError为None/InvalidInput/Busy/ConnectFailed/Timeout/Cancelled/Rejected/ProtocolError/Disconnected。不把凭据和token写日志。
 - `HotfixAssemblyLoader.LoadOnce(IReadOnlyList<VerifiedAssembly> assemblies):IHotfixEntry`；VerifiedAssembly含Name/Bytes/Sha256/Dependencies，只接受已校验字节与顺序，第二次调用拒绝。
 
-- [ ] **Step 1:** 写`AotAssembliesNeverReferenceGame`，遍历已编译AOT引用断言无Client.Game*；写`FrameworkNeverReferencesBootstrap`防止嵌套目录引入反向依赖；写`EntryIsLoadedOnce`，断言重复加载请求被拒绝。运行F3 EditMode确认红灯。
-- [ ] **Step 2:** 建立 asmdef 单向引用和无业务契约，Hotfix autoReferenced=false，配置 HybridCLR 热更列表。入口仅通过稳定接口和一个配置的类型全名定位，不用 AOT `typeof(HotfixType)`。
-- [ ] **Step 3:** 做独立测试 fixture：v1 Entry 返回标记 `proof-v1`；v2 新增纯 C# 类型/分支返回 `proof-v2:42`。只在 Test build 的 Proof 场景从本地测试目录加载，不给产品启动器加无签名远程旁路。
-- [ ] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task F3 -Mode EditMode`；运行 `./Tool/Client/Test-MinimalHotfix.ps1 -Platform Windows64`。预期同一个 IL2CPP Player hash 不变，第二次启动日志出现 `HOTFIX_PROOF proof-v2:42`，v1分支不执行。该 Task 的元数据仍须来自这次测试 Player。
-- [ ] **Step 5:** 提交 `feat(hotfix): 建立稳定边界并验证最小CSharp更新`。这是第一个代码热更闭环，远程更新和回滚尚未完成。
+- [x] **Step 1:** 写`AotAssembliesNeverReferenceGame`，遍历已编译AOT引用断言无Client.Game*；写`FrameworkNeverReferencesBootstrap`防止嵌套目录引入反向依赖；写`EntryIsLoadedOnce`，断言重复加载请求被拒绝。运行F3 EditMode确认红灯。
+- [x] **Step 2:** 建立 asmdef 单向引用和无业务契约，Hotfix autoReferenced=false，配置 HybridCLR 热更列表。入口仅通过稳定接口和一个配置的类型全名定位，不用 AOT `typeof(HotfixType)`。
+- [x] **Step 3:** 做独立测试 fixture：v1 Entry 返回标记 `proof-v1`；v2 新增纯 C# 类型/分支返回 `proof-v2:42`。只在 Test build 的 Proof 场景从本地测试目录加载，不给产品启动器加无签名远程旁路。
+- [x] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task F3 -Mode EditMode`；运行 `./Tool/Client/Test-MinimalHotfix.ps1 -Platform Windows64`。预期同一个 IL2CPP Player hash 不变，第二次启动日志出现 `HOTFIX_PROOF proof-v2:42`，v1分支不执行。该 Task 的元数据仍须来自这次测试 Player。
+- [x] **Step 5:** 提交 `feat(hotfix): 建立稳定边界并验证最小CSharp更新`。这是第一个代码热更闭环，远程更新和回滚尚未完成。
+
+
+F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类型42执行、48份原Player元数据、原生完整哈希不变及普通Player隔离通过；独立规范/质量审查通过。Protocol实际接入和生产签名/下载/回退仍在后续。
 
 ### Task F4：签名清单与兼容门禁
 
@@ -105,11 +108,11 @@ F2验收：9a2982c，原生Windows Package同Player A/B自然退出0、资源快
 
 **Interfaces:** `ManifestVerifier.Verify(byte[] json,byte[] signature,PlayerIdentity player):VerifiedRelease`；`VerifyChannel(byte[] json,byte[] signature):VerifiedChannelPointer`，渠道指针含ReleaseId/ManifestRelativePath/ManifestSha256/KeyId。失败抛带有限 `ReleaseErrorCode` 的异常。`PlayerIdentity` 固定 playerBuildId/platform/architecture/unityVersion/contractVersion/envelopeSha256/aotMetadataSetId。`VerifiedRelease` 是后续下载唯一输入，包含不可变文件集合和程序集顺序。渠道和release均对原始字节签名，渠道路径也受相对路径策略约束。
 
-- [ ] **Step 1:** 写 `WrongIdentityLoadsZeroDlls`：分别篡改上述身份字段，断言兼容拒绝且加载数0；写 `SignatureCoversOriginalBytes`：清单/渠道任一字节改变即失败；写 `ManifestRejectsUnsafePaths` 覆盖绝对路径、`..`、重复路径、重复JSON键、超过256KiB；渠道指定的release hash不匹配必须拒绝。
-- [ ] **Step 2:** 运行 `./Tool/Client/Test-Client.ps1 -Task F4 -Mode EditMode`，确认无校验实现时失败。
-- [ ] **Step 3:** 使用 Newtonsoft JSON 严格解析、RSA-2048/SHA-256 分离签名和 SHA-256；先验签原始字节再解析，不用重序列化结果验签。KeyId只能选择内置可信公钥，未知KeyId拒绝。测试运行时在忽略的Builds/TestKeys生成临时密钥，fixtures只保留非秘密向量/公钥；正式builder拒绝测试KeyId，任何签名私钥不入库。固定文件种类为 NativeResource、HotfixDll、AotMetadata、Configuration。
-- [ ] **Step 4:** 重跑 F4，预期所有有效/无效矩阵通过；有效清单输出 `VerifiedRelease`，异常不泄露路径外内容或凭据。
-- [ ] **Step 5:** 提交 `feat(release): 校验发布签名与Player兼容性`。
+- [x] **Step 1:** 写 `WrongIdentityLoadsZeroDlls`：分别篡改上述身份字段，断言兼容拒绝且加载数0；写 `SignatureCoversOriginalBytes`：清单/渠道任一字节改变即失败；写 `ManifestRejectsUnsafePaths` 覆盖绝对路径、`..`、重复路径、重复JSON键、超过256KiB；渠道指定的release hash不匹配必须拒绝。
+- [x] **Step 2:** 运行 `./Tool/Client/Test-Client.ps1 -Task F4 -Mode EditMode`，确认无校验实现时失败。
+- [x] **Step 3:** 使用 Newtonsoft JSON 严格解析、RSA-2048/SHA-256 分离签名和 SHA-256；先验签原始字节再解析，不用重序列化结果验签。KeyId只能选择内置可信公钥，未知KeyId拒绝。测试运行时在忽略的Builds/TestKeys生成临时密钥，fixtures只保留非秘密向量/公钥；正式builder拒绝测试KeyId，任何签名私钥不入库。固定文件种类为 NativeResource、HotfixDll、AotMetadata、Configuration。
+- [x] **Step 4:** 重跑 F4，预期所有有效/无效矩阵通过；有效清单输出 `VerifiedRelease`，异常不泄露路径外内容或凭据。
+- [x] **Step 5:** 提交 `feat(release): 校验发布签名与Player兼容性`。
 
 ### Task F5：下载、物化完整 slot 与原子状态存储
 
@@ -119,11 +122,11 @@ F2验收：9a2982c，原生Windows Package同Player A/B自然退出0、资源快
 
 **Interfaces:** `ReleaseStore.PrepareAsync(VerifiedRelease release,IProgress<ReleaseProgress> progress,CancellationToken token):Task<PreparedRelease>`；`PreparedRelease` 只指完整目录。`ReleaseStateStore.Read():ReleaseState`、`WriteAtomic(ReleaseState state):void`；`ReleaseState` 保存 KnownGood、PreviousGood、Candidate、Attempt、BadReleaseIds。`IFileFaultInjector.Hit(string checkpoint)` 仅测试注入，发布默认空实现。
 
-- [ ] **Step 1:** 写 `InterruptedPreparePreservesKnownGood`：在下载/拷贝/hash/改名/写状态每个边界失败，断言旧known-good不变且候选不会返回prepared；写 `ChangedOnlyDownloadStillCreatesFullSnapshot`：两文件中仅一文件下载，但新slot两文件齐全且hash正确。
-- [ ] **Step 2:** 写 `NoSpaceAndCancellationNeverActivate`、`AndroidBaselineUsesStreamReader`、`StateRecoveryUsesValidPrimaryOrBackup`；运行 F5 EditMode/PlayMode 确认红灯。
-- [ ] **Step 3:** 实现并发2、单文件最多3次传输尝试（退避1/2秒，取消/校验/兼容错误不重试）的 UGF Download 适配；`.partial` 暂存，同卷改名。准备前检查“待物化完整slot+临时文件+64MiB余量”，不足返回NoSpace；禁止写稳定slot。断点续传最终仍整文件hash校验。
-- [ ] **Step 4:** 包内基线在 Android 用平台读取流物化；复用旧文件先hash再复制，不使用可变共享或硬链接。状态使用同目录临时文件+替换/备份，启动恢复仅接受结构及引用有效的一份，所有错误保留足够诊断。
-- [ ] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode EditMode` 与 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode PlayMode`，预期 `TASK_PASS F5`，无临时文件被解析为活跃资源。提交 `feat(release): 原子准备完整版本目录`。
+- [x] **Step 1:** 写 `InterruptedPreparePreservesKnownGood`：在下载/拷贝/hash/改名/写状态每个边界失败，断言旧known-good不变且候选不会返回prepared；写 `ChangedOnlyDownloadStillCreatesFullSnapshot`：两文件中仅一文件下载，但新slot两文件齐全且hash正确。
+- [x] **Step 2:** 写 `NoSpaceAndCancellationNeverActivate`、`AndroidBaselineUsesStreamReader`、`StateRecoveryUsesValidPrimaryOrBackup`；运行 F5 EditMode/PlayMode 确认红灯。
+- [x] **Step 3:** 实现并发2、单文件最多3次传输尝试（退避1/2秒，取消/校验/兼容错误不重试）的 UGF Download 适配；`.partial` 暂存，同卷改名。准备前检查“待物化完整slot+临时文件+64MiB余量”，不足返回NoSpace；禁止写稳定slot。断点续传最终仍整文件hash校验。
+- [x] **Step 4:** 包内基线在 Android 用平台读取流物化；复用旧文件先hash再复制，不使用可变共享或硬链接。状态使用同目录临时文件+替换/备份，启动恢复仅接受结构及引用有效的一份，所有错误保留足够诊断。
+- [x] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode EditMode` 与 `./Tool/Client/Test-Client.ps1 -Task F5 -Mode PlayMode`，预期 `TASK_PASS F5`，无临时文件被解析为活跃资源。提交 `feat(release): 原子准备完整版本目录`。
 
 ### Task F6：生产加载器、AOT 补充元数据与裁剪门禁
 

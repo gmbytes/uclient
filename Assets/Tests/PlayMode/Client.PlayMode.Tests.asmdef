@@ -1,6 +1,6 @@
 {
   "name": "Client.PlayMode.Tests",
-  "references": ["Client.Framework", "UnityGameFramework.Runtime"],
+  "references": ["Client.Framework", "Client.Contracts", "UnityGameFramework.Runtime", "UnityEngine.UI"],
   "precompiledReferences": ["GameFramework.dll"],
   "optionalUnityReferences": ["TestAssemblies"]
 }

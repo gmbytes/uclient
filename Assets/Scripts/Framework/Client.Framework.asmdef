@@ -1,5 +1,6 @@
 {
   "name": "Client.Framework",
-  "references": ["UnityGameFramework.Runtime", "Client.Contracts", "Client.Protocol.Envelope", "HybridCLR.Runtime"],
+  "references": ["UnityGameFramework.Runtime", "Client.Contracts", "Client.Protocol.Envelope", "UnityEngine.UI", "HybridCLR.Runtime"],
+  "precompiledReferences": ["Google.Protobuf.dll"],
   "autoReferenced": true
 }

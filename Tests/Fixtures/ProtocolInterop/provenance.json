@@ -1,0 +1,183 @@
+{
+  "sources": [
+    {
+      "path": "tests/fixtures/ProtocolInterop/Golden/golden.proto",
+      "sha256": "f4b29f333713543ba1d36f0c36057372e912325d60cde34f825fd532ad155850"
+    },
+    {
+      "path": "tests/fixtures/ProtocolInterop/V1/compat.proto",
+      "sha256": "dca1a5f4291f1cd4c9a366a2fef65c790d7b55d0f115c6a63d182f0847e781b3"
+    },
+    {
+      "path": "tests/fixtures/ProtocolInterop/V2/compat.proto",
+      "sha256": "52d8579d298625cca53c752705d07a4fe4e7fc159958b137b84b51bd1f61d7f3"
+    }
+  ],
+  "files": [
+    {
+      "sha256": "9ed1123e482c6b708d0fd91c66c08e3b634e3e96d9f9f0bae0d3de7f60b68e95",
+      "path": "Tests/Fixtures/ProtocolInterop/Golden/Golden.cs"
+    },
+    {
+      "sha256": "3e6f489561fc8b84037c62256afe84c62618a2ba265f1a7cdb708b9f9f3cad85",
+      "path": "Tests/Fixtures/ProtocolInterop/Golden/schema.pb"
+    },
+    {
+      "sha256": "c72f8c3f96174ed2b539b0e075c7a56b12822bddc3124cfe112b583e55e39057",
+      "path": "Tests/Fixtures/ProtocolInterop/V1/Compat.cs"
+    },
+    {
+      "sha256": "bf05e8f08831aa4430cae5d475ab9ff0d60dbfdabc7d8c17264f59605670ad79",
+      "path": "Tests/Fixtures/ProtocolInterop/V1/schema.pb"
+    },
+    {
+      "sha256": "8f505db64822a9bf628feda450d29b847f5fe7327ee10fcf971988342a21b654",
+      "path": "Tests/Fixtures/ProtocolInterop/V2/Compat.cs"
+    },
+    {
+      "sha256": "b735d932bf43633a6190a12d7325f3fa65a2c33921f8b1e179b75848eee37adc",
+      "path": "Tests/Fixtures/ProtocolInterop/V2/schema.pb"
+    },
+    {
+      "sha256": "0a2fb89892cf85df199ff25e7687f5f77cfa97edd4e9fc808feeb02700c29469",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/compat-v1-preserved.bytes"
+    },
+    {
+      "sha256": "0a2fb89892cf85df199ff25e7687f5f77cfa97edd4e9fc808feeb02700c29469",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/compat-v2.bytes"
+    },
+    {
+      "sha256": "8679218eb56f02e1462ffa35fffed59dda1bebbe1ac92b49d4eeda286d0d61b1",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-00.bytes"
+    },
+    {
+      "sha256": "817296e940bd4a62d7e1da6c5633a4ca33dd559cecd1524fe0dfa8530e34661b",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-01.bytes"
+    },
+    {
+      "sha256": "80450ef27f52d0af7bd010fe796ae32c6f24e71d2da9148943dd1ba9b9a327be",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-02.bytes"
+    },
+    {
+      "sha256": "6d29ce9fe6cc3aa03e11204235c8c98978cf18e4a307c36dbd7edef799b8e9e6",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-03.bytes"
+    },
+    {
+      "sha256": "1ddebcab1372f62f6697b9f480e94a14af2a59cd63245d7cc47e9ac6eeaed959",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-04.bytes"
+    },
+    {
+      "sha256": "5192389b72014e8c7bc6120761083cc92405c5b4ac571be4f05e7d6d40d27ff2",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-05.bytes"
+    },
+    {
+      "sha256": "a93dcd9ab7f93425970ae856984fb227fa3e7f31aa07f382ea52d8fe7ef2bc68",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-06.bytes"
+    },
+    {
+      "sha256": "b791dcd950d978616f641f1bf35a8df6635bff9aec3ac862ba4286df6c88aefc",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-07.bytes"
+    },
+    {
+      "sha256": "d68f77d281ccdbfb4dd6adb76fd465a36e9fff5c4ae5dc3853f3eb25e323a067",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-08.bytes"
+    },
+    {
+      "sha256": "8061b641f3a8fbd41fc07eb20aa8b7c21e225d62aee0b9f209b9da71015a8022",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-09.bytes"
+    },
+    {
+      "sha256": "0d7a839d1da7414a74193a4a5eeff77eec7ec5323e2f58fef4cbdb11e80c406f",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-10.bytes"
+    },
+    {
+      "sha256": "0efae52893d1de2dbb85d35c2a6760357337acd4fe127218c5e59ca463afcc52",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/frame-11.bytes"
+    },
+    {
+      "sha256": "ce2f1e9415f15d6c64888b51ff50e39eefdde9a5e57513418e75efc3b93f5f24",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/golden-0.bytes"
+    },
+    {
+      "sha256": "093700dfd94f5b2d9b70248f07761f0d68c9535fd92a750adc1496cbb88a77bb",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/golden-1.bytes"
+    },
+    {
+      "sha256": "99b108822ee505eec9e9cc098f875e155cc30e7ff1b88ec3df0f0b686c8f70a1",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/golden-2.bytes"
+    },
+    {
+      "sha256": "81846fd6a70372cd3fdef3d06483c1eab1402107a88706ae8b6ab08614063fd3",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/CSharp/golden-3.bytes"
+    },
+    {
+      "sha256": "8679218eb56f02e1462ffa35fffed59dda1bebbe1ac92b49d4eeda286d0d61b1",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-00.bytes"
+    },
+    {
+      "sha256": "817296e940bd4a62d7e1da6c5633a4ca33dd559cecd1524fe0dfa8530e34661b",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-01.bytes"
+    },
+    {
+      "sha256": "80450ef27f52d0af7bd010fe796ae32c6f24e71d2da9148943dd1ba9b9a327be",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-02.bytes"
+    },
+    {
+      "sha256": "6d29ce9fe6cc3aa03e11204235c8c98978cf18e4a307c36dbd7edef799b8e9e6",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-03.bytes"
+    },
+    {
+      "sha256": "1ddebcab1372f62f6697b9f480e94a14af2a59cd63245d7cc47e9ac6eeaed959",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-04.bytes"
+    },
+    {
+      "sha256": "5192389b72014e8c7bc6120761083cc92405c5b4ac571be4f05e7d6d40d27ff2",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-05.bytes"
+    },
+    {
+      "sha256": "a93dcd9ab7f93425970ae856984fb227fa3e7f31aa07f382ea52d8fe7ef2bc68",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-06.bytes"
+    },
+    {
+      "sha256": "b791dcd950d978616f641f1bf35a8df6635bff9aec3ac862ba4286df6c88aefc",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-07.bytes"
+    },
+    {
+      "sha256": "d68f77d281ccdbfb4dd6adb76fd465a36e9fff5c4ae5dc3853f3eb25e323a067",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-08.bytes"
+    },
+    {
+      "sha256": "8061b641f3a8fbd41fc07eb20aa8b7c21e225d62aee0b9f209b9da71015a8022",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-09.bytes"
+    },
+    {
+      "sha256": "0d7a839d1da7414a74193a4a5eeff77eec7ec5323e2f58fef4cbdb11e80c406f",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-10.bytes"
+    },
+    {
+      "sha256": "0efae52893d1de2dbb85d35c2a6760357337acd4fe127218c5e59ca463afcc52",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/frame-11.bytes"
+    },
+    {
+      "sha256": "ce2f1e9415f15d6c64888b51ff50e39eefdde9a5e57513418e75efc3b93f5f24",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/golden-0.bytes"
+    },
+    {
+      "sha256": "093700dfd94f5b2d9b70248f07761f0d68c9535fd92a750adc1496cbb88a77bb",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/golden-1.bytes"
+    },
+    {
+      "sha256": "99b108822ee505eec9e9cc098f875e155cc30e7ff1b88ec3df0f0b686c8f70a1",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/golden-2.bytes"
+    },
+    {
+      "sha256": "81846fd6a70372cd3fdef3d06483c1eab1402107a88706ae8b6ab08614063fd3",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/golden-3.bytes"
+    },
+    {
+      "sha256": "d13c04b67c9d67ca1d48ca24cf93a523f68069bb2d6b1900059546735c735251",
+      "path": "Tests/Fixtures/ProtocolInterop/Vectors/Rust/source-sha256.txt"
+    }
+  ],
+  "protoc": "libprotoc 36.2"
+}
