@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityGameFramework.Runtime;
+using GameFramework.Event;
 
 namespace Client.Bootstrap.HotUpdateProof
 {
@@ -24,6 +25,10 @@ namespace Client.Bootstrap.HotUpdateProof
         private readonly JObject result=new JObject();
         private readonly JArray metadata=new JArray(),markers=new JArray(),phases=new JArray();
         private string output;
+        private EventComponent downloadEvents;
+        private GfDownloadTransport ownedTransport;
+        private bool observingDownloads;
+        private readonly Dictionary<int,JObject> downloadFacts=new Dictionary<int,JObject>();
         private async void Start()
         {
             string run=Input("f8Run"),scenario=Input("f8Case");
@@ -52,7 +57,10 @@ namespace Client.Bootstrap.HotUpdateProof
                 result["releaseStore"]=root;
                 var verifier=ProofProfile.CreateVerifier();state=new ReleaseStateStore(root,verifier,player);
                 result["stateBefore"]=JObject.FromObject(state.Read());
-                transport=new ObservedReleaseTransport(new GfDownloadTransport(GameEntry.GetComponent<DownloadComponent>(),GameEntry.GetComponent<EventComponent>(),ProofProfile.Endpoint));
+                downloadEvents=GameEntry.GetComponent<EventComponent>();
+                ownedTransport=new GfDownloadTransport(GameEntry.GetComponent<DownloadComponent>(),downloadEvents,ProofProfile.Endpoint);
+                transport=new ObservedReleaseTransport(ownedTransport);
+                foreach(int id in DownloadEventIds)downloadEvents.Subscribe(id,ObserveDownload);observingDownloads=true;
                 var store=new ReleaseStore(root,new ReleaseDownloader(transport),state);
                 baseline=new CountingReader(new PlatformReleaseStreamReader(Application.streamingAssetsPath.TrimEnd('/')+"/F8Baseline",Application.platform==RuntimePlatform.Android,Path.Combine(root,"streams")));
                 coordinator=new ReleaseCoordinator(state,new NativeLaunchConfiguration(player,"Client.Game.HotUpdateProof.Entry","UILogin",TimeSpan.FromSeconds(90)),store,verifier,transport,baseline);
@@ -84,13 +92,46 @@ namespace Client.Bootstrap.HotUpdateProof
             finally
             {
                 result["baselineReads"]=baseline?.Count??0;
-                result["network"]=new JArray((transport?.Records??Array.Empty<ReleaseTransferObservation>()).Select(o=>new JObject{["path"]=o.Path,["success"]=o.Success,["bytes"]=o.Bytes,["error"]=ErrorText(o.Error),["startedUtc"]=o.StartedUtc,["finishedUtc"]=o.FinishedUtc}));
+                result["network"]=new JArray((transport?.Records??Array.Empty<ReleaseTransferObservation>()).Select(o=>new JObject{["path"]=o.Path,["success"]=o.Success,["bytes"]=o.Bytes,["bytesKnown"]=o.BytesKnown,["observationError"]=ErrorText(o.ObservationError),["error"]=ErrorText(o.Error),["startedUtc"]=o.StartedUtc,["finishedUtc"]=o.FinishedUtc}));
+                StopObservingDownloads();result["downloadEvents"]=new JArray(downloadFacts.OrderBy(p=>p.Key).Select(p=>p.Value));
                 result["finishedUtc"]=DateTime.UtcNow;
                 File.WriteAllText(output,result.ToString(Formatting.Indented)+"\n");Debug.Log("F8_RESULT "+output+" "+result.ToString(Formatting.None));
                 Application.logMessageReceived-=observe;
                 if(Application.platform!=RuntimePlatform.Android){await host.ShutdownAsync(CancellationToken.None);Application.Quit(result["error"]==null?0:1);}
             }
         }
+        private static readonly int[] DownloadEventIds={DownloadStartEventArgs.EventId,DownloadUpdateEventArgs.EventId,DownloadSuccessEventArgs.EventId,DownloadFailureEventArgs.EventId};
+        private void ObserveDownload(object sender,GameEventArgs raw)
+        {
+            switch(raw)
+            {
+                case DownloadStartEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"start",e.CurrentLength);break;
+                case DownloadUpdateEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"update",e.CurrentLength);break;
+                case DownloadSuccessEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"success",e.CurrentLength);break;
+                case DownloadFailureEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"failure",null,e.ErrorMessage);break;
+            }
+        }
+        private void RecordDownload(int serial,string path,string uri,object owner,string kind,long? length,string error=null)
+        {
+            if(!ReferenceEquals(owner,ownedTransport))return;
+            if(!downloadFacts.TryGetValue(serial,out var fact))
+            {
+                fact=new JObject{["runId"]=(string)result["runId"],["processId"]=(int)result["processId"],["serialId"]=serial,["path"]=path,["uri"]=uri,["startCount"]=0,["failed"]=false,["succeeded"]=false,["identityMismatch"]=false};downloadFacts.Add(serial,fact);
+            }
+            if((string)fact["path"]!=path||(string)fact["uri"]!=uri)fact["identityMismatch"]=true;
+            if(length.HasValue)fact["maxLength"]=Math.Max((long?)fact["maxLength"]??length.Value,length.Value);
+            if(kind=="start"){fact["startCount"]=(int)fact["startCount"]+1;fact["startLength"]=length;fact["startedUtc"]=DateTime.UtcNow;}
+            if(kind=="failure"){fact["failed"]=true;fact["error"]=ErrorText(error);fact["finishedUtc"]=DateTime.UtcNow;}
+            if(kind=="success"){fact["succeeded"]=true;fact["finishedUtc"]=DateTime.UtcNow;}
+        }
+        private void StopObservingDownloads()
+        {
+            if(!observingDownloads)return;observingDownloads=false;
+            if(downloadEvents==null)return;
+            foreach(int id in DownloadEventIds)
+                try{downloadEvents.Unsubscribe(id,ObserveDownload);}catch(Exception error){if(result["observerCleanupErrors"]==null)result["observerCleanupErrors"]=new JArray();((JArray)result["observerCleanupErrors"]).Add(ErrorText(error.ToString()));}
+        }
+        private void OnDestroy(){StopObservingDownloads();}
         public void Write(ClientLogLevel level,string code,string message)
         {
             string marker=(code+" "+message).TrimEnd();markers.Add(marker);Debug.Log(marker);

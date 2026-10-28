@@ -10,8 +10,9 @@ namespace Client.Framework.Release
     {
         public string Path { get; } public DateTime StartedUtc { get; } public DateTime FinishedUtc { get; }
         public bool Success { get; } public long Bytes { get; } public string Error { get; }
-        internal ReleaseTransferObservation(string path, DateTime start, bool success, long bytes, Exception error)
-        { Path = path; StartedUtc = start; FinishedUtc = DateTime.UtcNow; Success = success; Bytes = bytes; Error = error?.ToString(); }
+        public bool BytesKnown { get; } public string ObservationError { get; }
+        internal ReleaseTransferObservation(string path, DateTime start, bool success, long bytes, Exception error, Exception observationError)
+        { Path = path; StartedUtc = start; FinishedUtc = DateTime.UtcNow; Success = success; Bytes = bytes; Error = error?.ToString(); BytesKnown = observationError == null; ObservationError = observationError?.ToString(); }
     }
     /// <summary>Records actual transport completion without altering requests, exceptions, cancellation or ownership.</summary>
     public sealed class ObservedReleaseTransport : IReleaseTransport, IDisposable
@@ -25,7 +26,14 @@ namespace Client.Framework.Release
             DateTime start = DateTime.UtcNow; Exception failure = null; bool success = false;
             try { await inner.DownloadAsync(path, destination, token); success = true; }
             catch (Exception error) { failure = error; throw; }
-            finally { records.Add(new ReleaseTransferObservation(path, start, success, File.Exists(destination) ? new FileInfo(destination).Length : 0, failure)); }
+            finally
+            {
+                long bytes = 0; Exception observationError = null;
+                try { bytes = new FileInfo(destination).Length; }
+                catch (Exception error) when (error is IOException || error is UnauthorizedAccessException || error is ArgumentException || error is NotSupportedException || error is System.Security.SecurityException)
+                { observationError = error; }
+                records.Add(new ReleaseTransferObservation(path, start, success, bytes, failure, observationError));
+            }
         }
         public void Dispose() { (inner as IDisposable)?.Dispose(); }
     }

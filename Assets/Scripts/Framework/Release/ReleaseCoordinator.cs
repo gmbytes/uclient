@@ -39,7 +39,7 @@ namespace Client.Framework.Release
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private readonly CancellationToken lifetimeToken;
         private readonly int threadId;
-        private CancellationTokenSource launchLifetime, contextLifetime;
+        private CancellationTokenSource launchLifetime, contextLifetime, compositionLifetime;
         private CancellationToken launchToken;
         private ResourceSlotBootstrap resources;
         private bool irreversible, resourceInitialized, assemblyAttempted, compositionAttempted;
@@ -266,25 +266,30 @@ namespace Client.Framework.Release
                 RequireCurrent(selection);
                 if (!resourceInitialized || compositionAttempted || assemblyAttempted || compose == null) throw new InvalidOperationException("Native composition requires initialized resources and can begin only once.");
                 compositionAttempted = true;
+                // Retain this link through context ownership, rather than detaching callbacks at startup completion.
+                compositionLifetime = CancellationTokenSource.CreateLinkedTokenSource(launchToken, token);
             }
+            CancellationToken compositionToken = compositionLifetime.Token;
             Task<IClientContext> pending = null; IClientContext source = null; bool transferred = false;
             Exception failure = null;
             try
             {
-                launchToken.ThrowIfCancellationRequested(); token.ThrowIfCancellationRequested();
-                pending = compose(resources, launchToken) ?? throw new InvalidOperationException("Native composition returned no task.");
-                await AwaitWithCancellation(pending, launchToken);
+                compositionToken.ThrowIfCancellationRequested();
+                pending = compose(resources, compositionToken) ?? throw new InvalidOperationException("Native composition returned no task.");
+                await AwaitWithCancellation(pending, compositionToken);
                 source = await pending;
-                launchToken.ThrowIfCancellationRequested(); token.ThrowIfCancellationRequested();
+                compositionToken.ThrowIfCancellationRequested();
                 Task initialization = InitializeAsync(selection, selection.Prepared, configuration.Player, configuration.EntryTypeName, source, token);
                 transferred = true;
                 await initialization;
             }
-            catch (OperationCanceledException error)
+            catch (Exception error) when (FindCancellation(error) != null)
             {
                 failure = error;
-                if (source == null && pending != null) _ = DisposeAbandonedCompositionAsync(pending);
-                HandleCancellation(selection, token, CancellationToken.None, error); throw;
+                if (source == null && pending != null && !pending.IsCanceled && !pending.IsFaulted) _ = DisposeAbandonedCompositionAsync(pending);
+                var cancelled = FindCancellation(error);
+                if (!ReferenceEquals(cancelled, error)) RecordFailure("CompositionCancelledWithCleanupFailure", error);
+                HandleCancellation(selection, token, CancellationToken.None, cancelled); throw;
             }
             catch (Exception error) { failure = error; if (!RestartRequired) FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, error); throw; }
             finally
@@ -294,10 +299,20 @@ namespace Client.Framework.Release
                     catch (Exception cleanup) { RecordFailure("CompositionCleanupFailed", cleanup); throw failure == null ? cleanup : new AggregateException("Native composition and cleanup failed.", failure, cleanup); }
             }
         }
+        private static OperationCanceledException FindCancellation(Exception error)
+        {
+            if (error is OperationCanceledException cancelled) return cancelled;
+            if (error is AggregateException aggregate)
+                foreach (var cause in aggregate.InnerExceptions) { var found = FindCancellation(cause); if (found != null) return found; }
+            return null;
+        }
         private async Task DisposeAbandonedCompositionAsync(Task<IClientContext> pending)
         {
-            try { var abandoned = await pending; (abandoned as IDisposable)?.Dispose(); }
-            catch (OperationCanceledException) { }
+            IClientContext abandoned;
+            try { abandoned = await pending; }
+            catch (OperationCanceledException) { return; }
+            catch (Exception error) { RecordFailure("LateCompositionFailed", error); return; }
+            try { (abandoned as IDisposable)?.Dispose(); }
             catch (Exception error) { RecordFailure("LateCompositionCleanupFailed", error); }
         }
 
@@ -518,7 +533,7 @@ namespace Client.Framework.Release
                 if (disposed) return; disposed = true; Changed = null;
                 var errors = new List<Exception>();
                 foreach (var cleanup in new Action[] { lifetime.Cancel, () => launchContext?.Dispose(), () => contextLifetime?.Dispose(),
-                    () => launchLifetime?.Dispose(), lifetime.Dispose, () => (updates as IDisposable)?.Dispose() })
+                    () => compositionLifetime?.Dispose(), () => launchLifetime?.Dispose(), lifetime.Dispose, () => (updates as IDisposable)?.Dispose() })
                     try { cleanup(); } catch (Exception error) { RecordFailure("OwnedCleanupFailed", error); errors.Add(error); }
                 if (ownsRootGate && !irreversible) { ownsRootGate = false; rootGate.Release(); }
                 if (errors.Count > 0) throw new AggregateException("Native launch scope cleanup failed.", errors);

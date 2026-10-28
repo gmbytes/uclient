@@ -14,6 +14,7 @@ function Assert-HotUpdateEvidence($r) {
         $expected=@($r.metadataNames|ForEach-Object{"F6_METADATA $($r.playerBuildId) $_ OK"}|Sort-Object)
         if(($expected-join"`n")-cne(@($c.metadata|Sort-Object)-join"`n")){throw 'Metadata load records differ from original archive.'}
         if($c.markers-notcontains'F8_PROBES all'){throw 'Actual hot generic/Parser probes missing.'}
+        if($c.observerCleanupErrors){throw 'Owned download observation handlers did not clean up.'}
         if($r.platform-eq'Android' -and ($c.pointerBits-ne64 -or -not$c.androidProcess64Bit -or $c.observedProcessId-ne$c.processId)){throw 'Actual Android process evidence is missing.'}
     }
     foreach($id in @('v1','v2','throw','fallback','offline')){if(-not$by.ContainsKey($id)){throw "Missing required case $id"}}
@@ -25,5 +26,10 @@ function Assert-HotUpdateEvidence($r) {
     if($v1.resourceVersion-eq$v2.resourceVersion -or $v1.manifestHash-eq$v2.manifestHash){throw 'V2 actual resource/release did not change.'}
     if($bad.ready -or -not$bad.restartRequired -or -not$bad.sameProcessReloadRejected -or $bad.releaseId-ne'throw' -or $bad.state.KnownGood-ne'v2' -or $bad.state.BadReleaseIds-notcontains'throw'){throw 'ThrowOnStart did not quarantine without same-process reload.'}
     if($fallback.state.BadReleaseIds-notcontains'throw' -or $fallback.manifestHash-cne$v2.manifestHash -or $offline.manifestHash-cne$v2.manifestHash){throw 'Next-process known-good fallback differs.'}
-    if(@($offline.network).Count-eq0 -or @($offline.network|Where-Object{$_.success -or $_.bytes-ne0}).Count){throw 'Endpoint-unavailable case did not make a real failed zero-byte request.'}
+    if(@($offline.network).Count-ne1 -or @($offline.network|Where-Object{$_.success -or $_.path-ne'channel.json' -or ($_.bytesKnown -and $_.bytes-ne0)}).Count){throw 'Endpoint-unavailable case must fail the actual initial channel request.'}
+    # Destination length is only a completion-file observation. Unknown length is not zero-byte evidence.
+    # Require the owned GF agent's real start/progress/terminal events independently.
+    if(@($offline.downloadEvents).Count-ne1){throw 'Actual GF download event evidence is missing.'}
+    $transfer=$offline.downloadEvents[0]
+    if($transfer.runId-cne$r.runId -or $transfer.processId-ne$offline.processId -or $transfer.serialId-le0 -or $transfer.startCount-ne1 -or $transfer.startLength-ne0 -or $transfer.maxLength-ne0 -or -not$transfer.failed -or $transfer.succeeded -or $transfer.identityMismatch -or $transfer.uri-notmatch'/channel\.json$'){throw 'Endpoint-unavailable requires an observed fresh zero-length start and failed terminal with no positive GF length.'}
 }

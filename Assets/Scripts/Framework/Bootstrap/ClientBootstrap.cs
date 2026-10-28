@@ -80,7 +80,7 @@ namespace Client.Bootstrap
                 started = true;
                 await coordinator.InitializeComposedAsync(selection, compose, token);
             }
-            catch (OperationCanceledException cancelled)
+            catch (Exception cancelled) when (ContainsCancellation(cancelled))
             {
                 try { await ShutdownAsync(CancellationToken.None); }
                 catch (Exception cleanup) { throw new AggregateException("Launch cancellation and owned cleanup failed.", cancelled, cleanup); }
@@ -92,6 +92,13 @@ namespace Client.Bootstrap
                     coordinator.FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, error);
                 throw;
             }
+        }
+        private static bool ContainsCancellation(Exception error)
+        {
+            if (error is OperationCanceledException) return true;
+            if (error is AggregateException aggregate)
+                foreach (var cause in aggregate.InnerExceptions) if (ContainsCancellation(cause)) return true;
+            return false;
         }
 
         public Task InitializeAsync(PreparedRelease prepared, PlayerIdentity player, string entryTypeName, IClientContext context, CancellationToken token)

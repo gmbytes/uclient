@@ -135,8 +135,46 @@ namespace Client.Tests
             var late=new LateContext(resources.Service);composition.SetResult(late);yield return null;yield return null;
             Assert.That(late.Disposals,Is.EqualTo(1));Assert.That(entry.Entered.Task.IsCompleted,Is.False);
         }
+        [UnityTest] public IEnumerator AsyncCompositionPreBindCancellationAndCleanupFailureStillShutDownHost()
+        {
+            using(var caller=new CancellationTokenSource())
+            {
+                var task=(Task)host.GetType().GetMethod("LaunchAsync").Invoke(host,new object[]{caller.Token});yield return Terminal(compositionEntered.Task);
+                Compose(compositionEntered.Task.Result);source.FailDispose=true;
+                Assert.That(events.EventHandlerCount,Is.EqualTo(eventBaseline+2));
+                composition.SetResult(new CancellingResourceContext(source,caller));yield return Terminal(task);
+                Assert.That(task.IsFaulted,Is.True);var errors=task.Exception.Flatten().InnerExceptions;
+                Assert.That(errors.Any(e=>e is OperationCanceledException),Is.True);Assert.That(errors.Any(e=>e is IOException),Is.True);
+                Assert.That(source.Disposals,Is.EqualTo(1));Assert.That(events.EventHandlerCount,Is.EqualTo(eventBaseline),"Pre-bind cleanup aggregation must still dispose the real owned transport.");
+                Assert.That((CancellationToken)host.GetType().GetProperty("Lifetime").GetValue(host),Has.Property("IsCancellationRequested").True);
+                Assert.That(entry.Entered.Task.IsCompleted,Is.False);Assert.That(launch.State.Read().Attempt,Is.EqualTo(1));Assert.That(launch.State.Read().BadReleaseIds,Is.Empty);
+            }
+        }
+        [UnityTest] public IEnumerator DistinctCompositionCallerCancelsPendingWaitAndLateContext()
+        {
+            var selected=launch.Coordinator.PrepareLaunchAsync(CancellationToken.None);yield return Terminal(selected);launch.Coordinator.BeginTrial(selected.Result);
+            yield return Terminal(launch.Coordinator.ActivateResourcesAsync(selected.Result,resources,CancellationToken.None));
+            using(var caller=new CancellationTokenSource())
+            {
+                var pending=new TaskCompletionSource<IClientContext>();CancellationToken received=default;var cleanupError=new OperationCanceledException("late context disposal cause");var late=new LateContext(resources.Service){Failure=cleanupError};
+                var task=launch.Coordinator.InitializeComposedAsync(selected.Result,(root,token)=>{received=token;return pending.Task;},caller.Token);
+                try
+                {
+                    caller.Cancel();float until=Time.realtimeSinceStartup+.5f;while(!task.IsCompleted&&Time.realtimeSinceStartup<until)yield return null;
+                    Assert.That(task.IsCompleted,Is.True,"The distinct composition caller must cancel without waiting for the 10-second local deadline.");Assert.That(task.IsCanceled,Is.True);Assert.That(received.IsCancellationRequested,Is.True);
+                    pending.SetResult(late);yield return null;yield return null;Assert.That(late.Disposals,Is.EqualTo(1));Assert.That(launch.State.Read().Attempt,Is.EqualTo(1));Assert.That(launch.State.Read().BadReleaseIds,Is.Empty);
+                    Assert.That(launch.Coordinator.Diagnostics.Failures.Any(f=>ReferenceEquals(f.Exception,cleanupError)),Is.True,"Cancellation thrown by late disposal is cleanup evidence, not cancellation of the pending composer.");
+                }
+                finally { pending.TrySetResult(late); }
+            }
+        }
+        private sealed class CancellingResourceContext:IClientContext,IDisposable
+        {
+            private readonly OwnedContext inner;private readonly CancellationTokenSource caller;public CancellingResourceContext(OwnedContext inner,CancellationTokenSource caller){this.inner=inner;this.caller=caller;}
+            public IResourceService Resources{get{caller.Cancel();return inner.Resources;}}public IUIService UI=>inner.UI;public ISessionClient Session=>null;public ILogService Log=>null;public CancellationToken Lifetime=>CancellationToken.None;public void ReportReady()=>throw new InvalidOperationException();public void Dispose()=>inner.Dispose();
+        }
         private sealed class LateContext:IClientContext,IDisposable
-        {internal int Disposals;public LateContext(IResourceService resources){Resources=resources;}public IResourceService Resources{get;}public IUIService UI=>null;public ISessionClient Session=>null;public ILogService Log=>null;public CancellationToken Lifetime=>CancellationToken.None;public void ReportReady()=>throw new InvalidOperationException();public void Dispose(){Disposals++;}}
+        {internal int Disposals;internal Exception Failure;public LateContext(IResourceService resources){Resources=resources;}public IResourceService Resources{get;}public IUIService UI=>null;public ISessionClient Session=>null;public ILogService Log=>null;public CancellationToken Lifetime=>CancellationToken.None;public void ReportReady()=>throw new InvalidOperationException();public void Dispose(){Disposals++;if(Failure!=null)throw Failure;}}
         private sealed class PendingEntry:IHotfixEntry
         {internal readonly TaskCompletionSource<bool> Entered=new TaskCompletionSource<bool>();internal int Shutdowns;public async Task InitializeAsync(IClientContext context,CancellationToken token){Entered.TrySetResult(true);await Task.Delay(Timeout.Infinite,token);}public Task ShutdownAsync(CancellationToken token){Shutdowns++;return Task.CompletedTask;}}
         private sealed class OwnedContext:IClientContext,IDisposable

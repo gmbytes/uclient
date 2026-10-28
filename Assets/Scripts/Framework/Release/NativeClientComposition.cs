@@ -24,17 +24,25 @@ namespace Client.Framework.Release
         public async Task<IClientContext> ComposeAsync(ResourceSlotBootstrap resources, CancellationToken token)
         {
             if (composed || resources == null || !resources.Initialization.IsCompletedSuccessfully) throw new InvalidOperationException("Native resources must initialize exactly once before context composition.");
+            // Acceptance transfers the supplied session to this attempt, including its failure path.
             composed = true;
-            var catalog = await resources.Service.LoadAsync<UIViewDefinitions>(catalogAddress, token);
-            GameObject root = null;
+            IAssetHandle<UIViewDefinitions> catalog = null; GameObject root = null; UIService ui = null;
             try
             {
+                catalog = await resources.Service.LoadAsync<UIViewDefinitions>(catalogAddress, token);
                 token.ThrowIfCancellationRequested(); root = UnityEngine.Object.Instantiate(rootPrefab);
-                var ui = new UIService(resources.ResourceComponent.GetComponent<UIComponent>(), GameEntry.GetComponent<EventComponent>(), catalog.Asset,
+                ui = new UIService(resources.ResourceComponent.GetComponent<UIComponent>(), GameEntry.GetComponent<EventComponent>(), catalog.Asset,
                     root.GetComponent<AdaptiveCanvas>(), root.transform.Find("Windows"));
                 return new Context(resources.Service, ui, root, catalog, session, log, lifetime);
             }
-            catch { if (root != null) UnityEngine.Object.Destroy(root); catalog.Dispose(); throw; }
+            catch (Exception original)
+            {
+                var errors = new List<Exception> { original };
+                foreach (var cleanup in new Action[] { () => ui?.Dispose(), () => catalog?.Dispose(), () => (session as IDisposable)?.Dispose(), () => { if (root != null) UnityEngine.Object.Destroy(root); } })
+                    try { cleanup(); } catch (Exception error) { errors.Add(error); }
+                if (errors.Count > 1) throw new AggregateException("Native composition and owned cleanup failed.", errors);
+                throw;
+            }
         }
         private sealed class Context : IClientContext, IDisposable
         {
