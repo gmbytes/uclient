@@ -1,5 +1,10 @@
 {
   "name": "Client.Game",
-  "references": ["Client.Contracts"],
+  "references": [
+    "Client.Contracts",
+    "Client.Framework",
+    "UnityEngine.UI",
+    "Unity.TextMeshPro"
+  ],
   "autoReferenced": false
 }
