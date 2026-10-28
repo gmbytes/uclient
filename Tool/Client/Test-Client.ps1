@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][ValidatePattern('^[A-Z][0-9]+$')][string] $Task,
     [ValidateSet('EditMode', 'PlayMode')][string] $Mode = 'PlayMode',
-    [string] $UnityEditor
+    [string] $UnityEditor,
+    [switch] $Graphics
 )
 . "$PSScriptRoot/Unity-Common.ps1"
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -15,7 +16,8 @@ $runId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewG
 $output = Join-Path $projectRoot "Builds/Tests/$Task/$runId"
 New-Item -ItemType Directory -Path $output | Out-Null
 $xmlPath = Join-Path $output 'results.xml'
-$unityArguments = @('-batchmode', '-nographics', '-projectPath', $projectRoot, '-runTests', '-testPlatform', $Mode, '-testCategory', $Task, '-testResults', $xmlPath, '-logFile', (Join-Path $output 'Editor.log'))
+$unityArguments = @('-projectPath', $projectRoot, '-runTests', '-testPlatform', $Mode, '-testCategory', $Task, '-testResults', $xmlPath, '-logFile', (Join-Path $output 'Editor.log'))
+if (-not $Graphics) { $unityArguments = @('-batchmode', '-nographics') + $unityArguments }
 $exitCode = Invoke-Unity $editor $unityArguments
 $passed = $false
 $total = 0
