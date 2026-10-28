@@ -101,11 +101,11 @@
 
 **Interfaces:** `Entry:IHotfixEntry`创建普通C# `UILogin`对象；`UILogin.Bind(IViewHandle view,ISessionClient session)`、`Unbind()`定义在手写partial。Bind调用生成partial的`BindComponents(UIBindings bindings)`取得并校验Title、AccountInput、LoginButton、CancelButton、StatusLabel、VersionLabel，再注册事件；Unbind先取消请求/订阅，再`ClearBindings()`。两个文件属于同一Client.Game.Login.UILogin类型，不挂Prefab。ViewID=UILogin，Profile选择LocalSimulation或TokDevelopment。
 
-- [ ] **Step 1:** 写 `OneClickCreatesOneLogin`、`ButtonStatesFollowSessionState`、`RotateDuringLoginRetainsTextFocusAndRequest`、`CloseThenLateSuccessDoesNotTouchView`、`SimulationNeverClaimsServerAuthentication`；运行U5 PlayMode确认红灯。
-- [ ] **Step 2:** 使用U4模板/配置/绑定生成器制作登录页，遵循UI编辑规范；包括标题、测试账号、登录/取消、有限错误/状态、演示版本。模拟模式始终显示“本地模拟”；真实开发登录使用N3 demo凭据，不加密码注册、SDK或区服业务。
-- [ ] **Step 3:** 登录中禁重入、允许取消；成功停在本页显示“已登录（框架演示）”；拒绝/断线恢复按钮并如实显示。旋转不新建UILogin页面对象或session，不重绑控件/事件。账号/令牌不进入日志。
-- [ ] **Step 4:** 本地资源、Envelope自检和登录首帧完成后调用context.ReportReady一次；此时不要求远程登录成功。运行 `./Tool/Client/Test-Client.ps1 -Task U5 -Mode PlayMode`，20次开关与返回登录后事件/资源句柄回基线。
-- [ ] **Step 5:** 提交 `feat(login): 添加可热更自适配登录示例`。
+- [x] **Step 1:** 写 `OneClickCreatesOneLogin`、`ButtonStatesFollowSessionState`、`RotateDuringLoginRetainsTextFocusAndRequest`、`CloseThenLateSuccessDoesNotTouchView`、`SimulationNeverClaimsServerAuthentication`；运行U5 PlayMode确认红灯。
+- [x] **Step 2:** 使用U4模板/配置/绑定生成器制作登录页，遵循UI编辑规范；包括标题、测试账号、登录/取消、有限错误/状态、演示版本。模拟模式始终显示“本地模拟”；真实开发登录使用N3 demo凭据，不加密码注册、SDK或区服业务。
+- [x] **Step 3:** 登录中禁重入、允许取消；成功停在本页显示“已登录（框架演示）”；拒绝/断线恢复按钮并如实显示。旋转不新建UILogin页面对象或session，不重绑控件/事件。账号/令牌不进入日志。
+- [x] **Step 4:** 本地资源、Envelope自检和登录首帧完成后调用context.ReportReady一次；此时不要求远程登录成功。运行 `./Tool/Client/Test-Client.ps1 -Task U5 -Mode PlayMode`，20次开关与返回登录后事件/资源句柄回基线。
+- [x] **Step 5:** 提交 `feat(login): 添加可热更自适配登录示例`。
 
 ### Task D1：统一Player/补丁构建与不可变基线归档
 
