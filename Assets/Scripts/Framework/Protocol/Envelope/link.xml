@@ -1,0 +1,3 @@
+<linker>
+  <assembly fullname="Client.Protocol.Envelope" preserve="all" />
+</linker>

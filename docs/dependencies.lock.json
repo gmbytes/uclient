@@ -72,7 +72,15 @@
     "com.unity.ext.nunit": "1.0.6"
   },
   "resolvedPackages": "Packages/packages-lock.json",
-  "protobuf": "Not installed by F1; owned by N1.",
+  "protobuf": {
+    "runtime_version": "3.36.2",
+    "protoc_version": "36.2",
+    "target_framework": "netstandard2.0",
+    "unsafe_version": "4.5.2",
+    "inventory": "Assets/ThirdParty/Protobuf/dependency-provenance.json",
+    "inventory_sha256": "1b294913274a5796a746a76122a5d512b2d055874b89520797f3bf42b4a4191c",
+    "shared_package_lock": "../comm/tools/Dependencies/packages.lock.json"
+  },
   "nativeToolchains": {
     "windows": {
       "module": "Windows Build Support (IL2CPP) 2022.3.25f1",
