@@ -27,6 +27,7 @@ namespace Client.Framework.Release
         private readonly object sync;
         public string Root { get; }
         public IReadOnlyList<Exception> RecoveryDiagnostics { get; private set; } = Array.Empty<Exception>();
+        public IReadOnlyList<Exception> PruningDiagnostics { get; private set; } = Array.Empty<Exception>();
         public ReleaseStateStore(string root, ManifestVerifier verifier, PlayerIdentity player, IFileFaultInjector faults = null)
         {
             Root = ReleaseFileSystem.Root(root);
@@ -63,9 +64,12 @@ namespace Client.Framework.Release
             }
         }
         public void WriteAtomic(ReleaseState state)
+            => WriteAtomic(state, CancellationToken.None);
+        internal void WriteAtomic(ReleaseState state, CancellationToken token)
         {
             lock (sync)
             {
+                token.ThrowIfCancellationRequested();
                 Validate(state);
                 var json = new JObject
                 {
@@ -79,9 +83,11 @@ namespace Client.Framework.Release
                 string backup = ReleaseFileSystem.Child(Root, "state.json.bak");
                 string temp = ReleaseFileSystem.Child(Root, "state." + Guid.NewGuid().ToString("N") + ".partial");
                 faults.Hit("state.write.before");
+                token.ThrowIfCancellationRequested();
                 ReleaseFileSystem.WriteDurable(temp, bytes);
                 faults.Hit("state.write.after");
                 faults.Hit("state.replace.before");
+                token.ThrowIfCancellationRequested();
                 if (File.Exists(primary)) File.Replace(temp, primary, backup);
                 else File.Move(temp, primary);
                 // Test-only crash boundary; production's no-op cannot throw after successful commit.
@@ -98,6 +104,57 @@ namespace Client.Framework.Release
                 latest.Candidate = releaseId;
                 token.ThrowIfCancellationRequested();
                 WriteAtomic(latest);
+            }
+        }
+        internal void PruneUnreferencedSlots()
+        {
+            lock (sync)
+            {
+                var errors = new List<Exception>();
+                var retained = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                int sources = 0;
+                foreach (string name in new[] { "state.json", "state.json.bak" })
+                {
+                    try
+                    {
+                        string path = ReleaseFileSystem.Child(Root, name);
+                        if (Directory.Exists(path)) throw new InvalidDataException("State source is a directory.");
+                        if (!File.Exists(path)) continue;
+                        sources++;
+                        if (new FileInfo(path).Length > MaximumDocumentBytes) throw new InvalidDataException("State source is too large.");
+                        byte[] bytes = File.ReadAllBytes(path);
+                        if (bytes.Length > MaximumDocumentBytes) throw new InvalidDataException("State source is too large.");
+                        var referenced = Parse(new UTF8Encoding(false, true).GetString(bytes)); Validate(referenced);
+                        foreach (string id in new[] { referenced.KnownGood, referenced.PreviousGood, referenced.Candidate })
+                            if (id != null) retained.Add(id);
+                    }
+                    catch (Exception error) when (error is IOException || error is InvalidDataException || error is UnauthorizedAccessException || error is JsonException || error is ReleaseVerificationException || error is ArgumentException)
+                    { errors.Add(error); }
+                }
+                // Unknown recovery references are a reason to retain everything, never to guess.
+                if (sources > 0 && errors.Count == 0)
+                {
+                    try
+                    {
+                        string slots = ReleaseFileSystem.Child(Root, "slots");
+                        if (Directory.Exists(slots))
+                            foreach (string directory in Directory.GetDirectories(slots))
+                            {
+                                string id = Path.GetFileName(directory);
+                                try
+                                {
+                                    ReleaseFileSystem.ValidateId(id);
+                                    string owned = ReleaseFileSystem.Child(Root, "slots/" + id);
+                                    if (!retained.Contains(id)) Directory.Delete(owned, true);
+                                }
+                                catch (Exception error) when (error is IOException || error is UnauthorizedAccessException || error is ArgumentException)
+                                { errors.Add(error); }
+                            }
+                    }
+                    catch (Exception error) when (error is IOException || error is UnauthorizedAccessException || error is ArgumentException)
+                    { errors.Add(error); }
+                }
+                PruningDiagnostics = Array.AsReadOnly(errors.ToArray());
             }
         }
         internal VerifiedRelease VerifySlot(string releaseId)

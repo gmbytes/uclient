@@ -9,7 +9,8 @@ namespace Client.Framework.Release
     public enum ReleaseErrorCode
     {
         InvalidSignature, UntrustedKey, DocumentTooLarge, InvalidJson, InvalidManifest,
-        UnsafePath, DuplicatePath, IncompatiblePlayer, ManifestHashMismatch, ReleaseIdMismatch
+        UnsafePath, DuplicatePath, IncompatiblePlayer, ManifestHashMismatch, ReleaseIdMismatch,
+        ResourceInitializationFailed, HotfixInitializationFailed, LocalReadinessFailed, LocalReadyTimeout, StatePersistenceFailed
     }
 
     public sealed class ReleaseVerificationException : Exception
