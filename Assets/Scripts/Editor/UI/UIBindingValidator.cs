@@ -23,15 +23,23 @@ namespace Client.Editor.UI
             var bridges = root.GetComponentsInChildren<UIViewBridge>(true);
             foreach (var bridge in bridges)
             {
-                if (bridge.gameObject != root) errors.Add("UIViewBridge belongs only on the main UINode; child components use UIBindings.");
+                if (bridge.gameObject != root) errors.Add("UIViewBridge belongs only on the stable prefab root; child components use UIBindings.");
+                if (bridge.GetComponent<RectTransform>() == null) errors.Add("Window root requires RectTransform.");
+                if (bridge.GetComponent<Canvas>() != null) errors.Add("Window root must not have Canvas; the child UINode owns Canvas.");
                 if (bridge.RootCanvas == null) errors.Add("RootCanvas is required.");
-                else if (bridge.RootCanvas.gameObject != bridge.gameObject) errors.Add("RootCanvas must be on UINode.");
+                else
+                {
+                    if (bridge.RootCanvas.transform.parent != bridge.transform || bridge.RootCanvas.name != "UINode")
+                        errors.Add("RootCanvas must reference the direct child UINode.");
+                    if (bridge.RootCanvas.GetComponent<GraphicRaycaster>() == null)
+                        errors.Add("The referenced UINode Canvas requires its own GraphicRaycaster.");
+                }
                 if (bridge.RootCanvasGroup == null) errors.Add("RootCanvasGroup is required.");
-                else if (bridge.RootCanvasGroup.gameObject != bridge.gameObject) errors.Add("RootCanvasGroup must be on UINode.");
+                else if (bridge.RootCanvas == null || bridge.RootCanvasGroup.gameObject != bridge.RootCanvas.gameObject)
+                    errors.Add("RootCanvasGroup must share the referenced child UINode Canvas.");
                 if (bridge.Bindings == null) errors.Add("Bindings is required.");
-                else if (bridge.Bindings.gameObject != bridge.gameObject) errors.Add("Main Bindings must be on UINode.");
-                if (bridge.GetComponent<GraphicRaycaster>() == null) errors.Add("UINode GraphicRaycaster is required.");
-                if (bridge.GetComponentsInChildren<CanvasScaler>(true).Length != 0) errors.Add("UINode must use the shared root CanvasScaler.");
+                else if (bridge.Bindings.gameObject != root) errors.Add("Bindings must reference UIBindings on the stable prefab root.");
+                if (bridge.GetComponentsInChildren<CanvasScaler>(true).Length != 0) errors.Add("Window must use the shared root CanvasScaler.");
             }
             if (definition != null)
             {
