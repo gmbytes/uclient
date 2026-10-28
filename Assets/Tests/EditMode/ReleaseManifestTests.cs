@@ -150,6 +150,52 @@ namespace Client.Tests.EditMode
             Reject("InvalidJson", () => Verify(json, Sign(json), Identity()));
         }
 
+        [TestCase(false, @"\'")]
+        [TestCase(true, @"\'")]
+        [TestCase(false, @"\a")]
+        [TestCase(true, @"\a")]
+        [TestCase(false, @"\v")]
+        [TestCase(true, @"\v")]
+        [TestCase(false, @"\x41")]
+        [TestCase(true, @"\x41")]
+        [TestCase(false, @"\0")]
+        [TestCase(true, @"\0")]
+        [TestCase(false, @"\u12")]
+        [TestCase(true, @"\u12")]
+        [TestCase(false, @"\u123g")]
+        [TestCase(true, @"\u123g")]
+        public void SignedDocumentsRejectNonJsonStringEscapes(bool channel, string escape)
+        {
+            string raw = channel
+                ? Channel().ToString(Formatting.None).Replace("release.json", "rel" + escape + "value.json")
+                : Manifest().ToString(Formatting.None).Replace("GameFrameworkVersion.dat", "rel" + escape + "value.dat");
+            byte[] json = Encoding.UTF8.GetBytes(raw);
+            if (channel) Reject("InvalidJson", () => Call("VerifyChannel", json, Sign(json)));
+            else Reject("InvalidJson", () => Verify(json, Sign(json), Identity()));
+        }
+
+        private static readonly object[] ValidJsonEscapes =
+        {
+            new object[] { "\\\"", "\"" }, new object[] { "\\\\", "\\" }, new object[] { "\\/", "/" },
+            new object[] { "\\b", "\b" }, new object[] { "\\f", "\f" }, new object[] { "\\n", "\n" },
+            new object[] { "\\r", "\r" }, new object[] { "\\t", "\t" },
+            new object[] { "\\u0061", "a" }, new object[] { "\\u004A", "J" }
+        };
+
+        [TestCaseSource(nameof(ValidJsonEscapes))]
+        public void SignedDocumentsAcceptStandardJsonStringEscapes(string escape, string decoded)
+        {
+            string manifest = Manifest().ToString(Formatting.None).Replace("2022.3.25f1", "2022" + escape + "version");
+            byte[] json = Encoding.UTF8.GetBytes(manifest);
+            Assert.That(Verify(json, Sign(json), Identity("unityVersion", "2022" + decoded + "version")), Is.Not.Null);
+            string channel = Channel().ToString(Formatting.None).Replace("release.json", "rel" + escape + "ease.json");
+            json = Encoding.UTF8.GetBytes(channel);
+            if (decoded == "/" || decoded == "a" || decoded == "J")
+                Assert.That(Call("VerifyChannel", json, Sign(json)), Is.Not.Null);
+            else
+                Reject("UnsafePath", () => Call("VerifyChannel", json, Sign(json)));
+        }
+
         [Test]
         public void StrictUtf8AndSizeAreBoundedBeforeParsing()
         {
@@ -317,7 +363,7 @@ namespace Client.Tests.EditMode
         private byte[] Sign(byte[] bytes, RSA signer = null) => (signer ?? key).SignData(bytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         private static string Hash(byte[] bytes) { using (var sha = SHA256.Create()) return BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant(); }
         private static Type RequiredType(string name) { Type type = Type.GetType("Client.Framework.Release." + name + ", Client.Framework"); Assert.That(type, Is.Not.Null, name + " implementation is required."); return type; }
-        private static object Identity() => Activator.CreateInstance(RequiredType("PlayerIdentity"), IdentityFields.Select(f => (object)(string)Player()[f]).ToArray());
+        private static object Identity(string field = null, string value = null) => Activator.CreateInstance(RequiredType("PlayerIdentity"), IdentityFields.Select(f => (object)(f == field ? value : (string)Player()[f])).ToArray());
         private object Verify(byte[] json, byte[] signature, object player) => Call("Verify", json, signature, player);
         private object Call(string name, params object[] args) => Invoke(verifier, name, args);
         private static object Invoke(object target, string name, params object[] args)
