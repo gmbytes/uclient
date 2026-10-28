@@ -38,11 +38,11 @@
 
 **Interfaces:** `ScreenLayoutService.Evaluate(ScreenMetrics metrics):ScreenLayoutSnapshot`；快照含Width/Height、ClampedSafeArea、LayoutMode(Portrait/Landscape)、Revision。`event Action<ScreenLayoutSnapshot> Changed` 同帧最多一次，同内容不重复。组件从Unity Screen读取，服务计算可注入测试。
 
-- [ ] **Step 1:** 写参数化用例：1080×1920→Portrait、1920×1080→Landscape、1080×1080→Landscape；无效0尺寸保持上一有效快照；越界安全区夹到客户区，空安全区回退全客户区。
-- [ ] **Step 2:** 写 `SameMetricsPublishNoEvent`、`SameFrameChangesPublishOnce`、`OneValidResizeAdvancesOneRevision`；运行 `./Tool/Client/Test-Client.ps1 -Task U1 -Mode EditMode` 确认红灯。
-- [ ] **Step 3:** 实现浮点宽高比计算和尺寸/安全区/方向检测，变化后在LateUpdate统一发布；不按旧机型名分支，不每帧重建UI，不使用整数除法。
-- [ ] **Step 4:** 运行U1 EditMode与 `./Tool/Client/Test-Client.ps1 -Task U1 -Mode PlayMode`；尺寸稳定后2帧内可观察到新快照，其他帧不重复回调。
-- [ ] **Step 5:** 提交 `feat(ui): 统一屏幕与安全区变化模型`。
+- [x] **Step 1:** 写参数化用例：1080×1920→Portrait、1920×1080→Landscape、1080×1080→Landscape；无效0尺寸保持上一有效快照；越界安全区夹到客户区，空安全区回退全客户区。
+- [x] **Step 2:** 写 `SameMetricsPublishNoEvent`、`SameFrameChangesPublishOnce`、`OneValidResizeAdvancesOneRevision`；运行 `./Tool/Client/Test-Client.ps1 -Task U1 -Mode EditMode` 确认红灯。
+- [x] **Step 3:** 实现浮点宽高比计算和尺寸/安全区/方向检测，变化后在LateUpdate统一发布；不按旧机型名分支，不每帧重建UI，不使用整数除法。
+- [x] **Step 4:** 运行U1 EditMode与 `./Tool/Client/Test-Client.ps1 -Task U1 -Mode PlayMode`；尺寸稳定后2帧内可观察到新快照，其他帧不重复回调。
+- [x] **Step 5:** 提交 `feat(ui): 统一屏幕与安全区变化模型`。
 
 ### Task U2：双布局、安全区与键盘可见性
 
@@ -53,11 +53,11 @@
 
 **Interfaces:** `AdaptiveLayout.Apply(ScreenLayoutSnapshot snapshot):void`；`AdaptiveLayoutDefinition` 包含Portrait/Landscape的参考分辨率、锚点、边距和表单最大宽度；`SafeAreaRoot.Apply(Rect safeArea,Vector2 screenSize):void`；键盘控制器对已有ScrollRect调整可见范围，不销毁/新建输入框。
 
-- [ ] **Step 1:** 写 `InteractiveRectInsideSafeArea`（允许1物理像素误差）、`LayoutUsesCorrectReferenceResolution`、`RotatingPreservesViewAndInputInstance`（InstanceID保持）和 `ShortWindowCanScrollToSubmit`，运行U2 PlayMode确认红灯。
-- [ ] **Step 2:** 制作统一UI根的CanvasScaler，ScreenMatchMode=MatchWidthOrHeight、match=0.5，竖/横参考分辨率按规范切换，首期ScreenSpaceOverlay；窗口子Canvas不再各挂Scaler。Bootstrap UIUpdate独立AOT画布复用此策略，GameRoot就绪后关闭；正式场景只保留一个EventSystem。制作背景层和SafeAreaRoot；竖屏品牌区在上、横屏品牌区左侧约35%；表单宽≤760、边距48、按钮高≥96参考像素，高度不足启用ScrollRect。
-- [ ] **Step 3:** 使用同一套控件和状态切布局；只改锚点、布局参数和容器顺序，每次快照至多一次布局重建；不得通过停用输入控件清掉焦点/编辑状态。键盘区域有效时滚动焦点输入/主按钮可见，无有效区域时保留用户可滚动表单。
-- [ ] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task U2 -Mode PlayMode`；运行 `./Tool/Client/Test-UIMatrix.ps1 -Profile Editor`，覆盖720×1280、1080×1920、1080×2400、1536×2048、1280×720、1920×1080、2560×1080、720×480及四边模拟安全区，输出截图和几何断言，不能只靠截图主观判断。
-- [ ] **Step 5:** 提交`feat(ui): 支持双布局与安全区键盘适配`。Android软键盘与旋转留D2在雷电验收，不把Editor或模拟器结果写成真机通过。
+- [x] **Step 1:** 写 `InteractiveRectInsideSafeArea`（允许1物理像素误差）、`LayoutUsesCorrectReferenceResolution`、`RotatingPreservesViewAndInputInstance`（InstanceID保持）和 `ShortWindowCanScrollToSubmit`，运行U2 PlayMode确认红灯。
+- [x] **Step 2:** 制作统一UI根的CanvasScaler，ScreenMatchMode=MatchWidthOrHeight、match=0.5，竖/横参考分辨率按规范切换，首期ScreenSpaceOverlay；窗口子Canvas不再各挂Scaler。Bootstrap UIUpdate独立AOT画布复用此策略，GameRoot就绪后关闭；正式场景只保留一个EventSystem。制作背景层和SafeAreaRoot；竖屏品牌区在上、横屏品牌区左侧约35%；表单宽≤760、边距48、按钮高≥96参考像素，高度不足启用ScrollRect。
+- [x] **Step 3:** 使用同一套控件和状态切布局；只改锚点、布局参数和容器顺序，每次快照至多一次布局重建；不得通过停用输入控件清掉焦点/编辑状态。键盘区域有效时滚动焦点输入/主按钮可见，无有效区域时保留用户可滚动表单。
+- [x] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task U2 -Mode PlayMode`；运行 `./Tool/Client/Test-UIMatrix.ps1 -Profile Editor`，覆盖720×1280、1080×1920、1080×2400、1536×2048、1280×720、1920×1080、2560×1080、720×480及四边模拟安全区，输出截图和几何断言，不能只靠截图主观判断。
+- [x] **Step 5:** 提交`feat(ui): 支持双布局与安全区键盘适配`。Android软键盘与旋转留D2在雷电验收，不把Editor或模拟器结果写成真机通过。
 
 ### Task U3：GF窗口宿主与C#热更绑定生命周期
 
@@ -125,7 +125,7 @@
 - [ ] **Step 4:** Patch路径：读取原Player归档→编译目标热DLL→AOT兼容检查→原生Package完整资源快照→文件hash→签名发布清单→生成指向该清单hash的签名渠道文件。不能运行GenerateAll后替换原元数据，不能修改主包；失败不生成可用渠道指针。只输出本地产物，外部发布另按实际授权执行。签名测试服务器只监听显式开发地址。
 - [ ] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task D1 -Mode EditMode`；通过Editor/CLI各构建一次小fixture对比BuildResult语义；Android/Windows各生成最终Player和v2补丁。提交 `feat(build): 统一主包与兼容补丁交付`。
 
-### Task D2：逐项故障注入、UI矩阵和真实设备验收
+### Task D2：逐项故障注入、UI矩阵和两平台运行验收
 
 **Files:**
 - Create: `Tool/Client/Verify-Framework.ps1`、`Tests/Fixtures/Releases/FaultMatrix.json`、`docs/verification/framework-acceptance.md`。
@@ -138,7 +138,7 @@
 - [ ] **Step 3:** 每平台故障矩阵：坏签名、坏hash、错PlayerBuildId、错架构、缺DLL/Bundle、坏原生版本表、磁盘预算不足、下载取消/网络中断；候选不得激活，旧版本继续可用。
 - [ ] **Step 4:** 在download完成前、slot改名前、状态替换前后、trial写后、热入口执行中强杀；完整重启仅选完整可用版本。ThrowOnStart必须下次启动回退；登录服务器拒绝/断线不能误判坏补丁。强杀是测试控制，不引入原生崩溃插件。
 - [ ] **Step 5:** Windows跑全部U2分辨率和窗口拖拽；Android在雷电中运行ARM64 APK，测竖→横左→竖→横右、软键盘/旋转、后台恢复、安全区和短表单滚动；保留输入/焦点、一次请求、2稳定帧内布局完成、交互区域在安全区内。记录主ABI与转译环境，真机相关项标NotRun。
-- [ ] **Step 6:** 两平台执行 `./Tool/Client/Verify-Framework.ps1 -Platform Windows64 -PlayerArchive <Windows归档>` 与 `./Tool/Client/Verify-Framework.ps1 -Platform Android -DeviceId <真实设备ID> -PlayerArchive <Android归档>`；预期各 `FRAMEWORK_ACCEPTANCE_PASS`。人工设备项逐条记录操作者/时间/设备/截图；未测不得勾选。
+- [ ] **Step 6:** 两平台执行 `./Tool/Client/Verify-Framework.ps1 -Platform Windows64 -PlayerArchive <Windows归档>` 与 `./Tool/Client/Verify-Framework.ps1 -Platform Android -DeviceId <Android序列号> -PlayerArchive <Android归档>`；首期 Android 使用用户选择的雷电环境，预期各 `FRAMEWORK_ACCEPTANCE_PASS`。人工运行项逐条记录操作者/时间/环境/截图；真实ARM硬件和未测项不得勾选。
 - [ ] **Step 7:** 独立复核产物与结果后提交 `test(client): 完成热更新登录框架验收矩阵`。
 
 ### Task D3：启动文档、迁移台账与后续iOS清单

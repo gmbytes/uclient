@@ -80,11 +80,11 @@ N0验收：client c5f5a79 / comm467e131，24/24用例通过，独立规范与质
 - `IFrameTransport.ConnectAsync(string host,int port,CancellationToken token):Task`；`SendAsync(ReadOnlyMemory<byte> frame,CancellationToken token):Task`；`ReadAsync(CancellationToken token):Task<byte[]>`；`Close():void`。返回/发送字节含固定大端前缀，只有FrameCodec处理protobuf。
 - `TransportOptions` 包含5秒ConnectTimeout、15秒ReadFrameTimeout/WriteFrameTimeout、64队列项和4MiB队列字节限额；使用单调时钟。`TokNetworkComponent` 负责主线程消费和退出取消，不把Unity API带入Core。
 
-- [ ] **Step 1:** 写 `RejectsLengthBeforeAllocating`（0、1MiB+1、uint.MaxValue）、`AcceptsExactOneMiB`、`ReadsSplitAndCoalescedFrames`、`EofInFrameIsError`；断言分配计数在非法长度时为0。
-- [ ] **Step 2:** 写 `DeadlineIncludesWaitingForFirstByte`：假时钟15秒无首字节超时；`DripBytesCannotExtendFrameDeadline`；`QueueNeverExceedsBothLimits`：超限返回Backpressure并关闭/拒绝当前连接，不无限等待。运行N2 EditMode，确认红灯。
-- [ ] **Step 3:** 实现一个读取循环、一个串行写循环和有界队列；每帧固定总期限，取消通过关闭socket终止阻塞I/O。使用SemaphoreSlim/受锁Queue等Unity支持的BCL，不隐式依赖System.Threading.Channels新包。禁止在收包线程调用GF事件或UI。
-- [ ] **Step 4:** 实现组件宿主和主线程有界队列；应用退出/切场景只清理自身连接，异步读取带epoch。运行 `./Tool/Client/Test-Client.ps1 -Task N2 -Mode EditMode` 与PlayMode，预期 `TASK_PASS N2`；真实回环测试包含IPv4、IPv6可用时覆盖，不可用明确跳过原因。
-- [ ] **Step 5:** 提交 `feat(network): 实现有界Protobuf帧传输`。本Task只证明transport，不证明认证。
+- [x] **Step 1:** 写 `RejectsLengthBeforeAllocating`（0、1MiB+1、uint.MaxValue）、`AcceptsExactOneMiB`、`ReadsSplitAndCoalescedFrames`、`EofInFrameIsError`；断言分配计数在非法长度时为0。
+- [x] **Step 2:** 写 `DeadlineIncludesWaitingForFirstByte`：假时钟15秒无首字节超时；`DripBytesCannotExtendFrameDeadline`；`QueueNeverExceedsBothLimits`：超限返回Backpressure并关闭/拒绝当前连接，不无限等待。运行N2 EditMode，确认红灯。
+- [x] **Step 3:** 实现一个读取循环、一个串行写循环和有界队列；每帧固定总期限，取消通过关闭socket终止阻塞I/O。使用SemaphoreSlim/受锁Queue等Unity支持的BCL，不隐式依赖System.Threading.Channels新包。禁止在收包线程调用GF事件或UI。
+- [x] **Step 4:** 实现组件宿主和主线程有界队列；应用退出/切场景只清理自身连接，异步读取带epoch。运行 `./Tool/Client/Test-Client.ps1 -Task N2 -Mode EditMode` 与PlayMode，预期 `TASK_PASS N2`；真实回环测试包含IPv4、IPv6可用时覆盖，不可用明确跳过原因。
+- [x] **Step 5:** 提交 `feat(network): 实现有界Protobuf帧传输`。本Task只证明transport，不证明认证。
 
 ### Task N3：最小登录会话状态机
 
@@ -109,7 +109,7 @@ N0验收：client c5f5a79 / comm467e131，24/24用例通过，独立规范与质
 - Create: `Tests/Managed/Client.CSharp.Tests.csproj`、`TokFixtureTests.cs`、`ProtocolCompatibilityTests.cs`、`Tool/Client/Test-ProtocolInterop.ps1`。
 - Create: `docs/verification/protocol.md`；Reuse: 已有 `../comm/tools/TokInterop` 的Rust emit/verify命令，不改Tok核心。
 
-**Interfaces:** `Test-ProtocolInterop.ps1 -TokRoot E:/sgame/tok -ProtoRoot E:/sgame/comm/proto` 输出 `Builds/ProtocolInterop/<runId>/result.json`。Managed项目显式Include新根`Assets/Scripts/Framework/Core`、`Protocol`、`Network/Core`及纯SessionContracts/ISessionClient等必要文件，不能宽泛Include带Unity/GF的文件；不把asmdef或Unity组件链接到.NET测试。边界检查必须使用新根，必需根缺失/扫描零文件直接失败。
+**Interfaces:** `Test-ProtocolInterop.ps1 -TokRoot E:/sgame/tok -ProtoRoot E:/sgame/comm/proto` 输出 `Builds/ProtocolInterop/<runId>/result.json`。Managed项目显式Include实际纯C#根`Assets/Scripts/Framework/Protocol`、`Network/Core`及纯SessionContracts/ISessionClient等必要文件；`Framework/Core`是预留目录，有实际代码时才纳入。不能宽泛Include带Unity/GF的文件，不把asmdef或Unity组件链接到.NET测试。边界检查必须使用新根，必需根缺失/扫描零文件直接失败；不能为满足扫描建立占位代码。
 
 - [ ] **Step 1:** 写Golden fixture字段断言，覆盖Frame所有oneof、控制请求/回应、bytes正文、uint64边界；新增字段V2经V1解析后保留未知字段，再经V2读取仍在。比较语义字段，不依赖任意Protobuf序列化输出的规范顺序。
 - [ ] **Step 2:** 运行新Managed测试，确认缺生成物/错误Frame实现时失败；验证新根缺失或被注入UnityEditor/Hotfix反向引用时边界检查失败，防止仍扫旧路径而假通过。更新所有测试.proto读取者到comm/proto/tests/fixtures，客户端Tests/Fixtures与Tests/Managed只保留生成物、向量和C#测试。

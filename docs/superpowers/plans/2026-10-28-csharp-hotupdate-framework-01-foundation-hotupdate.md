@@ -108,11 +108,11 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 
 **Interfaces:** `ManifestVerifier.Verify(byte[] json,byte[] signature,PlayerIdentity player):VerifiedRelease`；`VerifyChannel(byte[] json,byte[] signature):VerifiedChannelPointer`，渠道指针含ReleaseId/ManifestRelativePath/ManifestSha256/KeyId。失败抛带有限 `ReleaseErrorCode` 的异常。`PlayerIdentity` 固定 playerBuildId/platform/architecture/unityVersion/contractVersion/envelopeSha256/aotMetadataSetId。`VerifiedRelease` 是后续下载唯一输入，包含不可变文件集合和程序集顺序。渠道和release均对原始字节签名，渠道路径也受相对路径策略约束。
 
-- [ ] **Step 1:** 写 `WrongIdentityLoadsZeroDlls`：分别篡改上述身份字段，断言兼容拒绝且加载数0；写 `SignatureCoversOriginalBytes`：清单/渠道任一字节改变即失败；写 `ManifestRejectsUnsafePaths` 覆盖绝对路径、`..`、重复路径、重复JSON键、超过256KiB；渠道指定的release hash不匹配必须拒绝。
-- [ ] **Step 2:** 运行 `./Tool/Client/Test-Client.ps1 -Task F4 -Mode EditMode`，确认无校验实现时失败。
-- [ ] **Step 3:** 使用 Newtonsoft JSON 严格解析、RSA-2048/SHA-256 分离签名和 SHA-256；先验签原始字节再解析，不用重序列化结果验签。KeyId只能选择内置可信公钥，未知KeyId拒绝。测试运行时在忽略的Builds/TestKeys生成临时密钥，fixtures只保留非秘密向量/公钥；正式builder拒绝测试KeyId，任何签名私钥不入库。固定文件种类为 NativeResource、HotfixDll、AotMetadata、Configuration。
-- [ ] **Step 4:** 重跑 F4，预期所有有效/无效矩阵通过；有效清单输出 `VerifiedRelease`，异常不泄露路径外内容或凭据。
-- [ ] **Step 5:** 提交 `feat(release): 校验发布签名与Player兼容性`。
+- [x] **Step 1:** 写 `WrongIdentityLoadsZeroDlls`：分别篡改上述身份字段，断言兼容拒绝且加载数0；写 `SignatureCoversOriginalBytes`：清单/渠道任一字节改变即失败；写 `ManifestRejectsUnsafePaths` 覆盖绝对路径、`..`、重复路径、重复JSON键、超过256KiB；渠道指定的release hash不匹配必须拒绝。
+- [x] **Step 2:** 运行 `./Tool/Client/Test-Client.ps1 -Task F4 -Mode EditMode`，确认无校验实现时失败。
+- [x] **Step 3:** 使用 Newtonsoft JSON 严格解析、RSA-2048/SHA-256 分离签名和 SHA-256；先验签原始字节再解析，不用重序列化结果验签。KeyId只能选择内置可信公钥，未知KeyId拒绝。测试运行时在忽略的Builds/TestKeys生成临时密钥，fixtures只保留非秘密向量/公钥；正式builder拒绝测试KeyId，任何签名私钥不入库。固定文件种类为 NativeResource、HotfixDll、AotMetadata、Configuration。
+- [x] **Step 4:** 重跑 F4，预期所有有效/无效矩阵通过；有效清单输出 `VerifiedRelease`，异常不泄露路径外内容或凭据。
+- [x] **Step 5:** 提交 `feat(release): 校验发布签名与Player兼容性`。
 
 ### Task F5：下载、物化完整 slot 与原子状态存储
 
