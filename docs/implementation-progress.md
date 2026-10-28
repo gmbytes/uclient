@@ -9,9 +9,10 @@
 | N0 | 已验证并通过独立审查 | 24/24输入用例；client c5f5a79、comm467e131 |
 | F1 | 已验证并通过独立审查 | EditMode5/5、PlayMode1/1、两平台实际IL2CPP编译、零测试拒绝；1f6cdc1/0799efc |
 | F2 | 已验证并通过独立审查 | 9a2982c；真实GF目录注入、同Player冷A/B、发行隔离和快照不变 |
-| F3 | 实施中 | 稳定契约与真实DLL v1/v2同Player执行证明 |
-| F4–F8 | 待实施 | 签名、完整发布、回退和完整热更新验证不可省略 |
-| N1 | 部分实现待审查 | comm58a5f1f生成器28/28；Unity集成仍待F3 |
+| F3 | 已验证并通过独立审查 | 7b58cec；11/11边界测试，同Player实际DLL v1/v2及新增类型执行 |
+| F4 | 实施中 | 独立工作区实现签名清单及Player兼容门禁 |
+| F5–F8 | 待实施 | 完整发布、回退和完整热更新验证不可省略 |
+| N1 | Unity集成中 | 生成器5b6d4d1修复后50/50、独立复审通过；完整N1尚未完成 |
 | N2–N4 | 待实施 | 分帧、登录和Tok互操作尚未完成 |
 | U1–U5 | 待实施 | 自适配、绑定、制作工具和UILogin尚未完成 |
 | D1–D3 | 待实施 | 最终基线、故障/设备验收及交付文档尚未完成 |
@@ -40,5 +41,9 @@
 用户已选择并启动雷电进行当前Android验证：emulator-5554，Android14/API34，x86_64主ABI、arm64-v8a支持、libhoudini。后续在此运行ARM64 APK，记录转译限制；真实ARM硬件兼容/性能和iOS保持后续未测。
 
 F2最终证据为Builds/ResourceSlots/20261028T175002272Z-eedff18c：同EXE/GameAssembly两次冷启动均自然退出0，分别读取原生Package中的A/B marker，根路径和3个加载代理正确，晚改根/二次激活拒绝，两套Resources与inactive Scratch前后快照不变。F2 PlayMode3/3、实际无proof define的普通Player脚本编译隔离1/1、F1回归6/6、N0 24/24；独立审查通过。该证明限Windows单marker原型，不代替Android复杂资产或热更/回滚验收。
+
+F3最终证据为Builds/MinimalHotfix/20261028T180115921Z-f26931b8：v1/v2真实Client.Game DLL哈希不同，v2新增类型执行Compute输出proof-v2:42，两个进程均自然退出0；347个原生文件在两次运行前后及当前逐文件一致。48份元数据与这次最终Player的Managed备份字节相同，两进程48个返回码均OK。普通Player实际C++输出无proof标识、无Game AOT；F1/F2回归和原生资源A/B重跑通过。独立审查确认规范/质量通过；此项只证明Windows最小DLL替换，签名、下载、回退、Android和完整协议类型仍待后续。
+
+N1生成器审查曾发现命名空间字段存在性、protoc数字命名、CLR类型冲突和保留文件发布校验4项缺陷；5b6d4d1已逐项RED→GREEN修复，完整50/50。独立复审核对真实生成/编译/执行、信封check内容/时间戳不变及真实NTFS发布回滚证据，4项全解决。Unity/AOT程序集、正式运行库和Player集成继续单独验证，不把.NET测试当作IL2CPP证明。
 
 所有完成声明必须附当前实现证据。Android ARM64 APK在选定模拟器中的功能验收、Windows x64 IL2CPP、完整热更新/回退仍为首期必需门槛；不能用Editor/Mono或只有构建成功代替。

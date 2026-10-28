@@ -91,11 +91,14 @@ F2验收：9a2982c，原生Windows Package同Player A/B自然退出0、资源快
 - `ISessionClient.LoginAsync(LoginInput input,CancellationToken token):Task<LoginResult>`、`Disconnect()`、`event Action<SessionState> StateChanged`。`LoginInput(string credential,string resumeToken)` 恰好一个非空。`LoginResult` 含 `Succeeded:bool`、`Error:LoginError`、`ServerErrorCode:uint32`、`Identity:SessionIdentity`、`SafeMessage:string`；Identity含PlayerId/SessionId字符串、Epoch:uint64、ResumeToken字符串与ResumeTokenTtlMs:uint64。`SessionState` 为 Idle/Connecting/Authenticating/Authenticated/Disconnected；LoginError为None/InvalidInput/Busy/ConnectFailed/Timeout/Cancelled/Rejected/ProtocolError/Disconnected。不把凭据和token写日志。
 - `HotfixAssemblyLoader.LoadOnce(IReadOnlyList<VerifiedAssembly> assemblies):IHotfixEntry`；VerifiedAssembly含Name/Bytes/Sha256/Dependencies，只接受已校验字节与顺序，第二次调用拒绝。
 
-- [ ] **Step 1:** 写`AotAssembliesNeverReferenceGame`，遍历已编译AOT引用断言无Client.Game*；写`FrameworkNeverReferencesBootstrap`防止嵌套目录引入反向依赖；写`EntryIsLoadedOnce`，断言重复加载请求被拒绝。运行F3 EditMode确认红灯。
-- [ ] **Step 2:** 建立 asmdef 单向引用和无业务契约，Hotfix autoReferenced=false，配置 HybridCLR 热更列表。入口仅通过稳定接口和一个配置的类型全名定位，不用 AOT `typeof(HotfixType)`。
-- [ ] **Step 3:** 做独立测试 fixture：v1 Entry 返回标记 `proof-v1`；v2 新增纯 C# 类型/分支返回 `proof-v2:42`。只在 Test build 的 Proof 场景从本地测试目录加载，不给产品启动器加无签名远程旁路。
-- [ ] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task F3 -Mode EditMode`；运行 `./Tool/Client/Test-MinimalHotfix.ps1 -Platform Windows64`。预期同一个 IL2CPP Player hash 不变，第二次启动日志出现 `HOTFIX_PROOF proof-v2:42`，v1分支不执行。该 Task 的元数据仍须来自这次测试 Player。
-- [ ] **Step 5:** 提交 `feat(hotfix): 建立稳定边界并验证最小CSharp更新`。这是第一个代码热更闭环，远程更新和回滚尚未完成。
+- [x] **Step 1:** 写`AotAssembliesNeverReferenceGame`，遍历已编译AOT引用断言无Client.Game*；写`FrameworkNeverReferencesBootstrap`防止嵌套目录引入反向依赖；写`EntryIsLoadedOnce`，断言重复加载请求被拒绝。运行F3 EditMode确认红灯。
+- [x] **Step 2:** 建立 asmdef 单向引用和无业务契约，Hotfix autoReferenced=false，配置 HybridCLR 热更列表。入口仅通过稳定接口和一个配置的类型全名定位，不用 AOT `typeof(HotfixType)`。
+- [x] **Step 3:** 做独立测试 fixture：v1 Entry 返回标记 `proof-v1`；v2 新增纯 C# 类型/分支返回 `proof-v2:42`。只在 Test build 的 Proof 场景从本地测试目录加载，不给产品启动器加无签名远程旁路。
+- [x] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task F3 -Mode EditMode`；运行 `./Tool/Client/Test-MinimalHotfix.ps1 -Platform Windows64`。预期同一个 IL2CPP Player hash 不变，第二次启动日志出现 `HOTFIX_PROOF proof-v2:42`，v1分支不执行。该 Task 的元数据仍须来自这次测试 Player。
+- [x] **Step 5:** 提交 `feat(hotfix): 建立稳定边界并验证最小CSharp更新`。这是第一个代码热更闭环，远程更新和回滚尚未完成。
+
+
+F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类型42执行、48份原Player元数据、原生完整哈希不变及普通Player隔离通过；独立规范/质量审查通过。Protocol实际接入和生产签名/下载/回退仍在后续。
 
 ### Task F4：签名清单与兼容门禁
 
