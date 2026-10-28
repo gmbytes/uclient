@@ -48,7 +48,14 @@ namespace Client.Framework.Network
             {
                 while (!life.IsCancellationRequested)
                 {
-                    var frame = await transport.ReadAsync(life.Token).ConfigureAwait(false);
+                    Task<byte[]> read;
+                    lock (gate)
+                    {
+                        if (generation != epoch || life.IsCancellationRequested) return;
+                        // Capture the transport generation before Close/reconnect can replace it.
+                        read = transport.ReadAsync(life.Token);
+                    }
+                    var frame = await read.ConfigureAwait(false);
                     lock (gate)
                     {
                         if (generation != epoch || life.IsCancellationRequested) return;

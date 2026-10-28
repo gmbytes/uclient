@@ -56,6 +56,24 @@ namespace Client.Tests.EditMode
             }
         }
 
+        [Test]
+        public void LateBodyCannotReachConsumerBeforeDeadlineValidation() => Run(async () =>
+        {
+            var clock = new LateCompletionClock();
+            var allocated = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (var pair = await Pair.Open(clock: clock, allocate: n => { allocated.TrySetResult(true); return new byte[n]; }))
+            {
+                await pair.Peer.GetStream().WriteAsync(new byte[] { 0,0,0,2 },0,4);
+                await WithLimit(allocated.Task); // Reader is waiting for the body, with its deadline already fixed.
+                clock.AtFinalValidation = () => pair.Transport.ReadAsync(CancellationToken.None);
+                await pair.Peer.GetStream().WriteAsync(new byte[] { 8,3 },0,2);
+                await WithLimit(clock.Validating.Task);
+                Assert.That((await Failure(clock.ConsumerRead)).Code, Is.EqualTo(TransportError.Timeout),
+                    "A consumer at final deadline validation must never observe the late frame.");
+                Assert.That((await Failure(pair.Transport.ReadAsync(CancellationToken.None))).Code, Is.EqualTo(TransportError.Timeout));
+            }
+        });
+
         [TestCase(2, 100, 3), TestCase(64, 12, 3)]
         public void QueueNeverExceedsBothLimits(int items, int bytes, int attempts)
         {
@@ -261,6 +279,30 @@ namespace Client.Tests.EditMode
         {
             public TimeSpan Elapsed { get; private set; }
             public Task Delay(TimeSpan duration, CancellationToken token) { Elapsed += duration; return Task.CompletedTask; }
+        }
+        private sealed class LateCompletionClock : ITransportClock
+        {
+            public Func<Task<byte[]>> AtFinalValidation;
+            public Task<byte[]> ConsumerRead;
+            public readonly TaskCompletionSource<bool> Validating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TimeSpan elapsed;
+            public TimeSpan Elapsed
+            {
+                get
+                {
+                    var capture = Interlocked.Exchange(ref AtFinalValidation, null);
+                    if (capture != null)
+                    {
+                        elapsed = TimeSpan.FromSeconds(16);
+                        // Execute at the exact completion/validation boundary. If publication already
+                        // happened, ReadAsync consumes its semaphore synchronously and irreversibly.
+                        ConsumerRead = capture();
+                        Validating.TrySetResult(true);
+                    }
+                    return elapsed;
+                }
+            }
+            public Task Delay(TimeSpan duration, CancellationToken token) => Task.Delay(Timeout.Infinite, token);
         }
     }
 }

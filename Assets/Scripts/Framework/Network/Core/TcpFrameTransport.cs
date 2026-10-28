@@ -154,6 +154,7 @@ namespace Client.Framework.Network
             {
                 while (true)
                 {
+                    byte[] frame = null;
                     await Deadline(connection, async () =>
                     {
                         var prefix = new byte[4];
@@ -167,16 +168,17 @@ namespace Client.Framework.Network
                             // Reserve before allocation, including the body currently being read.
                             connection.IncomingItems++; connection.IncomingBytes += length + 4;
                         }
-                        var frame = allocate(length + 4);
+                        frame = allocate(length + 4);
                         if (frame == null || frame.Length != length + 4) throw new InvalidOperationException("Frame allocator returned the wrong length.");
                         Buffer.BlockCopy(prefix, 0, frame, 0, 4);
                         await ReadExactly(connection, frame, 4, length, false).ConfigureAwait(false);
-                        lock (connection.Gate)
-                        {
-                            connection.ThrowIfStopped();
-                            connection.Incoming.Enqueue(frame); connection.Readable.Release();
-                        }
                     }, options.ReadFrameTimeout).ConfigureAwait(false);
+                    // Only publish after the whole read has passed its fixed deadline check.
+                    lock (connection.Gate)
+                    {
+                        connection.ThrowIfStopped();
+                        connection.Incoming.Enqueue(frame); connection.Readable.Release();
+                    }
                 }
             }
             catch (Exception ex) { connection.Stop(Map(connection, ex)); }

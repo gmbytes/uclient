@@ -63,7 +63,14 @@ namespace Client.Framework.Network
             {
                 while (!life.IsCancellationRequested)
                 {
-                    var frame = await captured.ReadAsync(life.Token).ConfigureAwait(false);
+                    Task<byte[]> read;
+                    lock (gate)
+                    {
+                        if (generation != epoch || life.IsCancellationRequested) return;
+                        // A reused transport must capture this generation before lifecycle replacement.
+                        read = captured.ReadAsync(life.Token);
+                    }
+                    var frame = await read.ConfigureAwait(false);
                     var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     lock (gate)
                     {

@@ -10,12 +10,134 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityGameFramework.Runtime;
+using System.Reflection;
 
 namespace Client.Tests
 {
     [Category("N2")]
     public sealed class TcpLoopbackTests
     {
+        [Test]
+        public void ManagedReconnectCannotLetOldPumpCaptureNewTransportGeneration() => Run(async () =>
+        {
+            var listener = new TcpListener(IPAddress.Loopback,0); listener.Start();
+            var boundary = new ReadBoundaryTransport();
+            var connection = new TcpFrameConnection(boundary);
+            boundary.LifecycleGate = () => GateOf(connection);
+            var received = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            connection.FrameReceived += frame => received.TrySetResult(frame);
+            TcpClient first = null, second = null;
+            try
+            {
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                var accept = listener.AcceptTcpClientAsync();
+                var connect = connection.ConnectAsync("127.0.0.1",port,CancellationToken.None);
+                first = await Limit(accept); boundary.ReleaseInitialConnect(); await Limit(connect);
+                await Limit(boundary.ReadEntered.Task);
+                accept = listener.AcceptTcpClientAsync();
+                var reconnectStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var reconnect = Task.Run(async () =>
+                {
+                    reconnectStarted.TrySetResult(true);
+                    await connection.ConnectAsync("127.0.0.1",port,CancellationToken.None);
+                });
+                await Limit(reconnectStarted.Task);
+                // An unguarded acquisition permits replacement first; force exactly that ordering.
+                // A guarded acquisition must capture the old socket before replacement can proceed.
+                if (!boundary.GateHeldAtRead) await Limit(boundary.ReplacementCaptured.Task);
+                boundary.ReleaseRead();
+                await Limit(boundary.InitialReadCaptured.Task);
+                await Limit(reconnect); second = await Limit(accept);
+                await second.GetStream().WriteAsync(new byte[] { 0,0,0,2,8,7 },0,6);
+                Assert.That(await Limit(received.Task), Is.EqualTo(new byte[] { 0,0,0,2,8,7 }));
+            }
+            finally { boundary.ReleaseRead(); boundary.ReleaseInitialConnect(); connection.Close(); first?.Close(); second?.Close(); listener.Stop(); }
+        });
+
+        [UnityTest]
+        public IEnumerator HostReconnectCannotLetOldPumpCaptureReusedTransportGeneration()
+        {
+            GameEntry.Shutdown(ShutdownType.None);
+            var listener = new TcpListener(IPAddress.Loopback,0); listener.Start();
+            var boundary = new ReadBoundaryTransport();
+            var go = new GameObject("N2 reconnect boundary host");
+            var host = go.AddComponent<TokNetworkComponent>();
+            host.enabled = false; // Update must not contend with the deliberately paused capture.
+            boundary.LifecycleGate = () => GateOf(host);
+            var received = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            host.FrameReceived += frame => received.TrySetResult(frame);
+            TcpClient first = null, second = null;
+            try
+            {
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                var accept = listener.AcceptTcpClientAsync();
+                var firstConnect = host.ConnectAsync(boundary,"127.0.0.1",port,CancellationToken.None);
+                yield return Await(accept); first = accept.Result;
+                boundary.ReleaseInitialConnect();
+                yield return Await(boundary.ReadEntered.Task);
+                accept = listener.AcceptTcpClientAsync();
+                var reconnectStarting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = Task.Run(async () =>
+                {
+                    await Limit(reconnectStarting.Task);
+                    if (!boundary.GateHeldAtRead) await Limit(boundary.ReplacementCaptured.Task);
+                    boundary.ReleaseRead();
+                });
+                reconnectStarting.TrySetResult(true);
+                // Host lifecycle stays on the real main thread. The coordinator releases a guarded
+                // old acquisition; an unguarded one resumes only after the new socket is captured.
+                var reconnect = host.ConnectAsync(boundary,"127.0.0.1",port,CancellationToken.None);
+                yield return Await(release); yield return Await(boundary.InitialReadCaptured.Task);
+                yield return Await(reconnect); yield return Await(firstConnect);
+                yield return Await(accept); second = accept.Result;
+                var send = second.GetStream().WriteAsync(new byte[] { 0,0,0,2,8,9 },0,6);
+                host.enabled = true;
+                yield return Await(send); yield return Await(received.Task);
+                Assert.That(received.Task.Result, Is.EqualTo(new byte[] { 0,0,0,2,8,9 }));
+            }
+            finally { boundary.ReleaseRead(); boundary.ReleaseInitialConnect(); if (go != null) UnityEngine.Object.Destroy(go); first?.Close(); second?.Close(); listener.Stop(); GameEntry.Shutdown(ShutdownType.None); }
+        }
+
+        private static object GateOf(object owner) => owner.GetType().GetField("gate",BindingFlags.Instance | BindingFlags.NonPublic).GetValue(owner);
+
+        // Timing wrapper only: all connect/read/write/cancel behavior is the real TCP transport.
+        private sealed class ReadBoundaryTransport : IFrameTransport
+        {
+            private readonly TcpFrameTransport inner = new TcpFrameTransport();
+            private readonly TaskCompletionSource<bool> initialConnect = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> releaseRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public readonly TaskCompletionSource<bool> ReadEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public readonly TaskCompletionSource<bool> ReplacementCaptured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public readonly TaskCompletionSource<bool> InitialReadCaptured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public Func<object> LifecycleGate;
+            public bool GateHeldAtRead;
+            private int connects, reads;
+            public Task ConnectAsync(string host, int port, CancellationToken token)
+            {
+                var connect = inner.ConnectAsync(host,port,token);
+                if (Interlocked.Increment(ref connects) == 1) return FinishInitialConnect(connect);
+                ReplacementCaptured.TrySetResult(true); return connect;
+            }
+            private async Task FinishInitialConnect(Task connect) { await connect.ConfigureAwait(false); await initialConnect.Task.ConfigureAwait(false); }
+            public Task<byte[]> ReadAsync(CancellationToken token)
+            {
+                if (Interlocked.Increment(ref reads) == 1)
+                {
+                    GateHeldAtRead = Monitor.IsEntered(LifecycleGate());
+                    ReadEntered.TrySetResult(true);
+                    Limit(releaseRead.Task).GetAwaiter().GetResult();
+                    var read = inner.ReadAsync(token);
+                    InitialReadCaptured.TrySetResult(true);
+                    return read;
+                }
+                return inner.ReadAsync(token);
+            }
+            public Task SendAsync(ReadOnlyMemory<byte> frame, CancellationToken token) => inner.SendAsync(frame,token);
+            public void Close() => inner.Close();
+            public void ReleaseInitialConnect() => initialConnect.TrySetResult(true);
+            public void ReleaseRead() => releaseRead.TrySetResult(true);
+        }
+
         [UnityTest]
         public IEnumerator HostDeliversOnlyCurrentEpochOnMainThreadAndDestroyClosesSocket()
         {
