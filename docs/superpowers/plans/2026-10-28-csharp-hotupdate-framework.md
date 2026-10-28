@@ -15,6 +15,7 @@
 - 工作目录 `E:/sgame/client`；参考工程 `E:/hygd/work/client` 保持只读。
 - 自研代码按`Assets/Scripts/Framework`、`Assets/Scripts/Game`、`Assets/Scripts/Editor`划分；Framework为AOT基础设施，Game为热更应用/业务，Unity测试放Assets/Tests。目录规范见[工程目录规划](../../project-layout.md)。
 - Android ARM64、Windows x64 为首期；iOS 保留兼容设计，明确不做首期验收。
+- Android首期按用户2026-10-29选择使用雷电运行ARM64 APK，记录实际ABI/转译环境；真机硬件兼容/性能另列未验证，不将模拟器结果混写为真机。
 - 项目自有运行时代码全 C#；不复制 Lua、XLua、旧 MessagePack/JSON 网络链或旧 SDK。
 - 自研标识符、文件和资源名中的UI缩写统一大写，具体命名规则遵循工程目录规划。
 - 首期仅框架和登录示例；无地图、战斗、英雄、公会、经济、支付或完整游戏配置迁移。
@@ -114,7 +115,7 @@ flowchart TD
 | N1 | N0、F3 | CSharp协议生成 | 从comm/proto生成；空注册表/增量fixture/锁校验通过 |
 | F6 | F5、N1 | AOT元数据与加载门禁 | 正确归档加载；缺AOT API要求新Player；泛型probe |
 | F7 | F6 | 试启动与下进程回退 | 迟到Ready无效，坏版下一进程回退，登录错误不拉黑版本 |
-| F8 | F7 | 双平台热更核心闭环 | Android实机/Windows同主包v1→v2与坏版回退 |
+| F8 | F7 | 双平台热更核心闭环 | 雷电中的ARM64 APK/Windows同主包v1→v2与坏版回退 |
 | N2 | N1 | 有界分帧与传输 | 包长/分片/粘包/EOF/期限/队列上限全通过 |
 | N3 | N2 | 登录控制状态机 | 成功/拒绝/取消/迟到/断线及uint64边界 |
 | N4 | N3 | C#/Tok互操作 | Rust发C#读、C#发Rust读、真实demo登录；无业务迁移 |
@@ -169,7 +170,7 @@ client/
 - [ ] **M1 热更可用**：F3–F8，原主包不变，v2 新 C# 代码分支执行，坏版能下次启动回退。
 - [ ] **M2 协议可用**：N0–N4，从comm/proto独立生成，固定信封匹配Tok v3；有界分帧、登录、取消、Tok黄金帧和真实demo TCP7000通过。
 - [ ] **M3 UI框架可用**：U1–U5，参考旧工程的制作/配置/绑定/检查流程落地为C#工具；竖屏优先、横屏重排、安全区/键盘/旋转保留输入，无具体业务。
-- [ ] **M4 交付可复核**：D1–D3，Android实机+Windows Release IL2CPP完整矩阵、产物SHA和结果文件、故障回退证据齐全。
+- [ ] **M4 交付可复核**：D1–D3，雷电ARM64 APK功能验证+Windows Release IL2CPP完整矩阵、SHA/结果文件、故障回退证据齐全，真实ARM硬件未测限制明确。
 
 ## 7. 暂缓项
 

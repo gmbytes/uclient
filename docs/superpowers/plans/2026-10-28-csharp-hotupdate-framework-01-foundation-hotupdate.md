@@ -46,11 +46,14 @@ F1 建立 `Tool/Client/Test-Client.ps1 -Task <ID> -Mode EditMode|PlayMode`，以
 
 **Interfaces:** `SmokeBuild.Run()` 从参数读取 Android/Windows64 与全新输出目录；`Test-Client.ps1 -Task F1 -Mode PlayMode` 是后续统一测试入口。依赖锁记录 Unity 精确版本、UGF 官方提交及所带 GF 库 hash、HybridCLR 9.0.0 tag/Installer源码标识、官方 UI/TMP/JSON/TestFramework 包解析版本；不使用浮动 git branch。
 
-- [ ] **Step 1:** 创建最小 Unity 项目和测试运行器的必要配置，按目录规范把自研代码放Assets/Scripts；官方UGF源码快照放Assets/ThirdParty/GameFramework，读取官方版本并写不可变锁，保留许可；HybridCLR和官方Unity包仍用UPM依赖。不复制旧Assets；Protobuf依赖安装留给N1。
-- [ ] **Step 2:** 写 `BootstrapCreatesOneFrameworkHost`：加载启动场景后断言根宿主数量 `1`、Base/Event/Download 各一个；无初始化异常。运行 F1，确认缺少宿主时失败。
-- [ ] **Step 3:** 制作只含 AOT 基础组件的 GameFramework；Resource/UI 不在此时初始化。配置 Unity 2022.3.25f1、Android ARM64/Windows x64 IL2CPP、.NET Standard 2.1；安装对应工具链和 HybridCLR。
-- [ ] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task F1 -Mode PlayMode`，预期 `TASK_PASS F1`。分别运行 `./Tool/Client/Smoke-Player.ps1 -Platform Windows64`、`./Tool/Client/Smoke-Player.ps1 -Platform Android`，预期编译退出0且生成平台产物；记录工具链缺失为阻塞，不能用 Mono 顶替。
-- [ ] **Step 5:** 提交 `chore(client): 建立可复现Unity与测试基线`。本 Task 不证明热更成功。
+- [x] **Step 1:** 创建最小 Unity 项目和测试运行器的必要配置，按目录规范把自研代码放Assets/Scripts；官方UGF源码快照放Assets/ThirdParty/GameFramework，读取官方版本并写不可变锁，保留许可；HybridCLR和官方Unity包仍用UPM依赖。不复制旧Assets；Protobuf依赖安装留给N1。
+- [x] **Step 2:** 写 `BootstrapCreatesOneFrameworkHost`：加载启动场景后断言根宿主数量 `1`、Base/Event/Download 各一个；无初始化异常。运行 F1，确认缺少宿主时失败。
+- [x] **Step 3:** 制作只含 AOT 基础组件的 GameFramework；Resource/UI 不在此时初始化。配置 Unity 2022.3.25f1、Android ARM64/Windows x64 IL2CPP、.NET Standard 2.1；安装对应工具链和 HybridCLR。
+- [x] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task F1 -Mode PlayMode`，预期 `TASK_PASS F1`。分别运行 `./Tool/Client/Smoke-Player.ps1 -Platform Windows64`、`./Tool/Client/Smoke-Player.ps1 -Platform Android`，预期编译退出0且生成平台产物；记录工具链缺失为阻塞，不能用 Mono 顶替。
+- [x] **Step 5:** 提交 `chore(client): 建立可复现Unity与测试基线`。本 Task 不证明热更成功。
+
+
+F1验收：1f6cdc1/0799efc；EditMode5/5、PlayMode1/1、双平台IL2CPP实际编译通过、零测试拒绝，独立规范与质量审查通过；详见实施进度。
 
 ### Task F2：原生 GF 完整资源 slot 原型
 
@@ -161,6 +164,6 @@ F1 建立 `Tool/Client/Test-Client.ps1 -Task <ID> -Mode EditMode|PlayMode`，以
 
 - [ ] **Step 1:** 固定失败断言：没有安装v1基线、Player hash改变、仅文本资源变化、v2 C#新分支未执行、热DLL被编入AOT、元数据probe失败，任一情况脚本非零退出。
 - [ ] **Step 2:** 在 Windows x64 Release IL2CPP 中，安装/启动v1→只发布v2资源与DLL→完整重启→出现新增类型/方法的 `HOTFIX_V2_EXECUTED 42`；确认Native主包hash完全相同，v2资源标记也改变。
-- [ ] **Step 3:** 在 Android ARM64实机按同流程运行，不重新安装APK；记录设备/系统/API/ABI和签名hash。进入后台、强杀、无网重新启动验证known-good。
+- [ ] **Step 3:** 在用户选择的雷电Android环境按同流程运行ARM64 APK，不重新安装；记录设备/系统/API、主ABI、转译器、APK/process ABI与签名hash。进入后台、强杀、无网重启验证known-good；真实ARM硬件结果单列NotRun，不混同模拟器结果。
 - [ ] **Step 4:** 发布ThrowOnStart版，确认本进程不二次加载；手工/脚本重新启动后回到v2 known-good；随后关闭网络仍能启动。预期两平台分别输出 `HOTUPDATE_PASS`，JSON每项均有证据。
 - [ ] **Step 5:** 审查并提交 `test(hotfix): 验证两平台同主包代码更新与回退`。F8未通过不得声明框架已具备可交付热更新。

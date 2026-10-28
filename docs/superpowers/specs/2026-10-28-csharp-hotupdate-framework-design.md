@@ -13,6 +13,7 @@
 - 可使用 GameFramework；通信使用 Protobuf。
 - 最高优先级是代码与资源热更新。
 - 首期验收 Android、Windows；用户随后明确 iOS 不做首期验收，保留后续兼容和验收任务。
+- 2026-10-29用户提出并启动雷电模拟器作为当前Android验证环境；首期用ARM64 APK在雷电中做功能验收，真实ARM64硬件兼容/性能后续单列且保持未验证。当前雷电14为Android14/API34，x86_64主ABI，arm64-v8a通过libhoudini转译。
 
 以下技术选择由本计划提出，不冒充用户已逐项批准：Unity 2022.3.25f1、干净 GameFramework、HybridCLR 9.0.0 社区版、UGF 原生 Resource、uGUI + TextMeshPro、Google.Protobuf。Unity 版本取现有安装及参考项目基线；先做兼容性验证，再锁定依赖。如果此组合验证失败，记录最小失败和候选版本，先修订计划，不能静默换引擎大版本。
 
@@ -96,7 +97,7 @@ AOT 补充元数据必须来自该平台、该 Player 构建归档的 post-strip
 - 背景满屏；交互内容放 SafeAreaRoot，安全区裁到客户区后归一化。零/无效安全区回退完整客户区并记录一次诊断。
 - 登录窗口是同一个实例、同一个 Presenter；Portrait 布局为纵向品牌区和表单，Landscape 为左右/紧凑布局。转换布局只变布局容器属性和锚点，不重建输入控件，不清空文字、焦点或在途状态。
 - Login 最小表单区：左右边距 48 参考像素，表单宽度不超过 760，按钮高度至少 96 参考像素；极短窗口允许 ScrollRect，确保输入与主按钮可到达。
-- 移动键盘：获得真实可用键盘区域时让当前输入及按钮可滚到可见位置；API 不提供有效区域时使用可滚动表单，不硬编码机型高度。Android 实机验收旋转与键盘，iOS 后续单列。
+- 移动键盘：获得真实可用键盘区域时让当前输入及按钮可滚到可见位置；API不提供有效区域时使用可滚动表单，不硬编码机型高度。当前Android在雷电中验收旋转与软键盘，真机与iOS后续单列。
 - 常规旋转在稳定尺寸到达后 2 个渲染帧内完成；验收时点击目标不能移出安全区，窗口层级/遮罩/返回键生命周期不变。
 
 UI 分组固定为 Background、Page、Popup、Loading、System；采用 UGF UIForm 生命周期与 AOT Bridge，热更 Presenter 绑定/解绑监听。后续页面可提供双布局参数，不能宣称任意历史横屏 Prefab 无需制作即可自动变成竖屏。
@@ -119,7 +120,7 @@ UI编辑采用参考工程实际的模板→Prefab→配置→显式引用→代
 
 ## 9. 验收边界
 
-首期必须在 Windows x64 IL2CPP Player 和 Android ARM64 实机上完成：包内启动、离线基线、v1→v2 DLL+UI资源热更、同 APK/EXE hash 不变、热更新后新 C# 分支执行、Protobuf 类型/泛型在 IL2CPP 下运行、坏补丁拒绝和完整重启回退、横竖屏和键盘、登录成功/错误/取消/断线。Editor 或 Mono 结果不能替代。
+首期必须在Windows x64 IL2CPP Player和用户选择的雷电Android环境中运行ARM64 APK，完成包内启动、离线基线、v1→v2 DLL+UI资源热更、同APK/EXE hash不变、新C#分支、Protobuf类型/泛型、坏补丁拒绝及重启回退、横竖屏/软键盘、登录成功/错误/取消/断线。Editor或Mono不代替。记录模拟器主ABI、转译器和APK/process ABI，不将模拟器结果宣称为真实ARM硬件/性能验收。
 
 iOS只保留无Windows专属依赖的Framework、平台路径抽象和后续Mac/Xcode/真机清单；未实测一律标为未验证。商店发布、生产CDN、真实账号认证、证书和隐私接入、业务玩法不在本期完成声明内。
 

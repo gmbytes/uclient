@@ -18,7 +18,7 @@
 - 同一个登录View和Presenter贯穿旋转；不清空输入、焦点或在途请求。
 - 背景满屏，交互处于安全区；手机键盘与极短窗口提供可滚动到达路径。
 - 真实测试账号只用于开发Tok demo；模拟模式明确标识，不实现生产认证。
-- Android ARM64实机和Windows x64 Release IL2CPP都必须验证；iOS首期保持未验证。
+- Android ARM64 APK在用户选择的雷电环境、以及Windows x64 Release IL2CPP都必须验证；记录转译环境限制，真实ARM硬件和iOS首期保持未验证。
 - 简写Framework/、Editor/相对Assets/Scripts；Tests/EditMode/、Tests/PlayMode/相对Assets；其余相对客户端根。以[工程目录规划](../../project-layout.md)为准。
 - 制作工作流参考旧工程模板/配置/显式绑定/校验，落地为全C#编辑器；具体规则以UI编辑规范为准。
 
@@ -57,7 +57,7 @@
 - [ ] **Step 2:** 制作统一UI根的CanvasScaler，ScreenMatchMode=MatchWidthOrHeight、match=0.5，竖/横参考分辨率按规范切换，首期ScreenSpaceOverlay；窗口子Canvas不再各挂Scaler。Bootstrap UIUpdate独立AOT画布复用此策略，GameRoot就绪后关闭；正式场景只保留一个EventSystem。制作背景层和SafeAreaRoot；竖屏品牌区在上、横屏品牌区左侧约35%；表单宽≤760、边距48、按钮高≥96参考像素，高度不足启用ScrollRect。
 - [ ] **Step 3:** 使用同一套控件和状态切布局；只改锚点、布局参数和容器顺序，每次快照至多一次布局重建；不得通过停用输入控件清掉焦点/编辑状态。键盘区域有效时滚动焦点输入/主按钮可见，无有效区域时保留用户可滚动表单。
 - [ ] **Step 4:** 运行 `./Tool/Client/Test-Client.ps1 -Task U2 -Mode PlayMode`；运行 `./Tool/Client/Test-UIMatrix.ps1 -Profile Editor`，覆盖720×1280、1080×1920、1080×2400、1536×2048、1280×720、1920×1080、2560×1080、720×480及四边模拟安全区，输出截图和几何断言，不能只靠截图主观判断。
-- [ ] **Step 5:** 提交 `feat(ui): 支持双布局与安全区键盘适配`。Android真实软键盘与旋转留D2，不把Editor模拟当实机通过。
+- [ ] **Step 5:** 提交`feat(ui): 支持双布局与安全区键盘适配`。Android软键盘与旋转留D2在雷电验收，不把Editor或模拟器结果写成真机通过。
 
 ### Task U3：GF窗口宿主与C#热更绑定生命周期
 
@@ -137,7 +137,7 @@
 - [ ] **Step 2:** 每平台独立验证：干净安装离线基线→在线v2更新→完整重启执行新C#分支和新UI资源→再次无网启动；APK/EXE及native binary hash不变。验证Protobuf集合、未知字段和新增fixture Parser真实执行。
 - [ ] **Step 3:** 每平台故障矩阵：坏签名、坏hash、错PlayerBuildId、错架构、缺DLL/Bundle、坏原生版本表、磁盘预算不足、下载取消/网络中断；候选不得激活，旧版本继续可用。
 - [ ] **Step 4:** 在download完成前、slot改名前、状态替换前后、trial写后、热入口执行中强杀；完整重启仅选完整可用版本。ThrowOnStart必须下次启动回退；登录服务器拒绝/断线不能误判坏补丁。强杀是测试控制，不引入原生崩溃插件。
-- [ ] **Step 5:** Windows跑全部U2分辨率和窗口连续拖拽；Android ARM64实机测竖→横左→竖→横右、键盘开关/旋转、后台恢复、安全区和极短表单滚动；保留输入与焦点、一次请求、2稳定帧完成布局、交互区域在安全区内。
+- [ ] **Step 5:** Windows跑全部U2分辨率和窗口拖拽；Android在雷电中运行ARM64 APK，测竖→横左→竖→横右、软键盘/旋转、后台恢复、安全区和短表单滚动；保留输入/焦点、一次请求、2稳定帧内布局完成、交互区域在安全区内。记录主ABI与转译环境，真机相关项标NotRun。
 - [ ] **Step 6:** 两平台执行 `./Tool/Client/Verify-Framework.ps1 -Platform Windows64 -PlayerArchive <Windows归档>` 与 `./Tool/Client/Verify-Framework.ps1 -Platform Android -DeviceId <真实设备ID> -PlayerArchive <Android归档>`；预期各 `FRAMEWORK_ACCEPTANCE_PASS`。人工设备项逐条记录操作者/时间/设备/截图；未测不得勾选。
 - [ ] **Step 7:** 独立复核产物与结果后提交 `test(client): 完成热更新登录框架验收矩阵`。
 
