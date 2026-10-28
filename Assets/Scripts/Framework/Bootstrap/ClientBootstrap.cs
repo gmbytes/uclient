@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Client.Contracts;
 using Client.Framework.Release;
-using Client.Framework.HotUpdate;
+using Client.Framework.Resource;
 using UnityEngine;
 
 namespace Client.Bootstrap
@@ -12,46 +12,150 @@ namespace Client.Bootstrap
     {
         [SerializeField] private UIUpdate m_UpdateUI;
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
-        private IHotfixEntry entry;
-        private bool started;
-        public CancellationToken Lifetime => lifetime.Token;
+        private CancellationToken lifetimeToken;
+        private CancellationTokenSource proofLifetime;
+        private CancellationTokenSource launchLifetime;
+        private IHotfixEntry proofEntry;
+        private ReleaseCoordinator coordinator;
+        private ResourceSlotBootstrap resources;
+        private Func<ResourceSlotBootstrap, IClientContext> compose;
+        private LaunchSelection selection;
+        private Task launchTask;
+        private bool started, autoStart, destroyed;
+        public CancellationToken Lifetime => lifetimeToken;
+
+        private void Awake()
+        {
+            lifetimeToken = lifetime.Token;
+            if (m_UpdateUI != null) m_UpdateUI.ConfigureActions(Retry, Exit);
+        }
+        private async void Start()
+        {
+            if (coordinator == null)
+            {
+                if (m_UpdateUI != null) m_UpdateUI.ShowFailure("Startup setup is incomplete. Please exit.", false);
+                return;
+            }
+            if (autoStart) await ObserveLaunchAsync();
+        }
+
+        /// <summary>Native build/composition supplies the original baked identity, pinned verifier and baseline inputs.</summary>
+        public void ConfigureLaunch(ReleaseCoordinator coordinator, ResourceSlotBootstrap resources,
+            Func<ResourceSlotBootstrap, IClientContext> compose, bool autoStart = true)
+        {
+            if (destroyed || started || launchTask != null || this.coordinator != null) throw new InvalidOperationException("The native host can only be configured once before launch.");
+            this.coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            this.resources = resources != null ? resources : throw new ArgumentNullException(nameof(resources));
+            this.compose = compose ?? throw new ArgumentNullException(nameof(compose)); this.autoStart = autoStart;
+            coordinator.Changed += OnReleaseChanged;
+        }
+        public Task LaunchAsync(CancellationToken token)
+        {
+            if (coordinator == null || resources == null || compose == null) throw new InvalidOperationException("Native launch configuration is required before startup.");
+            if (destroyed) throw new ObjectDisposedException(nameof(ClientBootstrap));
+            if (launchTask != null && (!launchTask.IsCompleted || coordinator.TrialBegun || coordinator.RestartRequired)) return launchTask;
+            launchLifetime?.Cancel(); launchLifetime?.Dispose();
+            launchLifetime = CancellationTokenSource.CreateLinkedTokenSource(token, Lifetime);
+            launchTask = RunLaunchAsync(launchLifetime.Token); return launchTask;
+        }
+        private async Task RunLaunchAsync(CancellationToken token)
+        {
+            selection = await coordinator.PrepareLaunchAsync(token);
+            token.ThrowIfCancellationRequested();
+            coordinator.BeginTrial(selection);
+            // Keep the launch token alive after initialization; cancelling it never retries a native root.
+            try
+            {
+                await coordinator.ActivateResourcesAsync(selection, resources, token);
+                var source = compose(resources);
+                await InitializeAsync(selection.Prepared, coordinator.Configuration.Player, coordinator.Configuration.EntryTypeName, source, token);
+            }
+            catch (OperationCanceledException) { await coordinator.ShutdownAsync(CancellationToken.None); throw; }
+            catch (Exception error)
+            {
+                if (!coordinator.RestartRequired && !coordinator.IsReady)
+                {
+                    try { coordinator.FailCurrent(ReleaseErrorCode.LocalReadinessFailed); }
+                    catch (Exception persistence) { throw new AggregateException("Local startup and failure-state persistence failed.", error, persistence); }
+                }
+                throw;
+            }
+        }
 
         public Task InitializeAsync(PreparedRelease prepared, PlayerIdentity player, string entryTypeName, IClientContext context, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
+            if (coordinator == null || selection == null) throw new InvalidOperationException("A bound native launch selection is required before hot initialization.");
             if (started) throw new InvalidOperationException("The hotfix host has already started.");
-            var loaded = new HotfixAssemblyLoader(entryTypeName).LoadOnce(prepared, player);
-            return InitializeEntryAsync(loaded, context, token);
+            started = true;
+            return coordinator.InitializeAsync(selection, prepared, player, entryTypeName, context, token);
         }
 #if UNITY_EDITOR || MINIMAL_HOTFIX_PROOF
-        public Task InitializeAsync(IHotfixEntry hotfixEntry, IClientContext context, CancellationToken token)
-            => InitializeEntryAsync(hotfixEntry, context, token);
-#endif
-        private async Task InitializeEntryAsync(IHotfixEntry hotfixEntry, IClientContext context, CancellationToken token)
+        // F3-only guarded harness. It is not a production release/readiness entry path.
+        public async Task InitializeAsync(IHotfixEntry hotfixEntry, IClientContext context, CancellationToken token)
         {
+            token.ThrowIfCancellationRequested();
             if (started) throw new InvalidOperationException("The hotfix host has already started.");
             if (hotfixEntry == null) throw new ArgumentNullException(nameof(hotfixEntry));
             if (context == null) throw new ArgumentNullException(nameof(context));
-            started = true;
-            entry = hotfixEntry;
-            if (m_UpdateUI != null) m_UpdateUI.SetStatus("Starting", false);
-            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(token, Lifetime))
-                await entry.InitializeAsync(context, linked.Token);
+            started = true; proofEntry = hotfixEntry;
+            proofLifetime = CancellationTokenSource.CreateLinkedTokenSource(token, Lifetime, context.Lifetime);
+            await hotfixEntry.InitializeAsync(context, proofLifetime.Token);
         }
-
+#endif
         public async Task ShutdownAsync(CancellationToken token)
         {
-            lifetime.Cancel();
-            var current = entry;
-            entry = null;
-            if (current != null) await current.ShutdownAsync(token);
+            // Run the coordinator's synchronous stop prefix before publishing host cancellation callbacks.
+            var stopping = coordinator?.ShutdownAsync(token);
+            if (!lifetimeToken.IsCancellationRequested) lifetime.Cancel();
+            try
+            {
+                if (stopping != null) await stopping;
+                var current = proofEntry; proofEntry = null;
+                if (current != null) await current.ShutdownAsync(token);
+            }
+            finally
+            {
+                try { coordinator?.Dispose(); }
+                finally
+                {
+                    proofLifetime?.Dispose(); proofLifetime = null;
+                    launchLifetime?.Dispose(); launchLifetime = null;
+                }
+            }
         }
-
         public void HideUpdateUI()
         {
+            if (coordinator == null || !coordinator.IsReady) return;
             if (m_UpdateUI != null) m_UpdateUI.gameObject.SetActive(false);
         }
-
-        private void OnDestroy() { lifetime.Cancel(); lifetime.Dispose(); }
+        private void OnReleaseChanged(ReleaseDiagnostics value)
+        {
+            if (destroyed || m_UpdateUI == null) return;
+            if (value.Phase == ReleasePhase.Ready) { HideUpdateUI(); return; }
+            m_UpdateUI.SetPhase(value, !coordinator.TrialBegun && !coordinator.RestartRequired);
+        }
+        private async Task ObserveLaunchAsync()
+        {
+            try { await LaunchAsync(Lifetime); }
+            catch (Exception error)
+            {
+                if (destroyed || m_UpdateUI == null) return;
+                bool retry = coordinator != null && !coordinator.TrialBegun && !coordinator.RestartRequired;
+                m_UpdateUI.ShowFailure(retry ? "Startup preparation failed. Retry or exit." : "Startup stopped. Restart the application.", retry);
+                // Diagnostics retain the detailed local error; the page never displays credentials or raw transport data.
+                if (coordinator != null && coordinator.Diagnostics.Error == null) Debug.LogWarning("CLIENT_STARTUP " + error.GetType().Name);
+            }
+        }
+        private async void Retry() { if (!destroyed && coordinator != null && !coordinator.TrialBegun && !coordinator.RestartRequired) await ObserveLaunchAsync(); }
+        private async void Exit() { try { await ShutdownAsync(CancellationToken.None); } finally { Application.Quit(); } }
+        private void OnDestroy()
+        {
+            if (destroyed) return; destroyed = true;
+            if (coordinator != null) { coordinator.Changed -= OnReleaseChanged; coordinator.Dispose(); }
+            lifetime.Cancel(); proofLifetime?.Dispose(); proofLifetime = null;
+            launchLifetime?.Dispose(); launchLifetime = null;
+            lifetime.Dispose();
+        }
     }
 }

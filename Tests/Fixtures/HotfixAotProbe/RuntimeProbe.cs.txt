@@ -16,7 +16,7 @@ namespace Client.Framework.F6Probe
     public sealed class RuntimeProbe : MonoBehaviour
     {
         [Serializable] private sealed class Identity { public string playerBuildId, platform, architecture, unityVersion, contractVersion, envelopeSha256, aotMetadataSetId; }
-        [Serializable] private sealed class Result { public bool passed, secondLoadRejected, resourcesInitialized; public int processId, metadataCount, readyCount; public string playerBuildId, platform, metadataSetId, protocolHash, gameHash, probes, error; }
+        [Serializable] private sealed class Result { public string scope = "F6 loader/generic probe only; no release readiness or known-good commitment"; public bool passed, secondLoadRejected, resourcesInitialized; public int processId, metadataCount, probeCompletionCount; public string playerBuildId, platform, metadataSetId, protocolHash, gameHash, probes, error; }
         private async void Start()
         {
             var result = new Result { processId = System.Diagnostics.Process.GetCurrentProcess().Id };
@@ -38,12 +38,14 @@ namespace Client.Framework.F6Probe
                 result.gameHash = HotfixLoadPlan.Hash(File.ReadAllBytes(Path.Combine(prepared.Root, "Hotfix/Client.Game.dll")));
                 var resources = FindObjectOfType<ResourceSlotBootstrap>(); resources.Activate(prepared.Root); await resources.Initialization; result.resourcesInitialized = true;
                 var host = FindObjectOfType<ClientBootstrap>();
-                await host.InitializeAsync(prepared, player, "Client.Game.F6Probe.Entry", new Context(host.Lifetime, resources.Service, result), CancellationToken.None);
-                if (result.readyCount != 1 || result.metadataCount != release.Files.CountFileKind(ReleaseFileKind.AotMetadata) || string.IsNullOrEmpty(result.probes)) throw new InvalidOperationException("Native probe evidence is incomplete.");
+                var probeEntry = new HotfixAssemblyLoader("Client.Game.F6Probe.Entry").LoadOnce(prepared, player);
+                await probeEntry.InitializeAsync(new Context(host.Lifetime, resources.Service, result), host.Lifetime);
+                if (result.probeCompletionCount != 1 || result.metadataCount != release.Files.CountFileKind(ReleaseFileKind.AotMetadata) || string.IsNullOrEmpty(result.probes)) throw new InvalidOperationException("Native probe evidence is incomplete.");
                 try { new HotfixAssemblyLoader("Client.Game.F6Probe.Entry").LoadOnce(prepared, player); }
                 catch (InvalidOperationException) { result.secondLoadRejected = true; }
                 if (!result.secondLoadRejected) throw new InvalidOperationException("Second process load attempt was accepted.");
-                await host.ShutdownAsync(CancellationToken.None);
+                await probeEntry.ShutdownAsync(CancellationToken.None);
+                if (state.Read().KnownGood != null || state.Read().Attempt != 0) throw new InvalidOperationException("The F6 technical probe must not commit release readiness.");
                 result.passed = true;
             }
             catch (Exception error) { result.error = error.ToString(); Debug.LogException(error); }
@@ -59,7 +61,7 @@ namespace Client.Framework.F6Probe
             public ISessionClient Session => throw new NotSupportedException();
             public ILogService Log => this;
             public CancellationToken Lifetime { get; }
-            public void ReportReady() { result.readyCount++; }
+            public void ReportReady() { result.probeCompletionCount++; Debug.Log("F6_PROBE_COMPLETED"); }
             public void Write(ClientLogLevel level, string code, string message) { if (code != "F6_AOT_PROBE") throw new InvalidOperationException("Unexpected probe log."); result.probes = message; Debug.Log(code + " " + message); }
         }
     }

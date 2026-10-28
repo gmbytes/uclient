@@ -72,7 +72,7 @@ if($exitCode -eq 0) {
     if(Test-Path -LiteralPath (Join-Path $runRoot 'Player.json')) {
         $result = Get-Content -LiteralPath (Join-Path $runRoot 'Player.json') -Raw | ConvertFrom-Json
         $archive = Get-Content -LiteralPath (Join-Path $output 'Archive/archive.json') -Raw | ConvertFrom-Json
-        $passed = $natural -and $playerExit -eq 0 -and $result.passed -and $result.secondLoadRejected -and $result.resourcesInitialized -and $result.readyCount -eq 1 -and $result.metadataCount -eq $archive.metadata.Count -and $result.playerBuildId -eq $archive.playerBuildId -and $result.metadataSetId -eq $archive.aotMetadataSetId -and $result.probes -eq 'list-hot-struct,dictionary-imessage,async-task,hot-repeated,hot-map,registered-hot-parser,unknown-fields,empty-registry'
+        $passed = $natural -and $playerExit -eq 0 -and $result.passed -and $result.secondLoadRejected -and $result.resourcesInitialized -and $result.probeCompletionCount -eq 1 -and $result.metadataCount -eq $archive.metadata.Count -and $result.playerBuildId -eq $archive.playerBuildId -and $result.metadataSetId -eq $archive.aotMetadataSetId -and $result.probes -eq 'list-hot-struct,dictionary-imessage,async-task,hot-repeated,hot-map,registered-hot-parser,unknown-fields,empty-registry'
         foreach($f in $archive.player) { if((Get-FileHash -LiteralPath (Join-Path (Join-Path $output 'Player') $f.path) -Algorithm SHA256).Hash.ToLowerInvariant() -cne $f.sha256) { throw 'Native Player changed during probe.' } }
     }
 }
