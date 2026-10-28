@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][ValidateSet('Android','Windows64')][string]$Platform,[string]$DeviceId,[string]$UnityEditor,[switch]$BuildOnly,[string]$RunRoot)
+if($BuildOnly -and $RunRoot){throw 'BuildOnly creates a fresh buildRun; RunRoot executes an existing completed build.'}
 . "$PSScriptRoot/Unity-Common.ps1"
 . "$PSScriptRoot/Assert-HotUpdateEvidence.ps1"
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -44,6 +45,8 @@ if(-not$RunRoot){
     $provenance=Get-Content -LiteralPath (Join-Path $fixtureRoot 'Pristine/protocol-manifest.json') -Raw|ConvertFrom-Json
     foreach($p in $provenance.generated_sha256.PSObject.Properties){if((Hash (Join-Path $fixtureRoot ('Pristine/'+$p.Name)))-cne$p.Value){throw 'Protocol generated fixture provenance differs.'}}
     foreach($p in $provenance.source_sha256.PSObject.Properties){$source=if($p.Name-eq'tok/client/v1/client.proto'){Join-Path $env:SGAME_COMM_ROOT ('proto/'+$p.Name)}else{Join-Path $env:SGAME_COMM_ROOT ('proto/tests/fixtures/Protocols/F6AotProbe/'+$p.Name)};if((Hash $source)-cne$p.Value){throw 'Canonical protocol fixture source differs.'}}
+    $pristineRegistry=[IO.File]::ReadAllText((Join-Path $fixtureRoot 'Pristine/GameMessageRegistry.cs'))
+    if(($pristineRegistry.Split('namespace Client.Game.Protocol').Length-1)-ne1 -or [IO.File]::ReadAllText((Join-Path $fixtureRoot 'AdaptedRegistry.cs.txt'))-cne$pristineRegistry.Replace('namespace Client.Game.Protocol','namespace Client.Game.Protocol.F6Probe.Generated')){throw 'Protocol fixture registry adaptation must change exactly its namespace.'}
     $runId=[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8)
     $RunRoot=Join-Path $projectRoot "Builds/HotUpdate/$Platform/$runId";New-Item -ItemType Directory -Path $RunRoot|Out-Null
     $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$listener.Start();$port=$listener.LocalEndpoint.Port;$listener.Stop()
