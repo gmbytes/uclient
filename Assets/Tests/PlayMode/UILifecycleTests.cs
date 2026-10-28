@@ -9,6 +9,8 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.EventSystems;
+using System.IO;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 using UnityGameFramework.Runtime;
@@ -46,26 +48,28 @@ namespace Client.Tests
             var node = new GameObject("UINode", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup), typeof(GraphicRaycaster));
             node.transform.SetParent(prefab.transform,false); Stretch((RectTransform)node.transform);
             var button = new GameObject("Action", typeof(RectTransform), typeof(Image), typeof(Button));
-            var brand = AdaptiveLayoutTests.Child("Brand", node.transform);
-            var viewport = AdaptiveLayoutTests.Child("Viewport", node.transform);
+            var background=AdaptiveLayoutTests.Child("Background",node.transform);Stretch(background);background.gameObject.AddComponent<Image>().color=Color.red;background.GetComponent<Image>().raycastTarget=false;
+            var localSafe=AdaptiveLayoutTests.Child("SafeArea",node.transform);Stretch(localSafe);localSafe.gameObject.AddComponent<SafeAreaRoot>();
+            var brand = AdaptiveLayoutTests.Child("Brand", localSafe);
+            var viewport = AdaptiveLayoutTests.Child("Viewport", localSafe);
             var content = AdaptiveLayoutTests.Child("Content", viewport);
             button.transform.SetParent(content, false);
             var action = (RectTransform)button.transform;
             action.anchorMin = action.anchorMax = new Vector2(.5f, 0); action.pivot = new Vector2(.5f, 0); action.sizeDelta = new Vector2(300, 96);
             var scroll = viewport.gameObject.AddComponent<ScrollRect>(); scroll.viewport = viewport; scroll.content = content;
             scroll.inertia = false; scroll.scrollSensitivity = 100;
-            var layout = node.AddComponent<AdaptiveLayout>();
+            var layout = localSafe.gameObject.AddComponent<AdaptiveLayout>();
             layout.Configure(AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>("Assets/Content/UI/Login/UILogin.Layout.asset"), brand, viewport, scroll, content, action);
-            var keyboard = node.AddComponent<KeyboardVisibilityController>(); keyboard.Configure(scroll, action);
+            var keyboard = localSafe.gameObject.AddComponent<KeyboardVisibilityController>(); keyboard.Configure(scroll, action);
             var mask = new GameObject("Mask", typeof(RectTransform), typeof(Image), typeof(Button));
-            mask.transform.SetParent(node.transform, false); mask.transform.SetAsFirstSibling(); Stretch((RectTransform)mask.transform);
+            mask.GetComponent<Image>().color=Color.clear; mask.transform.SetParent(node.transform, false); mask.transform.SetSiblingIndex(1); Stretch((RectTransform)mask.transform);
             var bindings = prefab.AddComponent(Required("UIBindings"));
             var entry = Activator.CreateInstance(Required("UIBindings").GetNestedType("Binding"));
             Field(entry, "Id", "Action"); Field(entry, "Value", button.GetComponent<Button>());
             Field(entry, "ComponentType", typeof(Button).AssemblyQualifiedName);
             var entries = Array.CreateInstance(entry.GetType(), 1); entries.SetValue(entry, 0);
             Call(bindings, "Configure", entries, null);
-            Call(prefab.AddComponent(Required("UIViewBridge")), "Configure", node.GetComponent<Canvas>(), node.GetComponent<CanvasGroup>(), bindings, layout, keyboard, mask.GetComponent<Button>());
+            Call(prefab.AddComponent(Required("UIViewBridge")), "Configure", node.GetComponent<Canvas>(), node.GetComponent<CanvasGroup>(), bindings, layout, keyboard, mask.GetComponent<Button>(), localSafe.GetComponent<SafeAreaRoot>());
             PrefabUtility.SaveAsPrefabAsset(prefab, PrefabPath); Object.DestroyImmediate(prefab);
 
             root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Content/UI/Common/AdaptiveUIRoot.prefab"));
@@ -88,7 +92,7 @@ namespace Client.Tests
             definitions.SetValue(Definition("Popup", "Popup", true, true), 1);
             definitions.SetValue(Definition("Overlay", "System", false, false), 2);
             Call(catalog, "Configure", definitions);
-            service = Activator.CreateInstance(Required("UIService"), ui, events, catalog, root.GetComponent<AdaptiveCanvas>(), root.transform.Find("SafeArea/Windows"));
+            service = Activator.CreateInstance(Required("UIService"), ui, events, catalog, root.GetComponent<AdaptiveCanvas>(), root.transform.Find("Windows"));
         }
 
         private static object Definition(string id, string group, bool modal, bool closeOnMask)
@@ -135,7 +139,7 @@ namespace Client.Tests
             Assert.That(bridge.RootCanvasGroup,Is.SameAs(node.GetComponent<CanvasGroup>()));
             Assert.That(node.GetComponent<GraphicRaycaster>(),Is.Not.Null);
             Assert.That(window.GetComponentsInChildren<CanvasScaler>(true),Is.Empty);
-            Assert.That(window.transform.parent.parent,Is.EqualTo(root.transform.Find("SafeArea/Windows")));
+            Assert.That(window.transform.parent.parent,Is.EqualTo(root.transform.Find("Windows")));
             Assert.That(bridge.RootCanvas.rootCanvas,Is.SameAs(root.GetComponent<Canvas>()));
             AssertFills((RectTransform)window.transform,(RectTransform)window.transform.parent);
             AssertFills(node,(RectTransform)window.transform);
@@ -278,9 +282,9 @@ namespace Client.Tests
             foreach (var handle in new[] { first, second })
             {
                 AssertMountedHierarchy(handle);
-                var brand = Node(Window(handle)).Find("Brand") as RectTransform;
+                var brand = Node(Window(handle)).Find("SafeArea/Brand") as RectTransform;
                 Assert.That(brand.anchorMax, Is.EqualTo(new Vector2(.35f, 1)), "Each open window must consume the already-published landscape snapshot.");
-                var keyboard = Node(Window(handle)).GetComponent<KeyboardVisibilityController>();
+                var keyboard = Node(Window(handle)).GetComponentInChildren<KeyboardVisibilityController>();
                 keyboard.KeyboardVisibleSource = () => true; keyboard.KeyboardAreaSource = () => Rect.zero;
             }
             yield return null;
@@ -299,7 +303,7 @@ namespace Client.Tests
             foreach (var handle in new[] { first, second })
             {
                 AssertMountedHierarchy(handle);
-                var brand = Node(Window(handle)).Find("Brand") as RectTransform;
+                var brand = Node(Window(handle)).Find("SafeArea/Brand") as RectTransform;
                 Assert.That(brand.anchorMin, Is.EqualTo(new Vector2(0, .75f)), "Both windows consume the next portrait snapshot.");
             }
         }
@@ -308,7 +312,7 @@ namespace Client.Tests
         public IEnumerator ServiceConstructedBeforeRootEnableAppliesRootBeforeWindowGeometry()
         {
             ((IDisposable)service).Dispose(); root.SetActive(false);
-            service = Activator.CreateInstance(Required("UIService"), ui, events, catalog, root.GetComponent<AdaptiveCanvas>(), root.transform.Find("SafeArea/Windows"));
+            service = Activator.CreateInstance(Required("UIService"), ui, events, catalog, root.GetComponent<AdaptiveCanvas>(), root.transform.Find("Windows"));
             root.SetActive(true);
             var opening=Open(); yield return Await(opening); var handle=Result(opening);
             var scroll=Window(handle).GetComponentInChildren<ScrollRect>();
@@ -316,7 +320,7 @@ namespace Client.Tests
             Canvas.ForceUpdateCanvases(); counter.VerticalBuilds=0;
             screen.Service.Evaluate(new ScreenMetrics(1280,720,new Rect(10,20,1240,680))); screen.Service.FlushPending(Time.frameCount);
             var safe=(RectTransform)root.transform.Find("SafeArea");
-            var viewport=(RectTransform)Node(Window(handle)).Find("Viewport");
+            var viewport=(RectTransform)Node(Window(handle)).Find("SafeArea/Viewport");
             Assert.That(root.GetComponent<CanvasScaler>().referenceResolution,Is.EqualTo(new Vector2(1920,1080)));
             Assert.That(safe.anchorMin.x,Is.EqualTo(10f/1280).Within(.0001f));
             Assert.That(safe.anchorMin.y,Is.EqualTo(20f/720).Within(.0001f));
@@ -339,6 +343,56 @@ namespace Client.Tests
             Assert.That(Window(handle).GetComponent<UIForm>(),Is.Not.Null,"Native GF must attach UIForm to the stable root, independent of its child Canvas.");
         }
 
+        [UnityTest]
+        [Category("U4")]
+        public IEnumerator NativeWindowImageryFillsInsetsAndInteractionsAreSafeOnce()
+        {
+            root.transform.Find("Background").GetComponent<Image>().color=Color.green;
+            var opening=Open("Popup");yield return Await(opening);var handle=Result(opening);var window=Window(handle);int identity=window.GetInstanceID();
+            var safe=(RectTransform)Node(window).Find("SafeArea");var viewport=(RectTransform)safe.Find("Viewport");
+            var input=new GameObject("Input",typeof(RectTransform),typeof(InputField));input.transform.SetParent(viewport.GetComponent<ScrollRect>().content,false);input.GetComponent<InputField>().text="preserved";
+            GameObject ownedEvents=null;var selected=EventSystem.current;if(selected==null){ownedEvents=new GameObject("U4 Focus EventSystem",typeof(EventSystem));selected=ownedEvents.GetComponent<EventSystem>();}selected.SetSelectedGameObject(input);
+            var cameraObject=new GameObject("U4 Native Camera",typeof(Camera));var camera=cameraObject.GetComponent<Camera>();camera.orthographic=true;camera.transform.position=new Vector3(0,0,-10);
+            var canvas=root.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;
+            var cases=new[]{new ScreenMetrics(720,1280,new Rect(40,90,650,1100)),new ScreenMetrics(1280,720,new Rect(80,30,1120,650)),new ScreenMetrics(1280,720,new Rect(0,0,1180,720)),new ScreenMetrics(720,1280,new Rect(60,0,660,1280))};RenderTexture texture=null;
+            try
+            {
+                foreach(var value in cases)
+                {
+                    bool graphics=SystemInfo.graphicsDeviceType!=UnityEngine.Rendering.GraphicsDeviceType.Null;
+                    if(graphics){if(texture!=null){camera.targetTexture=null;texture.Release();Object.DestroyImmediate(texture);}texture=new RenderTexture(value.Width,value.Height,24);texture.Create();camera.targetTexture=texture;yield return null;}
+                    screen.Service.Evaluate(value);screen.Service.FlushPending(Time.frameCount);Canvas.ForceUpdateCanvases();yield return null;
+                    var rootRect=(RectTransform)root.transform;var full=new Rect(0,0,value.Width,value.Height);
+                    AssertNativeRect(NativePixels((RectTransform)window.transform,rootRect,value),full,"stable root full frame");
+                    AssertNativeRect(NativePixels(Node(window),rootRect,value),full,"UINode full frame");
+                    AssertNativeRect(NativePixels((RectTransform)Node(window).Find("Background"),rootRect,value),full,"window background full frame");
+                    AssertNativeRect(NativePixels((RectTransform)Node(window).Find("Mask"),rootRect,value),full,"modal mask full frame");
+                    AssertNativeRect(NativePixels(safe,rootRect,value),value.SafeArea,"local safe area exactly once");
+                    var bounds=NativePixels(viewport,rootRect,value);Assert.That(bounds.xMin,Is.GreaterThanOrEqualTo(value.SafeArea.xMin-.1f));Assert.That(bounds.xMax,Is.LessThanOrEqualTo(value.SafeArea.xMax+.1f));Assert.That(bounds.yMin,Is.GreaterThanOrEqualTo(value.SafeArea.yMin-.1f));Assert.That(bounds.yMax,Is.LessThanOrEqualTo(value.SafeArea.yMax+.1f));
+                    Assert.That(window.GetInstanceID(),Is.EqualTo(identity));Assert.That(selected.currentSelectedGameObject,Is.SameAs(input));Assert.That(input.GetComponent<InputField>().text,Is.EqualTo("preserved"));Assert.That(window.GetComponentsInChildren<CanvasScaler>(true),Is.Empty);
+                    if(graphics)
+                    {
+                        camera.Render();var previous=RenderTexture.active;RenderTexture.active=texture;var image=new Texture2D(value.Width,value.Height,TextureFormat.RGB24,false);image.ReadPixels(full,0,0);image.Apply();
+                        Assert.That(image.GetPixel(2,2).r,Is.GreaterThan(.9f));Assert.That(image.GetPixel(2,2).g,Is.LessThan(.1f));Assert.That(image.GetPixel(value.Width-3,value.Height-3).r,Is.GreaterThan(.9f));
+                        Directory.CreateDirectory("Builds/Tests/U4/fix1-native");File.WriteAllBytes("Builds/Tests/U4/fix1-native/"+value.Width+"x"+value.Height+"-"+value.SafeArea.xMin+"-"+value.SafeArea.width+".png",image.EncodeToPNG());Object.DestroyImmediate(image);RenderTexture.active=previous;
+                    }
+                }
+            }
+            finally{camera.targetTexture=null;if(texture!=null){texture.Release();Object.DestroyImmediate(texture);}Object.Destroy(cameraObject);if(ownedEvents!=null)Object.Destroy(ownedEvents);}
+        }
+        [UnityTest,Category("U4")]
+        public IEnumerator ServiceRejectsSafeAreaConstrainedWindowsMount()
+        {
+            var wrong=new GameObject("Windows",typeof(RectTransform));wrong.transform.SetParent(root.transform.Find("SafeArea"),false);
+            var error=Assert.Throws<TargetInvocationException>(()=>Activator.CreateInstance(Required("UIService"),ui,events,catalog,root.GetComponent<AdaptiveCanvas>(),wrong.transform));
+            Assert.That(error.InnerException,Is.TypeOf<ArgumentException>());Assert.That(error.InnerException.Message,Does.Contain("full-frame direct child"));
+            wrong.transform.SetParent(root.transform,false);
+            error=Assert.Throws<TargetInvocationException>(()=>Activator.CreateInstance(Required("UIService"),ui,events,catalog,root.GetComponent<AdaptiveCanvas>(),wrong.transform));Assert.That(error.InnerException,Is.TypeOf<ArgumentException>());Assert.That(error.InnerException.Message,Does.Contain("stretch anchors"));Object.Destroy(wrong);yield return null;
+        }
+        static Rect NativePixels(RectTransform target,RectTransform rootRect,ScreenMetrics value)
+        {var points=new Vector3[4];target.GetWorldCorners(points);var min=(Vector2)rootRect.InverseTransformPoint(points[0])-rootRect.rect.min;var max=(Vector2)rootRect.InverseTransformPoint(points[2])-rootRect.rect.min;return Rect.MinMaxRect(min.x/rootRect.rect.width*value.Width,min.y/rootRect.rect.height*value.Height,max.x/rootRect.rect.width*value.Width,max.y/rootRect.rect.height*value.Height);}
+        static void AssertNativeRect(Rect actual,Rect expected,string reason)
+        {Assert.That(actual.xMin,Is.EqualTo(expected.xMin).Within(.1f),reason);Assert.That(actual.yMin,Is.EqualTo(expected.yMin).Within(.1f),reason);Assert.That(actual.xMax,Is.EqualTo(expected.xMax).Within(.1f),reason);Assert.That(actual.yMax,Is.EqualTo(expected.yMax).Within(.1f),reason);}
         [UnityTest]
         public IEnumerator ChildUINodeFillsStableRootAcrossSafeAreaResizeAndRotation()
         {

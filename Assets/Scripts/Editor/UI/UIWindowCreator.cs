@@ -73,7 +73,13 @@ namespace Client.Editor.UI
             var viewport=(RectTransform)safe.Find("Dynamic");var content=(RectTransform)viewport.Find("Content");var scroll=viewport.GetComponent<ScrollRect>();
             var layout=safe.GetComponent<AdaptiveLayout>();layout.Configure(definition,(RectTransform)safe.Find("Static"),viewport,scroll,content,null);
             var keyboard=safe.GetComponent<KeyboardVisibilityController>();keyboard.Configure(scroll,null);
-            root.GetComponent<UIViewBridge>().Configure(node.GetComponent<Canvas>(),node.GetComponent<CanvasGroup>(),root.GetComponent<UIBindings>(),layout,keyboard);
+            root.GetComponent<UIViewBridge>().Configure(node.GetComponent<Canvas>(),node.GetComponent<CanvasGroup>(),root.GetComponent<UIBindings>(),layout,keyboard,null,safe.GetComponent<SafeAreaRoot>());
+        }
+        internal static void UpgradeLocalSafeAreaTemplate()
+        {
+            var root=PrefabUtility.LoadPrefabContents(TemplatePath);
+            try{ConfigureLayout(root,root.GetComponent<UIViewBridge>().Layout.Definition);PrefabUtility.SaveAsPrefabAsset(root,TemplatePath);}
+            finally{PrefabUtility.UnloadPrefabContents(root);}
         }
         public static void RequireSavedEditingScenes()
         {

@@ -24,7 +24,7 @@ namespace Client.Editor.UI
             var background=Child("Background",root.transform); Stretch(background);
             var image=background.gameObject.AddComponent<Image>(); image.color=new Color(.035f,.055f,.09f); image.raycastTarget=false;
             var safe=Child("SafeArea",root.transform); Stretch(safe); var safeRoot=safe.gameObject.AddComponent<SafeAreaRoot>();
-            var windows=Child("Windows",safe); Stretch(windows);
+            var windows=Child("Windows",root.transform); Stretch(windows);
             root.GetComponent<AdaptiveCanvas>().Configure(safeRoot,null,null);
             var prefab=PrefabUtility.SaveAsPrefabAsset(root,RootPath); Object.DestroyImmediate(root);
             // The shared AOT canvas exists under the inactive GameRoot and adds no EventSystem.
@@ -46,6 +46,21 @@ namespace Client.Editor.UI
             PrefabUtility.SaveAsPrefabAsset(startup,startupPath); PrefabUtility.UnloadPrefabContents(startup);
             AssetDatabase.SaveAssets(); AssetDatabase.Refresh();
             Debug.Log("U2_ASSETS_PASS");
+        }
+        /// <summary>One-time in-place migration; keeps the existing Windows object and nested prefab references.</summary>
+        public static void UpgradeFullFrameWindows()
+        {
+            var root=PrefabUtility.LoadPrefabContents(RootPath);
+            try
+            {
+                var windows=root.transform.Find("Windows")??root.transform.Find("SafeArea/Windows");
+                if(windows==null)throw new System.InvalidOperationException("Shared Windows mounting layer is missing.");
+                windows.SetParent(root.transform,false);Stretch((RectTransform)windows);
+                PrefabUtility.SaveAsPrefabAsset(root,RootPath);
+            }
+            finally{PrefabUtility.UnloadPrefabContents(root);}
+            UIWindowCreator.UpgradeLocalSafeAreaTemplate();
+            AssetDatabase.Refresh();Debug.Log("U4_FULL_FRAME_UPGRADE_PASS");
         }
         private static RectTransform Child(string name,Transform parent)
         { var go=new GameObject(name,typeof(RectTransform)); go.transform.SetParent(parent,false); return (RectTransform)go.transform; }

@@ -21,6 +21,7 @@ namespace Client.Tests
             Assert.That(root.GetComponent<AdaptiveCanvas>(),Is.Not.Null); Assert.That(root.GetComponent<ScreenLayoutComponent>(),Is.Not.Null);
             Assert.That(root.GetComponentInChildren<SafeAreaRoot>(true),Is.Not.Null);
             Assert.That(root.GetComponentsInChildren<EventSystem>(true),Is.Empty);
+            Assert.That(root.transform.Find("Windows"),Is.Not.Null);Assert.That(root.transform.Find("SafeArea/Windows"),Is.Null,"Windows must be a full-frame sibling of global-only safe content.");
             var startup=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/App/UIUpdate.prefab");
             Assert.That(startup.GetComponent<AdaptiveCanvas>(),Is.Not.Null);
             var status=startup.GetComponentInChildren<Text>(true);
@@ -28,6 +29,7 @@ namespace Client.Tests
             var gameRoot=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/App/GameRoot.prefab");
             Assert.That(gameRoot.activeSelf,Is.False);
             Assert.That(gameRoot.GetComponentsInChildren<AdaptiveCanvas>(true).Length,Is.EqualTo(1));
+            var nested=gameRoot.GetComponentInChildren<AdaptiveCanvas>(true);Assert.That(nested.transform.Find("Windows"),Is.Not.Null);Assert.That(nested.transform.Find("SafeArea/Windows"),Is.Null);
         }
     }
 }

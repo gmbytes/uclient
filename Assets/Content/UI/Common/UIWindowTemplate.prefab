@@ -90,8 +90,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 0.035, g: 0.055, b: 0.09, a: 1}
   m_RaycastTarget: 0
@@ -230,8 +230,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dc42784cf147c0c48a680349fa168899, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_IgnoreReversedGraphics: 1
   m_BlockingObjects: 0
   m_BlockingMask:
@@ -286,14 +286,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6a00f20c2eac14e4a8746cea967e95c7, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_RootCanvas: {fileID: 6818263972854208387}
   m_RootCanvasGroup: {fileID: 7010701764382783124}
   m_Bindings: {fileID: 6382070332133274027}
   m_Layout: {fileID: 3035994492427402464}
   m_Keyboard: {fileID: 182728532307669908}
   m_Mask: {fileID: 0}
+  m_LocalSafeArea: {fileID: 2840927783626271358}
 --- !u!114 &6382070332133274027
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -304,8 +305,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cad8da2bd5911044298a0bfab8794e21, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_Bindings: []
   m_Arrays: []
 --- !u!1 &6780863609110933130
@@ -356,8 +357,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1aa08ab6e0800fa44ae55d278d1423e3, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_Content: {fileID: 757634138615540224}
   m_Horizontal: 0
   m_Vertical: 1
@@ -386,8 +387,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3312d7739989d2b4e91e6319e9a96d76, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_Padding: {x: 0, y: 0, z: 0, w: 0}
   m_Softness: {x: 0, y: 0}
 --- !u!1 &7248188593830432664
@@ -440,8 +441,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f2bcd35bb01ccf54dbfb5a8fd2bd786d, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &3035994492427402464
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -452,8 +453,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aedfede5850ed1147a862b94494ba22b, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_Definition: {fileID: 0}
   m_Brand: {fileID: 2153472453224296882}
   m_Viewport: {fileID: 3123921224365607285}
@@ -470,8 +471,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b42fe43ebde69354bb4242d0a07ea239, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_Scroll: {fileID: 7581357144545299957}
   m_PrimaryAction: {fileID: 0}
 --- !u!1 &8086726739613805444

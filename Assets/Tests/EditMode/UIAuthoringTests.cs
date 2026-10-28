@@ -214,6 +214,48 @@ namespace Client.Tests.EditMode
             }
             finally { ((IDisposable)session).Dispose(); }
         }
+        [Test] public void PreviewWindowImageryFillsInsetsAndLocalInteractionsAreSafeOnce()
+        {
+            var definition=Create();definition.Modal=true;
+            Edit(definition,r=>
+            {
+                r.transform.Find("UINode/Background").GetComponent<Image>().color=Color.red;
+                var mask=new GameObject("Mask",typeof(RectTransform),typeof(Image),typeof(Button));mask.GetComponent<Image>().color=Color.clear;mask.transform.SetParent(r.transform.Find("UINode"),false);mask.transform.SetSiblingIndex(1);
+                var rect=(RectTransform)mask.transform;rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=rect.offsetMax=Vector2.zero;
+                var input=new GameObject("Input",typeof(RectTransform),typeof(InputField));input.transform.SetParent(r.transform.Find("UINode/SafeArea/Dynamic/Content"),false);input.GetComponent<InputField>().text="preserved";
+                var bridge=new SerializedObject(r.GetComponent<UIViewBridge>());bridge.FindProperty("m_Mask").objectReferenceValue=mask.GetComponent<Button>();bridge.ApplyModifiedPropertiesWithoutUndo();
+            });
+            PreparePreviewScene();var session=Activator.CreateInstance(Tool("UIPreviewSession"),new object[]{definition});
+            try
+            {
+                var global=(AdaptiveCanvas)session.GetType().GetProperty("Canvas").GetValue(session);global.transform.Find("Background").GetComponent<Image>().color=Color.green;
+                var instance=(GameObject)session.GetType().GetProperty("Instance").GetValue(session);int identity=instance.GetInstanceID();
+                var input=(RectTransform)instance.transform.Find("UINode/SafeArea/Dynamic/Content/Input");var eventSystem=SceneManager.GetSceneByPath("Assets/Scenes/UIEdit.unity").GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<EventSystem>()).Single();eventSystem.SetSelectedGameObject(input.gameObject);
+                var cases=new[]{new ScreenMetrics(720,1280,new Rect(40,90,650,1100)),new ScreenMetrics(1280,720,new Rect(80,30,1120,650)),new ScreenMetrics(1280,720,new Rect(0,0,1180,720)),new ScreenMetrics(720,1280,new Rect(60,0,660,1280))};
+                foreach(var metrics in cases)
+                {
+                    session.GetType().GetMethod("Apply").Invoke(session,new object[]{metrics,false,Rect.zero,input});var rootRect=(RectTransform)global.transform;var full=new Rect(0,0,metrics.Width,metrics.Height);
+                    AssertPreviewRect(PreviewPixels((RectTransform)instance.transform,rootRect,metrics),full,"window root full frame");
+                    AssertPreviewRect(PreviewPixels((RectTransform)instance.transform.Find("UINode"),rootRect,metrics),full,"UINode full frame");
+                    AssertPreviewRect(PreviewPixels((RectTransform)instance.transform.Find("UINode/Background"),rootRect,metrics),full,"contrasting window background full frame");
+                    AssertPreviewRect(PreviewPixels((RectTransform)instance.transform.Find("UINode/Mask"),rootRect,metrics),full,"mask full frame");
+                    AssertPreviewRect(PreviewPixels((RectTransform)instance.transform.Find("UINode/SafeArea"),rootRect,metrics),metrics.SafeArea,"local safe bounds exactly once");
+                    var viewport=PreviewPixels((RectTransform)instance.transform.Find("UINode/SafeArea/Dynamic"),rootRect,metrics);Assert.That(viewport.xMin,Is.GreaterThanOrEqualTo(metrics.SafeArea.xMin-.1f));Assert.That(viewport.xMax,Is.LessThanOrEqualTo(metrics.SafeArea.xMax+.1f));Assert.That(viewport.yMin,Is.GreaterThanOrEqualTo(metrics.SafeArea.yMin-.1f));Assert.That(viewport.yMax,Is.LessThanOrEqualTo(metrics.SafeArea.yMax+.1f));
+                    Assert.That(instance.GetInstanceID(),Is.EqualTo(identity));Assert.That(instance.GetComponentsInChildren<CanvasScaler>(true),Is.Empty);Assert.That(eventSystem.currentSelectedGameObject,Is.SameAs(input.gameObject));Assert.That(input.GetComponent<InputField>().text,Is.EqualTo("preserved"));
+                    if(SystemInfo.graphicsDeviceType!=UnityEngine.Rendering.GraphicsDeviceType.Null)
+                    {
+                        var texture=(RenderTexture)session.GetType().GetProperty("Texture").GetValue(session);var previous=RenderTexture.active;RenderTexture.active=texture;var image=new Texture2D(metrics.Width,metrics.Height,TextureFormat.RGB24,false);image.ReadPixels(full,0,0);image.Apply();
+                        Assert.That(image.GetPixel(2,2).r,Is.GreaterThan(.9f));Assert.That(image.GetPixel(2,2).g,Is.LessThan(.1f));Assert.That(image.GetPixel(metrics.Width-3,metrics.Height-3).r,Is.GreaterThan(.9f));
+                        Directory.CreateDirectory("Builds/Tests/U4/fix1-preview");File.WriteAllBytes("Builds/Tests/U4/fix1-preview/"+metrics.Width+"x"+metrics.Height+"-"+metrics.SafeArea.xMin+"-"+metrics.SafeArea.width+".png",image.EncodeToPNG());Object.DestroyImmediate(image);RenderTexture.active=previous;
+                    }
+                }
+            }
+            finally{((IDisposable)session).Dispose();}
+        }
+        static Rect PreviewPixels(RectTransform target,RectTransform rootRect,ScreenMetrics value)
+        {var points=new Vector3[4];target.GetWorldCorners(points);var min=(Vector2)rootRect.InverseTransformPoint(points[0])-rootRect.rect.min;var max=(Vector2)rootRect.InverseTransformPoint(points[2])-rootRect.rect.min;return Rect.MinMaxRect(min.x/rootRect.rect.width*value.Width,min.y/rootRect.rect.height*value.Height,max.x/rootRect.rect.width*value.Width,max.y/rootRect.rect.height*value.Height);}
+        static void AssertPreviewRect(Rect actual,Rect expected,string reason)
+        {Assert.That(actual.xMin,Is.EqualTo(expected.xMin).Within(.1f),reason);Assert.That(actual.yMin,Is.EqualTo(expected.yMin).Within(.1f),reason);Assert.That(actual.xMax,Is.EqualTo(expected.xMax).Within(.1f),reason);Assert.That(actual.yMax,Is.EqualTo(expected.yMax).Within(.1f),reason);}
         void PreparePreviewScene()
         {
             var scene=SceneManager.GetActiveScene();
