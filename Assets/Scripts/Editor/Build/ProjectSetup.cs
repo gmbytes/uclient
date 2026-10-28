@@ -6,6 +6,9 @@ using UnityGameFramework.Runtime;
 using HybridCLR.Installer;
 using HybridCLR.Settings;
 using Client.Framework.Resource;
+using Client.Bootstrap;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace Client.Editor.Build
 {
@@ -31,6 +34,34 @@ namespace Client.Editor.Build
             bootstrapSettings.FindProperty("m_GameRootPrefab").objectReferenceValue = gameRootPrefab;
             bootstrapSettings.ApplyModifiedPropertiesWithoutUndo();
             PrefabUtility.SaveAsPrefabAssetAndConnect(host, "Assets/Prefabs/App/GameFramework.prefab", InteractionMode.AutomatedAction);
+            var startup = new GameObject("ClientBootstrap").AddComponent<ClientBootstrap>();
+            var updateRoot = new GameObject("UIUpdate", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+            updateRoot.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            var scaler = updateRoot.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080, 1920);
+            scaler.matchWidthOrHeight = 0.5f;
+            var labelRoot = new GameObject("StatusLabel", typeof(RectTransform), typeof(Text));
+            labelRoot.transform.SetParent(updateRoot.transform, false);
+            var label = labelRoot.GetComponent<Text>();
+            label.text = "Initializing";
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 32;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.raycastTarget = false;
+            var rect = labelRoot.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            var updateUI = updateRoot.AddComponent<UIUpdate>();
+            var updateSettings = new SerializedObject(updateUI);
+            updateSettings.FindProperty("m_Status").objectReferenceValue = label;
+            updateSettings.ApplyModifiedPropertiesWithoutUndo();
+            PrefabUtility.SaveAsPrefabAssetAndConnect(updateRoot, "Assets/Prefabs/App/UIUpdate.prefab", InteractionMode.AutomatedAction);
+            var startupSettings = new SerializedObject(startup);
+            startupSettings.FindProperty("m_UpdateUI").objectReferenceValue = updateUI;
+            startupSettings.ApplyModifiedPropertiesWithoutUndo();
+            new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
             EditorSceneManager.SaveScene(scene, "Assets/Scenes/Bootstrap.unity");
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene("Assets/Scenes/Bootstrap.unity", true) };
             ConfigurePlayer();
@@ -58,6 +89,9 @@ namespace Client.Editor.Build
             settings.useGlobalIl2cpp = false;
             settings.outputLinkFile = "Scripts/Framework/HotUpdate/Generated/link.xml";
             settings.outputAOTGenericReferenceFile = "Scripts/Framework/HotUpdate/Generated/AOTGenericReferences.cs";
+            // Protocol is reserved by its asmdef; N1/F6 adds it once a real DLL exists.
+            settings.hotUpdateAssemblyDefinitions = new[] { AssetDatabase.LoadAssetAtPath<UnityEditorInternal.AssemblyDefinitionAsset>("Assets/Scripts/Game/Client.Game.asmdef") };
+            settings.hotUpdateAssemblies = System.Array.Empty<string>();
             HybridCLRSettings.Save();
         }
 

@@ -1,6 +1,6 @@
 {
   "name": "Client.EditMode.Tests",
-  "references": ["Client.Framework", "Client.Editor", "UnityGameFramework.Runtime", "Unity.TextMeshPro", "UnityEngine.UI"],
+  "references": ["Client.Framework", "Client.Contracts", "Client.Bootstrap", "Client.Editor", "UnityGameFramework.Runtime", "Unity.TextMeshPro", "UnityEngine.UI"],
   "includePlatforms": ["Editor"],
   "precompiledReferences": ["GameFramework.dll", "Newtonsoft.Json.dll"],
   "optionalUnityReferences": ["TestAssemblies"]

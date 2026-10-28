@@ -1,0 +1,36 @@
+#if HOTFIX_PROOF_V1 || HOTFIX_PROOF_V2
+using System.Threading;
+using System.Threading.Tasks;
+using Client.Contracts;
+
+namespace Client.Game.Proof
+{
+    public sealed class Entry : IHotfixEntry
+    {
+        public Task InitializeAsync(IClientContext context, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+#if HOTFIX_PROOF_V1
+            context.Log.Write(ClientLogLevel.Info, "HOTFIX_PROOF", "proof-v1");
+#elif HOTFIX_PROOF_V2
+            context.Log.Write(ClientLogLevel.Info, "HOTFIX_PROOF", "proof-v2:" + new AddedAnswer().Compute());
+#endif
+            context.ReportReady();
+            return Task.CompletedTask;
+        }
+
+        public Task ShutdownAsync(CancellationToken token) => Task.CompletedTask;
+    }
+
+#if HOTFIX_PROOF_V2
+    public sealed class AddedAnswer
+    {
+        public int Compute()
+        {
+            int value = 6;
+            return value == 6 ? value * 7 : -1;
+        }
+    }
+#endif
+}
+#endif

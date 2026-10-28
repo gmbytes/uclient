@@ -1,0 +1,5 @@
+{
+  "name": "Client.Bootstrap",
+  "references": ["Client.Framework", "Client.Contracts", "UnityEngine.UI"],
+  "autoReferenced": false
+}

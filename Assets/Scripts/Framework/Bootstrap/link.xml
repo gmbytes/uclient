@@ -1,0 +1,3 @@
+<linker>
+  <assembly fullname="Client.Contracts" preserve="all" />
+</linker>
