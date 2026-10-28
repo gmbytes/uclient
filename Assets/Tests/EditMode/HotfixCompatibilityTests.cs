@@ -16,6 +16,49 @@ namespace Client.Tests.EditMode
     public sealed class HotfixCompatibilityTests
     {
         private string root;
+        [OneTimeSetUp]
+        public void BuildCurrentEditorLinkerPolicyPrerequisite()
+        {
+            string project = Path.GetFullPath(".");
+            string editor = UnityEditor.EditorApplication.applicationPath;
+            string script = Path.Combine(project, "Tool/Client/Build-LinkerPolicy.ps1");
+            string evidence = Path.Combine(project, "Builds/Tests/F6Prerequisite", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(evidence);
+            string policy = Path.Combine(project, "Builds/LinkerPolicy/policy.json");
+            bool existed = File.Exists(policy);
+            string arguments = "-NoLogo -NoProfile -NonInteractive -File " + QuoteProcessArgument(script) + " -UnityEditor " + QuoteProcessArgument(editor);
+            var start = new System.Diagnostics.ProcessStartInfo("pwsh", arguments) {
+                WorkingDirectory = project, UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true
+            };
+            using (var process = System.Diagnostics.Process.Start(start))
+            {
+                var output = process.StandardOutput.ReadToEndAsync();
+                var error = process.StandardError.ReadToEndAsync();
+                bool completed = process.WaitForExit(60000);
+                if (!completed) { process.Kill(); Assert.That(process.WaitForExit(5000), Is.True, "Timed-out linker prerequisite did not terminate."); }
+                bool drained = System.Threading.Tasks.Task.WaitAll(new System.Threading.Tasks.Task[] { output, error }, 5000);
+                string stdout = output.IsCompleted ? output.GetAwaiter().GetResult() : "<output drain timed out>";
+                string stderr = error.IsCompleted ? error.GetAwaiter().GetResult() : "<error drain timed out>";
+                File.WriteAllText(Path.Combine(evidence, "stdout.log"), stdout);
+                File.WriteAllText(Path.Combine(evidence, "stderr.log"), stderr);
+                File.WriteAllText(Path.Combine(evidence, "result.json"), JsonConvert.SerializeObject(new {
+                    editor, executable = start.FileName, arguments, timeoutMilliseconds = 60000,
+                    policyExistedBefore = existed, completed, drained, exitCode = process.ExitCode,
+                    policyExistsAfter = File.Exists(policy)
+                }, Formatting.Indented) + "\n");
+                TestContext.Progress.WriteLine("F6_LINKER_PREREQUISITE " + evidence);
+                Assert.That(completed && drained, Is.True, "Linker prerequisite timed out. " + stderr);
+                Assert.That(process.ExitCode, Is.Zero, stdout + "\n" + stderr);
+                Assert.That(stdout, Does.Contain("LINKER_POLICY_BUILT "));
+                Assert.That(File.Exists(policy), Is.True, "The actual producer did not create its policy evidence.");
+            }
+        }
+        private static string QuoteProcessArgument(string value)
+        {
+            if (value.IndexOfAny(new[] { '"', '\r', '\n' }) >= 0) throw new ArgumentException("Invalid prerequisite process path.");
+            return "\"" + value + "\"";
+        }
         [SetUp] public void Setup() { root = Path.GetFullPath(Path.Combine("Builds/F6Compatibility", Guid.NewGuid().ToString("N"))); Directory.CreateDirectory(root); }
         [TearDown] public void Cleanup() { Directory.Delete(root, true); }
         [Test]
