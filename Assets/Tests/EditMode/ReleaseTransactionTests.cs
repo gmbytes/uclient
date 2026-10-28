@@ -217,6 +217,94 @@ namespace Client.Tests.EditMode
             Assert.DoesNotThrow(() => new DiskBudget(_ => required).Require(root, nextRelease));
         }
 
+        [Test]
+        public void DiskBudgetQueriesNearestExistingTargetAncestorWithoutCreatingDirectories()
+        {
+            string mount = Path.Combine(root, "target-mount");
+            string requested = Path.Combine(mount, "new-release", "storage");
+            Directory.CreateDirectory(mount);
+            string queried = null;
+            var budget = new DiskBudget(path => { queried = path; return path == mount ? long.MaxValue : 0; });
+            Assert.DoesNotThrow(() => budget.Require(requested, nextRelease));
+            Assert.That(queried, Is.EqualTo(mount), "Capacity must come from the target mount, not '/' or an absent descendant.");
+            Assert.That(Directory.Exists(Path.Combine(mount, "new-release")), Is.False);
+        }
+
+        [Test]
+        public void DiskBudgetUsesExistingTargetPathProviderResultRatherThanVolumeRoot()
+        {
+            Directory.CreateDirectory(root);
+            string queried = null;
+            var budget = new DiskBudget(path => { queried = path; return path == root ? 0 : long.MaxValue; });
+            Assert.Throws<NoSpaceException>(() => budget.Require(root, nextRelease));
+            Assert.That(queried, Is.EqualTo(root));
+            Assert.That(Directory.GetFileSystemEntries(root), Is.Empty);
+        }
+
+        [Test]
+        public void DefaultWindowsCapacityProviderQueriesActualStorageWithoutCreatingTarget()
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT) Assert.Ignore("Windows native capacity adapter.");
+            if (new DriveInfo(Path.GetPathRoot(root)).AvailableFreeSpace < 1024L * 1024 * 1024)
+                Assert.Ignore("Native capacity smoke requires at least 1 GiB of free test storage.");
+            Assert.DoesNotThrow(() => new DiskBudget().Require(root, nextRelease));
+            Assert.That(Directory.Exists(root), Is.False);
+        }
+
+        [Test]
+        public void MaximumSizedStateRoundTripsPrimaryAndBackupAndReaderRejectsOneExtraByte()
+        {
+            const int maximumBytes = 256 * 1024;
+            ReleaseState maximum = SizedState(maximumBytes);
+            state.WriteAtomic(maximum);
+            Assert.That(new FileInfo(Path.Combine(root, "state.json")).Length, Is.EqualTo(maximumBytes));
+            Assert.That(state.Read().BadReleaseIds, Is.EqualTo(maximum.BadReleaseIds));
+            state.WriteAtomic(maximum);
+            Assert.That(new FileInfo(Path.Combine(root, "state.json.bak")).Length, Is.EqualTo(maximumBytes));
+            File.AppendAllText(Path.Combine(root, "state.json"), " ", new UTF8Encoding(false));
+            Assert.That(state.Read().BadReleaseIds, Is.EqualTo(maximum.BadReleaseIds));
+            Assert.That(state.RecoveryDiagnostics.Count, Is.EqualTo(1), "The cap must reject primary +1 byte, then accept the cap-sized backup.");
+        }
+
+        [Test]
+        public void OversizedStateRejectsBeforeMutatingPrimaryBackupOrTemporaryFiles()
+        {
+            InstallGood();
+            state.WriteAtomic(new ReleaseState { KnownGood = "old", BadReleaseIds = new[] { "existing-quarantine" } });
+            string primary = Path.Combine(root, "state.json"), backup = Path.Combine(root, "state.json.bak");
+            byte[] priorPrimary = File.ReadAllBytes(primary), priorBackup = File.ReadAllBytes(backup);
+            string[] priorTemporaries = Directory.GetFiles(root, "state.*.partial");
+            faults.Hits.Clear();
+            Assert.Throws<InvalidDataException>(() => state.WriteAtomic(SizedState(256 * 1024 + 1)));
+            Assert.That(File.ReadAllBytes(primary), Is.EqualTo(priorPrimary));
+            Assert.That(File.ReadAllBytes(backup), Is.EqualTo(priorBackup));
+            Assert.That(Directory.GetFiles(root, "state.*.partial"), Is.EqualTo(priorTemporaries));
+            Assert.That(faults.Hits, Is.Empty, "Oversize rejection must precede every write boundary.");
+            Assert.That(state.Read().KnownGood, Is.EqualTo("old"));
+            Assert.That(state.Read().BadReleaseIds, Is.EqualTo(new[] { "existing-quarantine" }));
+        }
+
+        [Test]
+        public void StructurallyAllowedLargeQuarantineNeverCreatesUnreadableInitialState()
+        {
+            var oversized = new ReleaseState { BadReleaseIds = Enumerable.Range(0, 4096).Select(index => index.ToString("D4") + new string('q', 124)).ToArray() };
+            Assert.Throws<InvalidDataException>(() => state.WriteAtomic(oversized));
+            Assert.That(Directory.Exists(root), Is.False, "An oversized initial state must be rejected before creating storage.");
+            Assert.That(state.Read().BadReleaseIds, Is.Empty);
+        }
+
+        private static ReleaseState SizedState(int exactBytes)
+        {
+            // Independent schema-1 byte accounting: identifiers are ASCII and need no JSON escaping.
+            const string empty = "{\"schemaVersion\":1,\"knownGood\":null,\"previousGood\":null,\"candidate\":null,\"attempt\":0,\"badReleaseIds\":[]}";
+            const int count = 2048;
+            int totalIdentifierBytes = exactBytes - Encoding.UTF8.GetByteCount(empty) - (3 * count - 1);
+            int length = totalIdentifierBytes / count, longer = totalIdentifierBytes % count;
+            Assert.That(length, Is.InRange(5, 127), "Boundary fixture must fit the unchanged identifier/count limits.");
+            return new ReleaseState { BadReleaseIds = Enumerable.Range(0, count).Select(index =>
+                index.ToString("D4") + "-" + new string('q', length - 5 + (index < longer ? 1 : 0))).ToArray() };
+        }
+
         [TestCase("Resources/CON.dat")]
         [TestCase("Resources/GameFrameworkVersion.dat/child")]
         [TestCase("release.manifest.json")]
