@@ -37,7 +37,7 @@
 
 ## 1. 本轮交付物与实施入口
 
-本轮只交付本文、设计基线、三份子计划、[工程目录规划](../../project-layout.md)、[UI编辑规范](../../ui-authoring.md)和[Tok demo接入契约](../../tok-demo-protocol.md)。以下文件、场景、脚本和命令均是后续实施任务，不代表已经存在或已通过验证。
+最初规划交付包括本文、设计基线、三份子计划、[工程目录规划](../../project-layout.md)、[UI编辑规范](../../ui-authoring.md)和[Tok demo接入契约](../../tok-demo-protocol.md)。当前已进入实施，实际文件与已完成验收见[实施进度](../../implementation-progress.md)；下面仍列完整目标，未勾选任务和里程碑不代表已完成。
 
 | 子计划 | 内容 | 独立验收点 |
 | --- | --- | --- |
