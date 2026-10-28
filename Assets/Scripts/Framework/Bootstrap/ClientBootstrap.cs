@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Client.Contracts;
@@ -21,6 +22,7 @@ namespace Client.Bootstrap
         private Func<ResourceSlotBootstrap, IClientContext> compose;
         private LaunchSelection selection;
         private Task launchTask;
+        private Task shutdownTask;
         private bool started, autoStart, destroyed;
         public CancellationToken Lifetime => lifetimeToken;
 
@@ -70,14 +72,16 @@ namespace Client.Bootstrap
                 var source = compose(resources);
                 await InitializeAsync(selection.Prepared, coordinator.Configuration.Player, coordinator.Configuration.EntryTypeName, source, token);
             }
-            catch (OperationCanceledException) { await coordinator.ShutdownAsync(CancellationToken.None); throw; }
+            catch (OperationCanceledException cancelled)
+            {
+                try { await ShutdownAsync(CancellationToken.None); }
+                catch (Exception cleanup) { throw new AggregateException("Launch cancellation and owned cleanup failed.", cancelled, cleanup); }
+                throw;
+            }
             catch (Exception error)
             {
                 if (!coordinator.RestartRequired && !coordinator.IsReady)
-                {
-                    try { coordinator.FailCurrent(ReleaseErrorCode.LocalReadinessFailed); }
-                    catch (Exception persistence) { throw new AggregateException("Local startup and failure-state persistence failed.", error, persistence); }
-                }
+                    coordinator.FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, error);
                 throw;
             }
         }
@@ -103,26 +107,35 @@ namespace Client.Bootstrap
             await hotfixEntry.InitializeAsync(context, proofLifetime.Token);
         }
 #endif
-        public async Task ShutdownAsync(CancellationToken token)
+        public Task ShutdownAsync(CancellationToken token)
         {
-            // Run the coordinator's synchronous stop prefix before publishing host cancellation callbacks.
-            var stopping = coordinator?.ShutdownAsync(token);
-            if (!lifetimeToken.IsCancellationRequested) lifetime.Cancel();
+            if (shutdownTask != null) return shutdownTask;
+            // Publish the shared completion before cancellation callbacks can re-enter shutdown.
+            var completion = new TaskCompletionSource<bool>(); shutdownTask = completion.Task;
+            _ = CompleteShutdownAsync(token, completion); return shutdownTask;
+        }
+        private async Task CompleteShutdownAsync(CancellationToken token, TaskCompletionSource<bool> completion)
+        {
+            var errors = new List<Exception>();
+            Task stopping = null;
+            try { stopping = coordinator?.ShutdownAsync(token); } catch (Exception error) { errors.Add(error); }
+            try { if (!lifetimeToken.IsCancellationRequested) lifetime.Cancel(); } catch (Exception error) { errors.Add(error); }
             try
             {
                 if (stopping != null) await stopping;
                 var current = proofEntry; proofEntry = null;
                 if (current != null) await current.ShutdownAsync(token);
             }
+            catch (Exception error) { errors.Add(error); }
             finally
             {
-                try { coordinator?.Dispose(); }
-                finally
-                {
-                    proofLifetime?.Dispose(); proofLifetime = null;
-                    launchLifetime?.Dispose(); launchLifetime = null;
-                }
+                foreach (var cleanup in new Action[] { () => coordinator?.Dispose(), () => proofLifetime?.Dispose(), () => launchLifetime?.Dispose() })
+                    try { cleanup(); } catch (Exception error) { errors.Add(error); }
+                proofLifetime = launchLifetime = null;
             }
+            if (errors.Count == 0) completion.TrySetResult(true);
+            else if (errors.Count == 1 && errors[0] is OperationCanceledException) completion.TrySetCanceled();
+            else completion.TrySetException(errors.Count == 1 ? errors[0] : new AggregateException("Owned shutdown operations failed.", errors));
         }
         public void HideUpdateUI()
         {

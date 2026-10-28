@@ -44,10 +44,16 @@ namespace Client.Framework.Release
         private ResourceSlotBootstrap resources;
         private bool irreversible, resourceInitialized, assemblyAttempted;
         private IHotfixEntry entry;
+#if UNITY_EDITOR
+        // Editor fixtures replace only the unavailable native load boundary. Players compile the direct F6 call below.
+        private Func<PreparedRelease, PlayerIdentity, IHotfixEntry> editorEntryLoader = null;
+#endif
         private LaunchReadinessContext launchContext;
         private readonly TaskCompletionSource<bool> ready = new TaskCompletionSource<bool>();
         private bool ownsRootGate, disposed;
         private long preparationEpoch;
+        private long plannedEpoch;
+        private string preparingReleaseId;
         public bool TrialBegun { get; private set; }
         public bool RestartRequired { get; private set; }
         public bool IsReady { get; private set; }
@@ -79,7 +85,12 @@ namespace Client.Framework.Release
             try
             {
                 long checkingEpoch;
-                lock (sync) { RequireSelectable(); checkingEpoch = ++preparationEpoch; SetPhase(ReleasePhase.Check); }
+                lock (sync)
+                {
+                    RequireSelectable(); checkingEpoch = ++preparationEpoch;
+                    plannedEpoch = Interlocked.Increment(ref nextEpoch); preparingReleaseId = null;
+                    SetPhase(ReleasePhase.Check);
+                }
                 await rootGate.WaitAsync(token);
                 try { lock (sync) { RequireSelectable(); policy.RecoverUnfinished(); state.PruneUnreferencedSlots(); } }
                 finally { rootGate.Release(); }
@@ -98,6 +109,7 @@ namespace Client.Framework.Release
                 catch (Exception error) when (!(error is OperationCanceledException) || !token.IsCancellationRequested && !lifetimeToken.IsCancellationRequested)
                 {
                     preparationFailed = true;
+                    RecordFailure("PreparationFailed", error);
                     SetPhase(ReleasePhase.PreparationFailed, "PreparationFailed", error);
                 }
                 token.ThrowIfCancellationRequested(); lifetimeToken.ThrowIfCancellationRequested();
@@ -120,9 +132,14 @@ namespace Client.Framework.Release
                     if (id == null) throw new InvalidOperationException("No verified release is available; native baseline provisioning is required.");
                     var prepared = new PreparedRelease(ReleaseFileSystem.Child(state.Root, "slots/" + id), state.VerifySlot(id));
                     token.ThrowIfCancellationRequested();
-                    current = new LaunchSelection(prepared, Interlocked.Increment(ref nextEpoch), selectionToken);
+                    current = new LaunchSelection(prepared, plannedEpoch, selectionToken);
                     SetPhase(ReleasePhase.Select); return current;
                 }
+            }
+            catch (Exception error)
+            {
+                RecordFailure(error is OperationCanceledException ? "PreparationCancelled" : "LaunchPreparationFailed", error);
+                throw;
             }
             finally { preparing.Release(); }
         }
@@ -138,6 +155,7 @@ namespace Client.Framework.Release
                 byte[] channelBytes = await DownloadMetadataAsync("channel.json", Path.Combine(scratch, "channel.json"), ManifestVerifier.MaximumDocumentBytes, token);
                 byte[] channelSignature = await DownloadMetadataAsync("channel.sig", Path.Combine(scratch, "channel.sig"), 256, token);
                 var channel = verifier.VerifyChannel(channelBytes, channelSignature);
+                preparingReleaseId = channel.ReleaseId;
                 if (state.Read().BadReleaseIds.Contains(channel.ReleaseId, StringComparer.Ordinal)) throw new InvalidOperationException("The signed channel offers a quarantined release.");
                 byte[] manifest = await DownloadMetadataAsync(channel.ManifestRelativePath, Path.Combine(scratch, "release.json"), ManifestVerifier.MaximumDocumentBytes, token);
                 string signaturePath = Path.ChangeExtension(channel.ManifestRelativePath, "sig").Replace('\\', '/');
@@ -198,7 +216,7 @@ namespace Client.Framework.Release
                 if (!rootGate.Wait(0)) throw new InvalidOperationException("Release preparation is still active.");
                 ownsRootGate = true;
                 try { policy.Begin(selection.ReleaseId); TrialBegun = true; SetPhase(ReleasePhase.Trial); }
-                catch { ownsRootGate = false; rootGate.Release(); throw; }
+                catch (Exception error) { RecordFailure("BeginTrialFailed", error); ownsRootGate = false; rootGate.Release(); throw; }
             }
         }
 
@@ -234,8 +252,8 @@ namespace Client.Framework.Release
                 await AwaitWithCancellation(bootstrap.Initialization, launchToken);
                 lock (sync) { RequireCurrent(selection); launchToken.ThrowIfCancellationRequested(); resourceInitialized = true; }
             }
-            catch (OperationCanceledException) { HandleCancellation(selection, token, CancellationToken.None); throw; }
-            catch { FailCurrent(ReleaseErrorCode.ResourceInitializationFailed); throw; }
+            catch (OperationCanceledException error) { HandleCancellation(selection, token, CancellationToken.None, error); throw; }
+            catch (Exception error) { FailCurrentWithEvidence(ReleaseErrorCode.ResourceInitializationFailed, error); throw; }
         }
 
         public Task InitializeAsync(LaunchSelection selection, PreparedRelease prepared, PlayerIdentity nativePlayer, string entryTypeName,
@@ -261,12 +279,16 @@ namespace Client.Framework.Release
                 var context = CreateReadinessContext(selection, source, token);
                 var gate = context.Gate;
                 gate.RecordResourceInitialized(); SetPhase(ReleasePhase.Metadata);
-                entry = new HotfixAssemblyLoader(configuration.EntryTypeName).LoadOnce(selection.Prepared, configuration.Player);
+#if UNITY_EDITOR
+                if (editorEntryLoader != null) entry = editorEntryLoader(selection.Prepared, configuration.Player);
+                else
+#endif
+                    entry = new HotfixAssemblyLoader(configuration.EntryTypeName).LoadOnce(selection.Prepared, configuration.Player);
                 gate.RecordHotfixLoaded(); gate.VerifyLocalEnvelope(); SetPhase(ReleasePhase.Hotfix);
                 await CompleteEntryAsync(selection, entry, context, token);
             }
-            catch (OperationCanceledException) { HandleCancellation(selection, token, source.Lifetime); throw; }
-            catch { if (!RestartRequired) FailCurrent(ReleaseErrorCode.HotfixInitializationFailed); throw; }
+            catch (OperationCanceledException error) { HandleCancellation(selection, token, source.Lifetime, error); throw; }
+            catch (Exception error) { if (!RestartRequired) FailCurrentWithEvidence(ReleaseErrorCode.HotfixInitializationFailed, error); throw; }
         }
 
         private LaunchReadinessContext CreateReadinessContext(LaunchSelection selection, IClientContext source, CancellationToken token)
@@ -299,8 +321,8 @@ namespace Client.Framework.Release
                 // The ready timeout bounds startup, not the successfully running page lifetime.
                 launchLifetime?.CancelAfter(Timeout.InfiniteTimeSpan);
             }
-            catch (OperationCanceledException) { HandleCancellation(selection, token, context.OriginalLifetime); throw; }
-            catch { if (!RestartRequired) FailCurrent(ReleaseErrorCode.HotfixInitializationFailed); throw; }
+            catch (OperationCanceledException error) { HandleCancellation(selection, token, context.OriginalLifetime, error); throw; }
+            catch (Exception error) { if (!RestartRequired) FailCurrentWithEvidence(ReleaseErrorCode.HotfixInitializationFailed, error); throw; }
         }
 
         private void RequestReady(LaunchSelection selection, LaunchReadinessContext context)
@@ -324,13 +346,15 @@ namespace Client.Framework.Release
                 policy.Promote(selection.ReleaseId, context.Lifetime);
                 IsReady = true; SetPhase(ReleasePhase.Ready); ready.TrySetResult(true);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException error)
             {
+                RecordFailure("LaunchCancelled", error);
                 RestartRequired = true; contextLifetime?.Cancel(); context.Gate.Abort(); SetPhase(ReleasePhase.RestartRequired, "LaunchCancelled");
                 ready.TrySetCanceled(); throw;
             }
             catch (Exception error)
             {
+                RecordFailure("ReadyStatePersistenceFailed", error);
                 RestartRequired = true; contextLifetime?.Cancel(); context.Gate.Abort(); SetPhase(ReleasePhase.RestartRequired, "ReadyStatePersistenceFailed", error);
                 ready.TrySetException(error); throw;
             }
@@ -338,20 +362,22 @@ namespace Client.Framework.Release
         private void OnReadyViewInvalidated()
         {
             if (IsReady || RestartRequired || disposed) return;
-            try { FailCurrent(ReleaseErrorCode.LocalReadinessFailed); ready.TrySetException(new InvalidOperationException("The expected ready view closed before commit.")); }
+            var original = new InvalidOperationException("The expected ready view closed before commit.");
+            try { FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, original); ready.TrySetException(original); }
             catch (Exception error) { ready.TrySetException(error); }
         }
-        private void HandleCancellation(LaunchSelection selection, CancellationToken caller, CancellationToken source)
+        private void HandleCancellation(LaunchSelection selection, CancellationToken caller, CancellationToken source, OperationCanceledException error)
         {
             lock (sync)
             {
                 if (IsReady || RestartRequired || disposed || !ReferenceEquals(current, selection)) return;
                 if (caller.IsCancellationRequested || source.IsCancellationRequested || selection.Token.IsCancellationRequested || lifetimeToken.IsCancellationRequested)
                 {
+                    RecordFailure("LaunchCancelled", error);
                     RestartRequired = true; launchContext?.Gate.Abort(); SetPhase(ReleasePhase.RestartRequired, "LaunchCancelled");
                     // Preserve the begun trial for next-process unfinished-trial recovery.
                 }
-                else FailCurrent(ReleaseErrorCode.LocalReadyTimeout);
+                else FailCurrentWithEvidence(ReleaseErrorCode.LocalReadyTimeout, error);
             }
         }
         private static async Task AwaitWithCancellation(Task operation, CancellationToken token)
@@ -368,33 +394,58 @@ namespace Client.Framework.Release
         }
         public async Task ShutdownAsync(CancellationToken token)
         {
+            var errors = new List<Exception>();
+            IHotfixEntry currentEntry;
             lock (sync)
             {
                 if (TrialBegun && !IsReady && !RestartRequired) { RestartRequired = true; SetPhase(ReleasePhase.RestartRequired, "LaunchCancelled"); }
-                if (!lifetimeToken.IsCancellationRequested) lifetime.Cancel();
+                currentEntry = entry; entry = null;
+                try { if (!lifetimeToken.IsCancellationRequested) lifetime.Cancel(); }
+                catch (Exception error) { RecordFailure("LifetimeCancellationFailed", error); errors.Add(error); }
             }
-            var currentEntry = entry; entry = null;
             launchContext?.Gate.Abort();
             if (currentEntry != null)
             {
                 using (var shutdown = CancellationTokenSource.CreateLinkedTokenSource(token))
                 {
                     shutdown.CancelAfter(TimeSpan.FromSeconds(5));
-                    await AwaitWithCancellation(currentEntry.ShutdownAsync(shutdown.Token), shutdown.Token);
+                    try { await AwaitWithCancellation(currentEntry.ShutdownAsync(shutdown.Token), shutdown.Token); }
+                    catch (Exception error) { RecordFailure("EntryShutdownFailed", error); errors.Add(error); }
                 }
             }
+            if (errors.Count == 1) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(errors[0]).Throw();
+            if (errors.Count > 1) throw new AggregateException("Native launch shutdown failed.", errors);
         }
 
-        public void FailCurrent(ReleaseErrorCode code)
+        public void FailCurrent(ReleaseErrorCode code) => FailCurrentWithEvidence(code, null);
+        public void FailCurrentWithEvidence(ReleaseErrorCode code, Exception original)
         {
             lock (sync)
             {
                 if (disposed || current == null || RestartRequired || IsReady) return;
+                RecordFailure(code.ToString(), original);
                 RestartRequired = true;
-                contextLifetime?.Cancel(); launchLifetime?.Cancel();
-                try { policy.Quarantine(current.ReleaseId); SetPhase(ReleasePhase.RestartRequired, code.ToString()); }
-                catch (Exception error) { SetPhase(ReleasePhase.RestartRequired, "FailureStatePersistenceFailed", error); throw; }
+                var secondary = new List<Exception>();
+                foreach (var cancel in new Action[] { () => contextLifetime?.Cancel(), () => launchLifetime?.Cancel() })
+                    try { cancel(); } catch (Exception error) { RecordFailure("CancellationCleanupFailed", error); secondary.Add(error); }
+                try { policy.Quarantine(current.ReleaseId); }
+                catch (Exception error) { RecordFailure("FailureStatePersistenceFailed", error); secondary.Add(error); }
+                Exception retained = original;
+                if (secondary.Count > 0)
+                {
+                    retained = original == null && secondary.Count == 1 ? secondary[0]
+                        : new AggregateException("Local startup and failure-state/cleanup operations failed.", (original == null ? secondary : new[] { original }.Concat(secondary)).ToArray());
+                    SetPhase(ReleasePhase.RestartRequired, "FailureStatePersistenceFailed", retained);
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(retained).Throw();
+                }
+                SetPhase(ReleasePhase.RestartRequired, code.ToString(), retained);
             }
+        }
+        private void RecordFailure(string code, Exception error)
+        {
+            bool selected = current != null && current.Epoch == plannedEpoch;
+            Diagnostics.RecordFailure(selected ? current.ReleaseId : preparingReleaseId, selected ? current.Epoch : plannedEpoch,
+                Diagnostics.Phase, code, error);
         }
         private void RequireSelectable()
         {
@@ -416,7 +467,7 @@ namespace Client.Framework.Release
                 var errors = new List<Exception>();
                 foreach (var cleanup in new Action[] { lifetime.Cancel, () => launchContext?.Dispose(), () => contextLifetime?.Dispose(),
                     () => launchLifetime?.Dispose(), lifetime.Dispose, () => (updates as IDisposable)?.Dispose() })
-                    try { cleanup(); } catch (Exception error) { errors.Add(error); }
+                    try { cleanup(); } catch (Exception error) { RecordFailure("OwnedCleanupFailed", error); errors.Add(error); }
                 if (ownsRootGate && !irreversible) { ownsRootGate = false; rootGate.Release(); }
                 if (errors.Count > 0) throw new AggregateException("Native launch scope cleanup failed.", errors);
             }

@@ -134,6 +134,18 @@ namespace Client.Tests.EditMode
             Assert.That(transport.Requests,Is.EqualTo(new[]{"channel.json","channel.sig"}));
             Assert.That(state.Read().Candidate,Is.Null);Assert.That(state.Read().BadReleaseIds,Is.Empty);
         }
+        [Test] public void FallbackRetainsOriginalVerificationFailureAfterSelection()
+        {
+            state.WriteAtomic(new ReleaseState{KnownGood="K",PreviousGood="P"});var transport=Metadata("C");transport.Data["channel.sig"]=new byte[256];
+            var coordinator=Coordinator(transport);var selection=Select(coordinator);Assert.That(Id(selection),Is.EqualTo("K"));
+            var diagnostics=(ReleaseDiagnostics)coordinator.GetType().GetProperty("Diagnostics").GetValue(coordinator);
+            var property=typeof(ReleaseDiagnostics).GetProperty("Failures");
+            var errors=property==null?(diagnostics.Error==null?Array.Empty<Exception>():new[]{diagnostics.Error}):((IEnumerable)property.GetValue(diagnostics)).Cast<object>().Select(record=>(Exception)record.GetType().GetProperty("Exception").GetValue(record)).ToArray();
+            Assert.That(errors.OfType<ReleaseVerificationException>().Any(error=>error.Code==ReleaseErrorCode.InvalidSignature),Is.True,"Fallback must retain its real verification failure after presentation advances to Select.");
+            var record=((IEnumerable)property.GetValue(diagnostics)).Cast<object>().Single();
+            Assert.That(record.GetType().GetProperty("Phase").GetValue(record),Is.EqualTo(ReleasePhase.Check));
+            Assert.That(record.GetType().GetProperty("Epoch").GetValue(record),Is.EqualTo(selection.GetType().GetProperty("Epoch").GetValue(selection)));
+        }
         // A signed pointer with the wrong hash cannot prepare or select the incoming slot.
         [Test] public void PinnedManifestHashMismatchKeepsExistingGood()
         {

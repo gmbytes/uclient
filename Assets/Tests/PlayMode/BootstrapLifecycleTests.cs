@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -250,6 +251,35 @@ namespace Client.Tests
         }
         private sealed class DelegateEntry:IHotfixEntry
         {private readonly Func<IClientContext,Task> initialize;internal DelegateEntry(Func<IClientContext,Task> initialize){this.initialize=initialize;}public Task InitializeAsync(IClientContext context,CancellationToken token)=>initialize(context);public Task ShutdownAsync(CancellationToken token)=>Task.CompletedTask;}
+        private static Exception[] FailureExceptions(ReleaseDiagnostics diagnostics)
+        {
+            var property=typeof(ReleaseDiagnostics).GetProperty("Failures");
+            return property==null?(diagnostics.Error==null?Array.Empty<Exception>():new[]{diagnostics.Error}):((IEnumerable)property.GetValue(diagnostics)).Cast<object>().Select(record=>(Exception)record.GetType().GetProperty("Exception").GetValue(record)).ToArray();
+        }
+        [UnityTest] public IEnumerator FallbackVerificationEvidenceSurvivesEventualReady()
+        {
+            using(var launch=new F7LaunchFixture(new InvalidChannelTransport()))
+            {
+                var context=BindCoordinator(launch,out var selection);Assert.That(selection.ReleaseId,Is.EqualTo("K"));UIViewHandle view=null;
+                var task=RunEntry(launch,selection,context,new DelegateEntry(async ctx=>{view=await Present(ctx);ctx.ReportReady();}));yield return Await(task);
+                Assert.That(launch.Coordinator.IsReady,Is.True);Assert.That(FailureExceptions(launch.Coordinator.Diagnostics).OfType<ReleaseVerificationException>().Any(error=>error.Code==ReleaseErrorCode.InvalidSignature),Is.True,"Ready of the old good release must not erase the update failure.");view.Close();
+            }
+        }
+        [UnityTest] public IEnumerator EntryAndQuarantinePersistenceFailuresBothRemainObservable()
+        {
+            using(var launch=new F7LaunchFixture())
+            {
+                var context=BindCoordinator(launch,out var selection);UIViewHandle view=null;var original=new InvalidOperationException("F7 original entry cause");launch.Fault.Checkpoint="state.replace.before";
+                var task=RunEntry(launch,selection,context,new DelegateEntry(async ctx=>{view=await Present(ctx);ctx.ReportReady();throw original;}));yield return Terminal(task);
+                Assert.That(task.IsFaulted,Is.True);var causes=task.Exception.Flatten().InnerExceptions;
+                Assert.That(causes.Any(error=>ReferenceEquals(error,original)),Is.True,"A quarantine write failure must not replace the original hot-entry exception.");
+                Assert.That(causes.Any(error=>error is IOException),Is.True);
+                var retained=FailureExceptions(launch.Coordinator.Diagnostics);Assert.That(retained.Any(error=>ReferenceEquals(error,original)),Is.True);Assert.That(retained.Any(error=>error is IOException),Is.True);
+                launch.Fault.Checkpoint=null;Assert.That(launch.Coordinator.IsReady,Is.False);Assert.That(launch.Coordinator.RestartRequired,Is.True);view.Close();
+            }
+        }
+        private sealed class InvalidChannelTransport:IReleaseTransport
+        {public Task DownloadAsync(string path,string destination,CancellationToken token){token.ThrowIfCancellationRequested();File.WriteAllBytes(destination,path.EndsWith(".sig",StringComparison.Ordinal)?new byte[256]:System.Text.Encoding.UTF8.GetBytes("{\"untrusted\":true}"));return Task.CompletedTask;}}
         // A bare ID has no epoch or context capability and must not bless an otherwise eligible new launch.
         [UnityTest] public IEnumerator UnboundReleaseIdReadyCannotCommitEligibleContext()
         {
