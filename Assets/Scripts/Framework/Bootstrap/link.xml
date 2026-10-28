@@ -1,3 +1,8 @@
 <linker>
   <assembly fullname="Client.Contracts" preserve="all" />
+  <assembly fullname="Client.Protocol.Envelope" preserve="all" />
+  <assembly fullname="Google.Protobuf" preserve="all" />
+  <assembly fullname="HybridCLR.Runtime" preserve="all" />
+  <assembly fullname="Client.Framework" preserve="all" />
+  <assembly fullname="Client.Bootstrap" preserve="all" />
 </linker>

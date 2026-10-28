@@ -2,6 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Client.Contracts;
+using Client.Framework.Release;
+using Client.Framework.HotUpdate;
 using UnityEngine;
 
 namespace Client.Bootstrap
@@ -14,8 +16,18 @@ namespace Client.Bootstrap
         private bool started;
         public CancellationToken Lifetime => lifetime.Token;
 
-        // The production release coordinator supplies its verified, once-loaded entry in F6.
-        public async Task InitializeAsync(IHotfixEntry hotfixEntry, IClientContext context, CancellationToken token)
+        public Task InitializeAsync(PreparedRelease prepared, PlayerIdentity player, string entryTypeName, IClientContext context, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (started) throw new InvalidOperationException("The hotfix host has already started.");
+            var loaded = new HotfixAssemblyLoader(entryTypeName).LoadOnce(prepared, player);
+            return InitializeEntryAsync(loaded, context, token);
+        }
+#if UNITY_EDITOR || MINIMAL_HOTFIX_PROOF
+        public Task InitializeAsync(IHotfixEntry hotfixEntry, IClientContext context, CancellationToken token)
+            => InitializeEntryAsync(hotfixEntry, context, token);
+#endif
+        private async Task InitializeEntryAsync(IHotfixEntry hotfixEntry, IClientContext context, CancellationToken token)
         {
             if (started) throw new InvalidOperationException("The hotfix host has already started.");
             if (hotfixEntry == null) throw new ArgumentNullException(nameof(hotfixEntry));
