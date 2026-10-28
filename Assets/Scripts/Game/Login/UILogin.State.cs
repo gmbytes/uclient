@@ -13,8 +13,8 @@ namespace Client.Game.Login
                 case SessionState.Authenticating:StatusLabel.text=Prefix("验证中…");break;
                 case SessionState.Authenticated:authenticated=!simulation;SetBusy(busy);StatusLabel.text=Prefix(simulation?"模拟完成（未进行服务器认证）":"已登录（框架演示）");break;
                 case SessionState.Disconnected:
-                    authenticated=false;SetBusy(busy);
-                    if(!busy){SetBusy(false);StatusLabel.text=Prefix("连接已断开，请重试");}
+                    disconnectEpoch++;authenticated=false;SetBusy(false);
+                    StatusLabel.text=Prefix("连接已断开，请重试");
                     break;
             }
         }

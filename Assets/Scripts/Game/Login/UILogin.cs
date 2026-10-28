@@ -11,7 +11,7 @@ namespace Client.Game.Login
         UIViewHandle nativeView;
         ISessionClient session;
         CancellationTokenSource request;
-        long pageEpoch, requestEpoch;
+        long pageEpoch, requestEpoch, disconnectEpoch;
         bool busy, simulation, authenticated;
         string presentationLabel, version="Framework demo v1";
 
@@ -61,13 +61,15 @@ namespace Client.Game.Login
             LoginInput input;
             try{input=DevelopmentCredentialProvider.Create(AccountInput.text);}
             catch(ArgumentException){StatusLabel.text=Prefix("请输入有效的数字测试账号");return;}
-            long page=pageEpoch,attempt=++requestEpoch;
+            long page=pageEpoch,attempt=++requestEpoch,disconnected=disconnectEpoch;
             var source=new CancellationTokenSource();request=source;SetBusy(true);
             StatusLabel.text=Prefix("连接中…");
             try
             {
                 var result=await session.LoginAsync(input,source.Token);
                 if(!IsCurrent(page,attempt))return;
+                // N3 completes asynchronously: a newer disconnect can precede this continuation.
+                if(result.Succeeded && disconnectEpoch!=disconnected)return;
                 authenticated=result.Succeeded && !simulation;
                 StatusLabel.text=Prefix(result.Succeeded?(simulation?"模拟完成（未进行服务器认证）":"已登录（框架演示）"):ErrorText(result.Error));
             }
