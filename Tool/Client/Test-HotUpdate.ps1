@@ -67,7 +67,7 @@ if(-not$RunRoot){
     # UGF's first decorated provider may return null, selecting its default path.
     # Preserve that effective path as well as the intended run-local path; never patch the vendor resolver here.
     $effectiveConfig='Assets/GameFramework/Configs/ResourceCollection.xml'
-    $restore+=@($effectiveConfig,$effectiveConfig+'.meta','Assets/GameFramework/Configs.meta','Assets/GameFramework.meta')
+    $restore+=@($effectiveConfig,($effectiveConfig+'.meta'),'Assets/GameFramework/Configs.meta','Assets/GameFramework.meta')
     $original=@{};foreach($p in $restore){$full=Join-Path $projectRoot $p;$original[$p]=if(Test-Path -LiteralPath $full -PathType Leaf){[IO.File]::ReadAllBytes($full)}else{$null}}
     $generated=@('Assets/StreamingAssets/F8Baseline','Assets/StreamingAssets/F8PlayerIdentity.json','Assets/Tests/Generated/F8.unity')
     foreach($p in $generated){if(Test-Path -LiteralPath (Join-Path $projectRoot $p)){throw "Generated output already exists: $p"}}
