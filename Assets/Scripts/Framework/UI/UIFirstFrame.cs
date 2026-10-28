@@ -45,7 +45,8 @@ namespace Client.Framework.UI
             registration = token.Register(() => owner.OnMainThread(Cancel));
             if (completion.Task.IsCompleted) { registration.Dispose(); return completion.Task; }
             Canvas.willRenderCanvases += OnWillRender;
-            try { coroutine = view.Bridge.StartCoroutine(Observe()); }
+            view.Bridge.VisibilityChanged += OnVisibilityChanged;
+            try { coroutine = owner.StartFrameObservation(Observe()); }
             catch (Exception error) { Cleanup(false); completion.TrySetException(error); }
             return completion.Task;
         }
@@ -55,6 +56,12 @@ namespace Client.Framework.UI
             if (token.IsCancellationRequested || Time.frameCount <= armedFrame || !owner.CanPresent(view)) return;
             renderFrame = Time.frameCount;
             renderedSnapshot = view.Bridge.AppliedSnapshot;
+        }
+
+        private void OnVisibilityChanged(bool visible)
+        {
+            // A pause/resume after a canvas callback invalidates that callback's evidence too.
+            renderFrame = -1; renderedSnapshot = null;
         }
 
         private IEnumerator Observe()
@@ -86,7 +93,8 @@ namespace Client.Framework.UI
         {
             if (cleaned) return; cleaned = true;
             Canvas.willRenderCanvases -= OnWillRender;
-            if (stop && coroutine != null && view.Bridge != null) view.Bridge.StopCoroutine(coroutine);
+            if (view.Bridge != null) view.Bridge.VisibilityChanged -= OnVisibilityChanged;
+            if (stop && coroutine != null) owner.StopFrameObservation(coroutine);
             coroutine = null; registration.Dispose(); cancellation.Dispose();
         }
     }
