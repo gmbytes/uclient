@@ -32,10 +32,14 @@ namespace Client.Tests
         private UIService ui;
         private UIViewDefinitions catalog;
         private PendingEntry entry;
+        private TaskCompletionSource<IClientContext> composition;
+        private TaskCompletionSource<ResourceSlotBootstrap> compositionEntered;
         private int eventBaseline;
         [UnitySetUp] public IEnumerator SetUp()
         {
-            GameEntry.Shutdown(ShutdownType.None);yield return null;ResetGuards();launch=new F7LaunchFixture();
+            GameEntry.Shutdown(ShutdownType.None);yield return null;ResetGuards();
+            bool asynchronous=TestContext.CurrentContext.Test.MethodName.StartsWith("AsyncComposition",StringComparison.Ordinal);
+            launch=new F7LaunchFixture(readyTimeout:asynchronous?TimeSpan.FromSeconds(1):TimeSpan.FromSeconds(10));
             foundation=new GameObject("F7 cancellation native foundation");foundation.SetActive(false);foundation.AddComponent<BaseComponent>().EditorResourceMode=false;
             events=foundation.AddComponent<EventComponent>();downloads=foundation.AddComponent<DownloadComponent>();resources=foundation.AddComponent<ResourceSlotBootstrap>();
             template=new GameObject("F7 cancellation native GameRoot");template.SetActive(false);template.AddComponent<ResourceComponent>();template.AddComponent<ObjectPoolComponent>();var nativeUI=template.AddComponent<UIComponent>();
@@ -46,7 +50,13 @@ namespace Client.Tests
             entry=new PendingEntry();var loader=typeof(ReleaseCoordinator).GetField("editorEntryLoader",BindingFlags.Instance|BindingFlags.NonPublic);
             Assert.That(loader,Is.Not.Null,"Editor fixture needs the guarded native-loader boundary; Players must keep the direct production loader.");
             loader.SetValue(launch.Coordinator,(Func<PreparedRelease,PlayerIdentity,IHotfixEntry>)((prepared,player)=>entry));
-            type.GetMethod("ConfigureLaunch").Invoke(host,new object[]{launch.Coordinator,resources,(Func<ResourceSlotBootstrap,IClientContext>)Compose,false});
+            if(asynchronous)
+            {
+                composition=new TaskCompletionSource<IClientContext>();compositionEntered=new TaskCompletionSource<ResourceSlotBootstrap>();
+                var method=type.GetMethod("ConfigureLaunchAsync");Assert.That(method,Is.Not.Null,"Actual Package catalog composition requires an awaited native seam.");
+                method.Invoke(host,new object[]{launch.Coordinator,resources,(Func<ResourceSlotBootstrap,CancellationToken,Task<IClientContext>>)((root,token)=>{Assert.That(root.Initialization.IsCompletedSuccessfully,Is.True);compositionEntered.TrySetResult(root);return composition.Task;}),false});
+            }
+            else type.GetMethod("ConfigureLaunch").Invoke(host,new object[]{launch.Coordinator,resources,(Func<ResourceSlotBootstrap,IClientContext>)Compose,false});
         }
         private IClientContext Compose(ResourceSlotBootstrap root)
         {
@@ -98,6 +108,35 @@ namespace Client.Tests
             }
         }
         private static int FrameListeners(UIService service)=>(typeof(UIService).GetField("FirstFramePresented",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(service) as Delegate)?.GetInvocationList().Length??0;
+        [UnityTest] public IEnumerator AsyncCompositionAwaitsActualResourcesAndTransfersContextOnce()
+        {
+            using(var caller=new CancellationTokenSource())
+            {
+                var task=(Task)host.GetType().GetMethod("LaunchAsync").Invoke(host,new object[]{caller.Token});yield return Terminal(compositionEntered.Task);
+                var duplicate=launch.Coordinator.InitializeComposedAsync((LaunchSelection)typeof(ReleaseCoordinator).GetField("current",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(launch.Coordinator),(root,token)=>throw new Exception("Duplicate composition must not execute."),CancellationToken.None);
+                Assert.Throws<InvalidOperationException>(()=>duplicate.GetAwaiter().GetResult());Assert.That(launch.Coordinator.RestartRequired,Is.False);
+                Assert.That(entry.Entered.Task.IsCompleted,Is.False);yield return null;composition.SetResult(Compose(compositionEntered.Task.Result));
+                yield return Terminal(entry.Entered.Task);caller.Cancel();yield return Terminal(task);Assert.That(task.IsCanceled,Is.True);Assert.That(source.Disposals,Is.EqualTo(1));
+            }
+        }
+        [UnityTest] public IEnumerator AsyncCompositionCancellationDisposesRacingUnboundContextExactlyOnce()
+        {
+            using(var caller=new CancellationTokenSource())
+            {
+                var task=(Task)host.GetType().GetMethod("LaunchAsync").Invoke(host,new object[]{caller.Token});yield return Terminal(compositionEntered.Task);
+                var late=new LateContext(resources.Service);caller.Cancel();composition.SetResult(late);yield return Terminal(task);yield return null;
+                Assert.That(task.IsCanceled,Is.True);Assert.That(late.Disposals,Is.EqualTo(1));Assert.That(entry.Entered.Task.IsCompleted,Is.False);Assert.That(launch.State.Read().Attempt,Is.EqualTo(1));Assert.That(launch.State.Read().BadReleaseIds,Is.Empty);
+            }
+        }
+        [UnityTest] public IEnumerator AsyncCompositionTimeoutKeepsOriginalDeadlineAndDisposesLateContext()
+        {
+            var task=(Task)host.GetType().GetMethod("LaunchAsync").Invoke(host,new object[]{CancellationToken.None});yield return Terminal(compositionEntered.Task);
+            yield return Terminal(task);Assert.That(task.IsCanceled,Is.True);Assert.That(launch.Coordinator.RestartRequired,Is.True);Assert.That(launch.State.Read().BadReleaseIds,Contains.Item("C"));
+            var late=new LateContext(resources.Service);composition.SetResult(late);yield return null;yield return null;
+            Assert.That(late.Disposals,Is.EqualTo(1));Assert.That(entry.Entered.Task.IsCompleted,Is.False);
+        }
+        private sealed class LateContext:IClientContext,IDisposable
+        {internal int Disposals;public LateContext(IResourceService resources){Resources=resources;}public IResourceService Resources{get;}public IUIService UI=>null;public ISessionClient Session=>null;public ILogService Log=>null;public CancellationToken Lifetime=>CancellationToken.None;public void ReportReady()=>throw new InvalidOperationException();public void Dispose(){Disposals++;}}
         private sealed class PendingEntry:IHotfixEntry
         {internal readonly TaskCompletionSource<bool> Entered=new TaskCompletionSource<bool>();internal int Shutdowns;public async Task InitializeAsync(IClientContext context,CancellationToken token){Entered.TrySetResult(true);await Task.Delay(Timeout.Infinite,token);}public Task ShutdownAsync(CancellationToken token){Shutdowns++;return Task.CompletedTask;}}
         private sealed class OwnedContext:IClientContext,IDisposable

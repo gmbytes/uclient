@@ -70,6 +70,26 @@ namespace Client.Tests.EditMode
         }
         private static string Id(object selection)=>(string)selection.GetType().GetProperty("ReleaseId").GetValue(selection);
 
+        [Test, Category("F8")] public void SuccessfulSelectionSnapshotIsPublishedBeforeNotificationAndNeverRetargeted()
+        {
+            var coordinator=(ReleaseCoordinator)Coordinator();
+            var property=typeof(ReleaseDiagnostics).GetProperty("Selection");
+            Assert.That(property,Is.Not.Null,"Native evidence must observe the actual immutable selection.");
+            object notified=null;
+            coordinator.Changed+=diagnostics=>{if(diagnostics.Phase==ReleasePhase.Select)notified=property.GetValue(diagnostics);};
+            var first=(LaunchSelection)Select(coordinator);
+            Assert.That(notified,Is.Not.Null,"Selection must be available within the Select notification.");
+            var snapshot=notified;var type=snapshot.GetType();
+            Assert.That(type.GetProperty("ReleaseId").GetValue(snapshot),Is.EqualTo("C"));
+            Assert.That(type.GetProperty("Epoch").GetValue(snapshot),Is.EqualTo(first.Epoch));
+            Assert.That(type.GetProperty("ManifestSha256").GetValue(snapshot),Is.EqualTo(first.Prepared.Release.ManifestSha256));
+            Assert.That(type.GetProperties().All(p=>p.SetMethod==null),Is.True,"Observation cannot change launch state.");
+            var second=(LaunchSelection)Select(coordinator);
+            Assert.That(second.Epoch,Is.Not.EqualTo(first.Epoch));
+            Assert.That(notified,Is.Not.SameAs(snapshot));
+            Assert.That(type.GetProperty("Epoch").GetValue(snapshot),Is.EqualTo(first.Epoch),"Retained evidence cannot retarget to a later launch.");
+        }
+
         // A crash after durable BeginTrial must exclude C and choose surviving K, not skip to P.
         [Test] public void UnfinishedTrialRollsBackOnNextProcess()
         {

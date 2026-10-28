@@ -1,0 +1,15 @@
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using Client.Framework.Release;
+namespace Client.Framework.HotUpdateProof
+{
+    // Generated public build input. The matching private signer is never an Asset.
+    public static class ProofProfile
+    {
+        public const string Endpoint = "http://127.0.0.1:__PORT__/";
+        public const string KeyId = "test-f8-native";
+        public static ManifestVerifier CreateVerifier() => new ManifestVerifier(new Dictionary<string,RSAParameters> {
+            [KeyId] = new RSAParameters { Modulus=System.Convert.FromBase64String("__MODULUS__"), Exponent=System.Convert.FromBase64String("__EXPONENT__") }
+        });
+    }
+}

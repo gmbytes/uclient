@@ -42,7 +42,7 @@ namespace Client.Framework.Release
         private CancellationTokenSource launchLifetime, contextLifetime;
         private CancellationToken launchToken;
         private ResourceSlotBootstrap resources;
-        private bool irreversible, resourceInitialized, assemblyAttempted;
+        private bool irreversible, resourceInitialized, assemblyAttempted, compositionAttempted;
         private IHotfixEntry entry;
 #if UNITY_EDITOR
         // Editor fixtures replace only the unavailable native load boundary. Players compile the direct F6 call below.
@@ -89,6 +89,7 @@ namespace Client.Framework.Release
                 {
                     RequireSelectable(); checkingEpoch = ++preparationEpoch;
                     plannedEpoch = Interlocked.Increment(ref nextEpoch); preparingReleaseId = null;
+                    Diagnostics.Selection = null;
                     SetPhase(ReleasePhase.Check);
                 }
                 await rootGate.WaitAsync(token);
@@ -133,6 +134,7 @@ namespace Client.Framework.Release
                     var prepared = new PreparedRelease(ReleaseFileSystem.Child(state.Root, "slots/" + id), state.VerifySlot(id));
                     token.ThrowIfCancellationRequested();
                     current = new LaunchSelection(prepared, plannedEpoch, selectionToken);
+                    Diagnostics.Selection = new ReleaseSelectionSnapshot(current);
                     SetPhase(ReleasePhase.Select); return current;
                 }
             }
@@ -256,6 +258,49 @@ namespace Client.Framework.Release
             catch (Exception error) { FailCurrentWithEvidence(ReleaseErrorCode.ResourceInitializationFailed, error); throw; }
         }
 
+        public async Task InitializeComposedAsync(LaunchSelection selection,
+            Func<ResourceSlotBootstrap, CancellationToken, Task<IClientContext>> compose, CancellationToken token)
+        {
+            lock (sync)
+            {
+                RequireCurrent(selection);
+                if (!resourceInitialized || compositionAttempted || assemblyAttempted || compose == null) throw new InvalidOperationException("Native composition requires initialized resources and can begin only once.");
+                compositionAttempted = true;
+            }
+            Task<IClientContext> pending = null; IClientContext source = null; bool transferred = false;
+            Exception failure = null;
+            try
+            {
+                launchToken.ThrowIfCancellationRequested(); token.ThrowIfCancellationRequested();
+                pending = compose(resources, launchToken) ?? throw new InvalidOperationException("Native composition returned no task.");
+                await AwaitWithCancellation(pending, launchToken);
+                source = await pending;
+                launchToken.ThrowIfCancellationRequested(); token.ThrowIfCancellationRequested();
+                Task initialization = InitializeAsync(selection, selection.Prepared, configuration.Player, configuration.EntryTypeName, source, token);
+                transferred = true;
+                await initialization;
+            }
+            catch (OperationCanceledException error)
+            {
+                failure = error;
+                if (source == null && pending != null) _ = DisposeAbandonedCompositionAsync(pending);
+                HandleCancellation(selection, token, CancellationToken.None, error); throw;
+            }
+            catch (Exception error) { failure = error; if (!RestartRequired) FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, error); throw; }
+            finally
+            {
+                if (!transferred && source != null)
+                    try { (source as IDisposable)?.Dispose(); }
+                    catch (Exception cleanup) { RecordFailure("CompositionCleanupFailed", cleanup); throw failure == null ? cleanup : new AggregateException("Native composition and cleanup failed.", failure, cleanup); }
+            }
+        }
+        private async Task DisposeAbandonedCompositionAsync(Task<IClientContext> pending)
+        {
+            try { var abandoned = await pending; (abandoned as IDisposable)?.Dispose(); }
+            catch (OperationCanceledException) { }
+            catch (Exception error) { RecordFailure("LateCompositionCleanupFailed", error); }
+        }
+
         public Task InitializeAsync(LaunchSelection selection, PreparedRelease prepared, PlayerIdentity nativePlayer, string entryTypeName,
             IClientContext source, CancellationToken token)
         {
@@ -273,10 +318,12 @@ namespace Client.Framework.Release
 
         private async Task InitializeBoundAsync(LaunchSelection selection, IClientContext source, CancellationToken token)
         {
+            bool bound = false; Exception failure = null;
             try
             {
                 launchToken.ThrowIfCancellationRequested(); token.ThrowIfCancellationRequested();
                 var context = CreateReadinessContext(selection, source, token);
+                bound = true;
                 var gate = context.Gate;
                 gate.RecordResourceInitialized(); SetPhase(ReleasePhase.Metadata);
 #if UNITY_EDITOR
@@ -287,8 +334,13 @@ namespace Client.Framework.Release
                 gate.RecordHotfixLoaded(); gate.VerifyLocalEnvelope(); SetPhase(ReleasePhase.Hotfix);
                 await CompleteEntryAsync(selection, entry, context, token);
             }
-            catch (OperationCanceledException error) { HandleCancellation(selection, token, source.Lifetime, error); throw; }
-            catch (Exception error) { if (!RestartRequired) FailCurrentWithEvidence(ReleaseErrorCode.HotfixInitializationFailed, error); throw; }
+            catch (OperationCanceledException error) { failure = error; HandleCancellation(selection, token, source.Lifetime, error); throw; }
+            catch (Exception error) { failure = error; if (!RestartRequired) FailCurrentWithEvidence(ReleaseErrorCode.HotfixInitializationFailed, error); throw; }
+            finally
+            {
+                if (!bound) try { (source as IDisposable)?.Dispose(); }
+                    catch (Exception cleanup) { RecordFailure("UnboundContextCleanupFailed", cleanup); throw failure == null ? cleanup : new AggregateException("Native initialization and unbound cleanup failed.", failure, cleanup); }
+            }
         }
 
         private LaunchReadinessContext CreateReadinessContext(LaunchSelection selection, IClientContext source, CancellationToken token)

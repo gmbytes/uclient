@@ -1,0 +1,10 @@
+using Client.Contracts;
+namespace Client.Game.HotUpdateProof
+{
+    public sealed class AddedAnswer { public int Answer() => 6 * 7; }
+    public static class VersionBranch
+    {
+        public static void Execute(IClientContext context) { int answer=new AddedAnswer().Answer();if(answer!=42)throw new System.InvalidOperationException("New branch failed.");context.Log.Write(ClientLogLevel.Info,"HOTFIX_V2_EXECUTED",answer.ToString()); }
+        public static void AfterReady(IClientContext context) { }
+    }
+}
