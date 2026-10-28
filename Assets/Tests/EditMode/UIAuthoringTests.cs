@@ -46,6 +46,18 @@ namespace Client.Tests.EditMode
             Assert.That(type,Is.Not.Null,"U4 requires "+name); return type;
         }
         UIViewDefinition Create() => (UIViewDefinition)Tool("UIWindowCreator").GetMethod("Create").Invoke(null,new object[]{name,directory});
+        [Test, Category("U5")] public void CreatorAndRegeneratorKeepMatchingFeatureNamespaceAndHandBytes()
+        {
+            var definition=Create();
+            string hand=codeDirectory+"/"+name+".cs",output=codeDirectory+"/Generated/"+name+".G.Bindings.cs";
+            byte[] originalHand=File.ReadAllBytes(hand),originalOutput=File.ReadAllBytes(output);
+            Assert.That(File.ReadAllText(hand),Does.Contain("namespace Client.Game."+name.Substring(2)+"\n"));
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(definition.PrefabAddress);
+            var result=Tool("UIBindingGenerator").GetMethod("Regenerate").Invoke(null,new object[]{prefab.GetComponent<UIBindings>(),directory});
+            Assert.That((bool)result.GetType().GetProperty("Success").GetValue(result),Is.True);
+            Assert.That(File.ReadAllBytes(hand),Is.EqualTo(originalHand));Assert.That(File.ReadAllBytes(output),Is.EqualTo(originalOutput));
+            Assert.That(Validate(definition),Does.Not.Contain("Error"));
+        }
         string Validate(UIViewDefinition definition)
         {
             var report=Tool("UIAuthoringValidator").GetMethod("Validate").Invoke(null,new object[]{definition});
@@ -137,17 +149,18 @@ namespace Client.Tests.EditMode
                 Tool("UIBindingsEditor").GetMethod("AddReference").Invoke(null,new object[]{r.GetComponent<UIBindings>(),action.GetComponent<Button>(),true});
             });
             var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(definition.PrefabAddress);
-            var result=Tool("UIBindingGenerator").GetMethod("Generate").Invoke(null,new object[]{prefab.GetComponent<UIBindings>(),"Client.Game",name,output});
+            string namespaceName="Client.Game."+name.Substring(2);
+            var result=Tool("UIBindingGenerator").GetMethod("Generate").Invoke(null,new object[]{prefab.GetComponent<UIBindings>(),namespaceName,name,output});
             Assert.That((bool)result.GetType().GetProperty("Success").GetValue(result),Is.True);
             Assert.That(File.ReadAllText(hand),Is.EqualTo(beforeHand));Assert.That(File.ReadAllText(output),Is.Not.EqualTo(beforeGenerated));
-            string after=File.ReadAllText(output);Tool("UIBindingGenerator").GetMethod("Generate").Invoke(null,new object[]{prefab.GetComponent<UIBindings>(),"Client.Game",name,output});
+            string after=File.ReadAllText(output);Tool("UIBindingGenerator").GetMethod("Generate").Invoke(null,new object[]{prefab.GetComponent<UIBindings>(),namespaceName,name,output});
             Assert.That(File.ReadAllText(output),Is.EqualTo(after));Assert.That(AssetDatabase.AssetPathToGUID(definition.PrefabAddress),Is.EqualTo(guid));
             string evidence="Builds/Tests/U4/workflow/"+name;Directory.CreateDirectory(evidence);
             string dll=Path.GetFullPath(evidence+"/"+name+".dll");CompilerMessage[] messages=null;
             var builder=new AssemblyBuilder(dll,new[]{Path.GetFullPath(hand),Path.GetFullPath(output)}){flags=AssemblyBuilderFlags.EditorAssembly,referencesOptions=ReferencesOptions.UseEngineModules,additionalReferences=new[]{typeof(UIBindings).Assembly.Location,typeof(Button).Assembly.Location}};
             builder.buildFinished+=(path,compiled)=>messages=compiled;Assert.That(builder.Build(),Is.True);while(builder.status!=AssemblyBuilderStatus.Finished)yield return null;
             Assert.That(messages.Where(m=>m.type==CompilerMessageType.Error),Is.Empty,string.Join("\n",messages.Select(m=>m.message)));
-            var type=System.Reflection.Assembly.LoadFile(dll).GetType("Client.Game."+name,true);var view=Activator.CreateInstance(type);
+            var type=System.Reflection.Assembly.LoadFile(dll).GetType(namespaceName+"."+name,true);var view=Activator.CreateInstance(type);
             type.GetMethod("BindComponents").Invoke(view,new object[]{prefab.GetComponent<UIBindings>()});Assert.That(type.GetProperty("ActionButton").GetValue(view),Is.SameAs(prefab.GetComponent<UIBindings>().Resolve("ActionButton")));
             Assert.That(Validate(definition),Does.Not.Contain("Error"));
             PreparePreviewScene();
