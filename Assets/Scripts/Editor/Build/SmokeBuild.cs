@@ -4,6 +4,7 @@ using HybridCLR.Commands;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityBuildResult = UnityEditor.Build.Reporting.BuildResult;
 using UnityEngine;
 
 namespace Client.Editor.Build
@@ -39,7 +40,7 @@ namespace Client.Editor.Build
                 });
                 File.WriteAllText(Path.Combine(output, "build-result.json"), CreateResultJson(platform, artifact,
                     report.summary.result, report.summary.totalErrors, report.summary.totalWarnings, report.summary.totalSize) + "\n");
-                if (report.summary.result != BuildResult.Succeeded || report.summary.totalErrors != 0 || !File.Exists(artifact))
+                if (report.summary.result != UnityBuildResult.Succeeded || report.summary.totalErrors != 0 || !File.Exists(artifact))
                     throw new BuildFailedException("Smoke build failed; see build-result.json and Editor.log.");
                 Debug.Log("SMOKE_BUILD_PASS " + platform);
             }
@@ -50,7 +51,7 @@ namespace Client.Editor.Build
             }
         }
 
-        public static string CreateResultJson(string platform, string artifact, BuildResult buildResult,
+        public static string CreateResultJson(string platform, string artifact, UnityBuildResult buildResult,
             int errors, int warnings, ulong totalBuildBytes)
         {
             var group = platform == "Windows64" ? BuildTargetGroup.Standalone :

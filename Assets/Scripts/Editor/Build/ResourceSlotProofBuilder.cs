@@ -4,6 +4,7 @@ using HybridCLR.Commands;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityBuildResult = UnityEditor.Build.Reporting.BuildResult;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityGameFramework.Editor.ResourceTools;
@@ -13,8 +14,7 @@ namespace Client.Editor.Build
     public static class ResourceSlotProofBuilder
     {
         private static string proofRoot;
-        [ResourceCollectionConfigPath] private static string CollectionPath => proofRoot == null ? null : Path.Combine(proofRoot, "ResourceCollection.xml");
-        [ResourceBuilderConfigPath] private static string BuilderPath => proofRoot == null ? null : Path.Combine(proofRoot, "ResourceBuilder.xml");
+        private static ResourceConfigurationScope configuration;
 
         public static void Run()
         {
@@ -25,6 +25,7 @@ namespace Client.Editor.Build
                 if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64)
                     throw new BuildFailedException("Launch with -buildTarget Win64.");
                 Directory.CreateDirectory(proofRoot);
+                configuration = ResourceConfigurationScope.Enter(proofRoot);
                 ProjectSetup.CreateBootstrap();
                 BuildPackage("A", 1);
                 BuildPackage("B", 2);
@@ -49,12 +50,12 @@ namespace Client.Editor.Build
                 });
                 File.WriteAllText(Path.Combine(proofRoot, "build-result.json"), SmokeBuild.CreateResultJson("Windows64", artifact,
                     report.summary.result, report.summary.totalErrors, report.summary.totalWarnings, report.summary.totalSize) + "\n");
-                if (report.summary.result != BuildResult.Succeeded || report.summary.totalErrors != 0 || !File.Exists(artifact))
+                if (report.summary.result != UnityBuildResult.Succeeded || report.summary.totalErrors != 0 || !File.Exists(artifact))
                     throw new BuildFailedException("Resource proof Player build failed.");
                 Debug.Log("RESOURCE_SLOT_BUILD_PASS");
             }
             catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
-            finally { proofRoot = null; }
+            finally { try { configuration?.Dispose(); } finally { configuration = null; proofRoot = null; } }
         }
 
         private static void BuildPackage(string marker, int version)
@@ -63,23 +64,26 @@ namespace Client.Editor.Build
             Directory.CreateDirectory(Path.GetDirectoryName(asset));
             File.WriteAllText(asset, marker + "\n");
             AssetDatabase.ImportAsset(asset, ImportAssetOptions.ForceUpdate);
-            var collection = new ResourceCollection();
+            var collection = configuration.CreateCollection();
             if (!collection.AddResource("proof/marker", null, null, LoadType.LoadFromFile, true) ||
                 !collection.AssignAsset(AssetDatabase.AssetPathToGUID(asset), "proof/marker", null) || !collection.Save())
                 throw new BuildFailedException("Cannot create native proof collection.");
             string output = Path.Combine(proofRoot, "NativeBuild", marker);
             Directory.CreateDirectory(output);
-            var builder = new ResourceBuilderController
-            {
-                Platforms = Platform.Windows64, InternalResourceVersion = version,
-                OutputDirectory = output, OutputPackageSelected = true,
-                OutputFullSelected = false, OutputPackedSelected = false,
-                ForceRebuildAssetBundleSelected = true
-            };
+            var builder = configuration.CreateBuilder();
+            builder.Platforms = Platform.Windows64;
+            ConfigureBuilder(builder, version, output);
             if (!builder.BuildResources()) throw new BuildFailedException("Native GF Package build failed: " + marker);
             string destination = Path.Combine(proofRoot, "Slots", marker, "Resources");
             CopyDirectory(Path.Combine(builder.OutputPackagePath, "Windows64"), destination);
             Directory.CreateDirectory(Path.Combine(proofRoot, "Slots", marker, "Scratch"));
+        }
+
+        private static void ConfigureBuilder(ResourceBuilderController builder, int version, string output)
+        {
+            builder.InternalResourceVersion = version; builder.OutputDirectory = output;
+            builder.OutputPackageSelected = true; builder.OutputFullSelected = false; builder.OutputPackedSelected = false;
+            builder.ForceRebuildAssetBundleSelected = true;
         }
 
         private static void CopyDirectory(string source, string destination)
