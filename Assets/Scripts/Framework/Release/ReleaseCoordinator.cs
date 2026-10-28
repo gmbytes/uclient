@@ -286,7 +286,7 @@ namespace Client.Framework.Release
             catch (Exception error) when (FindCancellation(error) != null)
             {
                 failure = error;
-                if (source == null && pending != null && !pending.IsCanceled && !pending.IsFaulted) _ = DisposeAbandonedCompositionAsync(pending);
+                if (source == null && pending != null) _ = DisposeAbandonedCompositionAsync(pending);
                 var cancelled = FindCancellation(error);
                 if (!ReferenceEquals(cancelled, error)) RecordFailure("CompositionCancelledWithCleanupFailure", error);
                 HandleCancellation(selection, token, CancellationToken.None, cancelled); throw;
@@ -310,7 +310,7 @@ namespace Client.Framework.Release
         {
             IClientContext abandoned;
             try { abandoned = await pending; }
-            catch (OperationCanceledException) { return; }
+            catch (OperationCanceledException) when (pending.IsCanceled) { return; }
             catch (Exception error) { RecordFailure("LateCompositionFailed", error); return; }
             try { (abandoned as IDisposable)?.Dispose(); }
             catch (Exception error) { RecordFailure("LateCompositionCleanupFailed", error); }

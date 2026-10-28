@@ -168,6 +168,28 @@ namespace Client.Tests
                 finally { pending.TrySetResult(late); }
             }
         }
+        [UnityTest] public IEnumerator DistinctCompositionWorkerCancellationThenFaultRetainsExactLateFailure()
+        {
+            var selected=launch.Coordinator.PrepareLaunchAsync(CancellationToken.None);yield return Terminal(selected);launch.Coordinator.BeginTrial(selected.Result);
+            yield return Terminal(launch.Coordinator.ActivateResourcesAsync(selected.Result,resources,CancellationToken.None));
+            using(var caller=new CancellationTokenSource())
+            {
+                var pending=new TaskCompletionSource<IClientContext>();var cleanupFailure=new IOException("worker composer cleanup failure");var owned=new LateContext(resources.Service){Failure=cleanupFailure};int calls=0;int unityThread=Thread.CurrentThread.ManagedThreadId;
+                var task=launch.Coordinator.InitializeComposedAsync(selected.Result,(root,token)=>{calls++;return pending.Task;},caller.Token);
+                var worker=Task.Run(()=>
+                {
+                    if(Thread.CurrentThread.ManagedThreadId==unityThread)throw new InvalidOperationException("Worker ordering fixture ran on Unity thread.");
+                    caller.Cancel();
+                    try{owned.Dispose();}catch(Exception error){pending.SetException(error);}
+                });
+                // Both worker events complete while this Unity continuation is still blocked, then it may resume.
+                Assert.That(worker.Wait(2000),Is.True);Assert.That(pending.Task.IsFaulted,Is.True);
+                yield return Terminal(task);yield return null;
+                Assert.That(task.IsCanceled,Is.True);Assert.That(calls,Is.EqualTo(1));Assert.That(owned.Disposals,Is.EqualTo(1));Assert.That(entry.Entered.Task.IsCompleted,Is.False);
+                Assert.That(launch.State.Read().Attempt,Is.EqualTo(1));Assert.That(launch.State.Read().BadReleaseIds,Is.Empty);
+                Assert.That(launch.Coordinator.Diagnostics.Failures.Any(f=>ReferenceEquals(f.Exception,cleanupFailure)),Is.True,"A pending task already faulted before Unity resumes must retain its exact late failure.");
+            }
+        }
         private sealed class CancellingResourceContext:IClientContext,IDisposable
         {
             private readonly OwnedContext inner;private readonly CancellationTokenSource caller;public CancellingResourceContext(OwnedContext inner,CancellationTokenSource caller){this.inner=inner;this.caller=caller;}
