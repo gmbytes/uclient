@@ -182,7 +182,22 @@ namespace Client.Framework.Release
                     for (i++; i < text.Length; i++)
                     {
                         if (text[i] < 32) Fail(ReleaseErrorCode.InvalidJson);
-                        if (text[i] == '\\') { i++; continue; }
+                        if (text[i] == '\\')
+                        {
+                            if (++i >= text.Length) Fail(ReleaseErrorCode.InvalidJson);
+                            if (text[i] == 'u')
+                            {
+                                for (int digit = 0; digit < 4; digit++)
+                                {
+                                    if (++i >= text.Length) Fail(ReleaseErrorCode.InvalidJson);
+                                    char hex = text[i];
+                                    if (!(hex >= '0' && hex <= '9' || hex >= 'a' && hex <= 'f' || hex >= 'A' && hex <= 'F'))
+                                        Fail(ReleaseErrorCode.InvalidJson);
+                                }
+                            }
+                            else if ("\"\\/bfnrt".IndexOf(text[i]) < 0) Fail(ReleaseErrorCode.InvalidJson);
+                            continue;
+                        }
                         if (text[i] == '"') { closed = true; break; }
                     }
                     if (!closed) Fail(ReleaseErrorCode.InvalidJson);
