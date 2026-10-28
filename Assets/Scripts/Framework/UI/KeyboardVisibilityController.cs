@@ -45,7 +45,11 @@ namespace Client.Framework.UI
         private void LateUpdate()
         {
             if(snapshot==null || m_Scroll==null || m_Scroll.content==null) return;
-            var selected=FocusSource!=null ? FocusSource() : EventSystem.current!=null ? EventSystem.current.currentSelectedGameObject?.GetComponent<RectTransform>() : null;
+            var eventSystem=EventSystem.current;
+            var selectedObject=eventSystem!=null ? eventSystem.currentSelectedGameObject : null;
+            // A selected window control can be destroyed before EventSystem clears its reference.
+            // Unity's destroyed-object null check must run before accessing that GameObject.
+            var selected=FocusSource!=null ? FocusSource() : selectedObject!=null ? selectedObject.GetComponent<RectTransform>() : null;
             if(selected!=null && !selected.IsChildOf(m_Scroll.content)) selected=null;
             Apply(snapshot,KeyboardAreaSource!=null?KeyboardAreaSource():TouchScreenKeyboard.visible?TouchScreenKeyboard.area:Rect.zero,selected);
         }
