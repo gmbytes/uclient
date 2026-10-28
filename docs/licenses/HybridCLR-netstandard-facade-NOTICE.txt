@@ -1,0 +1,15 @@
+The unchanged netstandard 2.1 forwarding facade is supplied by the embedded,
+locked HybridCLR 9 official package:
+Packages/com.code-philosophy.hybridclr/Data~/NetStandard/netstandard2.1.dll
+SHA-256: c2abb88d6218d5835be5aa4978f95869e62c188285f2db8dc30e6102b1a45f8d
+
+The original package LICENSE is preserved at:
+Packages/com.code-philosophy.hybridclr/LICENSE
+The exact source, assembly identity, forwarded targets and native forwarding
+implementation provenance are recorded in docs/dependencies.lock.json.
+
+This artifact forwards type identities into the original Player BCL images.
+It is separate from both the Unity compiler reference assembly and the actual
+post-strip AOT metadata. It is never passed to RuntimeApi.LoadMetadataForAOTAssembly.
+The Unity compiler reference is recorded only in generated build archives and
+is not redistributed as a source-controlled client runtime asset.

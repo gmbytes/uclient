@@ -1,0 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using Client.Framework.Release;
+namespace Client.Framework.F6Probe
+{
+    public static class TestVerifier
+    {
+        public static ManifestVerifier Create() => new ManifestVerifier(new Dictionary<string, RSAParameters> { ["test-f6-native"] = new RSAParameters { Modulus = Convert.FromBase64String("__MODULUS__"), Exponent = Convert.FromBase64String("__EXPONENT__") } });
+    }
+}

@@ -45,7 +45,12 @@ namespace Client.Tests.EditMode
             Assert.That(verifiedType, Is.Not.Null);
             var loader = Activator.CreateInstance(loaderType, "Client.Game.Entry");
             var empty = Array.CreateInstance(verifiedType, 0);
-            var load = loaderType.GetMethod("LoadOnce");
+            var load = loaderType.GetMethods().Single(m => m.Name == "LoadOnce" && m.GetParameters().Length == 1);
+            var gate = loaderType.GetField("attempted", BindingFlags.Static | BindingFlags.NonPublic);
+            object before = gate.GetValue(null);
+            gate.SetValue(null, 0);
+            try
+            {
             var first = Assert.Throws<TargetInvocationException>(() => load.Invoke(loader, new object[] { empty }));
             Assert.That(first.InnerException, Is.TypeOf<ArgumentException>());
             var second = Assert.Throws<TargetInvocationException>(() => load.Invoke(loader, new object[] { empty }));
@@ -53,6 +58,8 @@ namespace Client.Tests.EditMode
             var anotherLoader = Activator.CreateInstance(loaderType, "Client.Game.Entry");
             var anotherAttempt = Assert.Throws<TargetInvocationException>(() => load.Invoke(anotherLoader, new object[] { empty }));
             Assert.That(anotherAttempt.InnerException, Is.TypeOf<InvalidOperationException>());
+            }
+            finally { gate.SetValue(null, before); }
         }
 
         [Test]

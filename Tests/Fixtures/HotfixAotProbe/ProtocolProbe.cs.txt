@@ -1,0 +1,26 @@
+using System;
+using System.Linq;
+using Google.Protobuf;
+using Tok.Client.V1;
+using Client.Tests.F6.Wire;
+using FixtureRegistry = Client.Game.Protocol.F6Probe.Generated.GameMessageRegistry;
+namespace Client.Game.Protocol.F6Probe
+{
+    public static class ProtocolProbe
+    {
+        public static IMessage CreateMessage() => new ProbeRequest { Number = ulong.MaxValue, Items = { new ProbeItem { Value = "hot-list" } }, ById = { [7] = new ProbeItem { Value = "hot-map" } } };
+        public static void Run()
+        {
+            var registry = new FixtureRegistry();
+            if (!registry.TryGetParser(101, out var parser) || !registry.TryGetResponseId(101, out var response) || response != 102 || registry.TryGetParser(999, out _)) throw new InvalidOperationException("Generated fixture registry failed.");
+            var original = (ProbeRequest)CreateMessage();
+            if (original.Items.Clone()[0].Value != "hot-list" || original.ById.Clone()[7].Value != "hot-map") throw new InvalidOperationException("Hot RepeatedField/MapField failed.");
+            byte[] wire = original.ToByteArray().Concat(new byte[] { 0xA0, 0x06, 0x7B }).ToArray();
+            var decoded = (ProbeRequest)parser.ParseFrom(wire);
+            if (decoded.Number != ulong.MaxValue || decoded.Items[0].Value != "hot-list" || decoded.ById[7].Value != "hot-map" || !decoded.ToByteArray().SequenceEqual(wire)) throw new InvalidOperationException("Registered hot Parser/unknown-field roundtrip failed.");
+            var frame = new Frame { Version = 3, Request = new BusinessRequest { RequestId = ulong.MaxValue, MessageId = 101, Body = ByteString.CopyFrom(wire) } };
+            if (Frame.Parser.ParseFrom(frame.ToByteArray()).Request.RequestId != ulong.MaxValue) throw new InvalidOperationException("Canonical AOT Envelope failed.");
+            if (new GameMessageRegistry().TryGetParser(101, out _)) throw new InvalidOperationException("Formal business admission must stay empty.");
+        }
+    }
+}

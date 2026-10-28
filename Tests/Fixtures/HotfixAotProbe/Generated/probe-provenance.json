@@ -1,0 +1,12 @@
+{
+  "kind": "F6-test-only-namespace-adaptation",
+  "pristineManifestSha256": "34f2037bc66f7c30c216f9eac83a92e4f9ee976350d925071fc8199450356c3f",
+  "pristineRegistrySha256": "d034b62e4e6b84b255a057afaa3da93ffb9b852890c116ecae28c9579d63d9bb",
+  "messageSha256": "e2cd67b0f09bfbc5ecaa268c18a793b808bf50d1b72c5061508b38dd97aed06d",
+  "oldNamespace": "namespace Client.Game.Protocol",
+  "newNamespace": "namespace Client.Game.Protocol.F6Probe.Generated",
+  "occurrences": 1,
+  "adaptedRegistrySha256": "5fb974b1754df9dfa56f4a9e480b4e3d5a7248b9d616616cf921d537ad485e89",
+  "generator": "comm/tools/Generate-Protocol.ps1 -Target CSharp; protoc36.2/Google.Protobuf3.36.2",
+  "sourceFixture": "comm/proto/tests/fixtures/Protocols/F6AotProbe"
+}

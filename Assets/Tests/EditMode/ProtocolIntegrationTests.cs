@@ -87,16 +87,16 @@ namespace Client.Tests.EditMode
             const string envelope="Assets/Scripts/Framework/Protocol/Envelope/Generated/";
             var provenance=JObject.Parse(File.ReadAllText(envelope+"source-provenance.json"));
             Assert.That((string)provenance["generated_sha256"],Is.EqualTo(Hash(envelope+"Client.cs")));
-            Assert.That((string)provenance["envelope_sha256"],Is.EqualTo(Hash("../comm/proto/tok/client/v1/client.proto")));
-            Assert.That((string)provenance["protocol_lock_sha256"],Is.EqualTo(Hash("../comm/proto/protocol.lock.json")));
+            Assert.That((string)provenance["envelope_sha256"],Is.EqualTo(Hash(SharedFile("proto/tok/client/v1/client.proto"))));
+            Assert.That((string)provenance["protocol_lock_sha256"],Is.EqualTo(Hash(SharedFile("proto/protocol.lock.json"))));
             const string tokLicense="docs/licenses/Tok-Apache-2.0.txt";
             Assert.That(File.Exists(tokLicense),Is.True,"The generated fixed envelope must retain its input source license");
-            var sourceLock=JObject.Parse(File.ReadAllText("../comm/proto/protocol.lock.json"));
+            var sourceLock=JObject.Parse(File.ReadAllText(SharedFile("proto/protocol.lock.json")));
             Assert.That(Hash(tokLicense),Is.EqualTo((string)sourceLock["License"]["Sha256"]));
             const string inventoryPath="Assets/ThirdParty/Protobuf/dependency-provenance.json";
             Assert.That(File.Exists(inventoryPath),Is.True,"Shared restore must record installed file hashes and licenses");
             var inventory=JObject.Parse(File.ReadAllText(inventoryPath));
-            Assert.That((string)inventory["dependencies_lock_sha256"],Is.EqualTo(Hash("../comm/tools/Dependencies/packages.lock.json")));
+            Assert.That((string)inventory["dependencies_lock_sha256"],Is.EqualTo(Hash(SharedFile("tools/Dependencies/packages.lock.json"))));
             foreach(var library in inventory["libraries"])
             {
                 Assert.That((string)library["sha256"],Is.EqualTo(Hash((string)library["path"])));
@@ -107,6 +107,28 @@ namespace Client.Tests.EditMode
             Assert.That(dependencyLock["protobuf"].Type,Is.EqualTo(JTokenType.Object));
             Assert.That((string)dependencyLock["protobuf"]["runtime_version"],Is.EqualTo("3.36.2"));
             Assert.That((string)dependencyLock["protobuf"]["inventory_sha256"],Is.EqualTo(Hash(inventoryPath)));
+        }
+
+        private static string SharedFile(string path)
+        {
+            string configured=Environment.GetEnvironmentVariable("SGAME_COMM_ROOT");
+            if(configured!=null&&string.IsNullOrWhiteSpace(configured))throw new DirectoryNotFoundException("SGAME_COMM_ROOT is explicitly empty.");
+            string root=Path.GetFullPath(configured??"../comm");
+            if(!Directory.Exists(root)||!File.Exists(Path.Combine(root,"proto/protocol.lock.json"))||!File.Exists(Path.Combine(root,"tools/Dependencies/packages.lock.json")))
+                throw new DirectoryNotFoundException("Shared protocol root is invalid: "+root);
+            return Path.Combine(root,path);
+        }
+
+        [Test]
+        public void ExplicitInvalidSharedRootNeverFallsBackToAdjacentSources()
+        {
+            string previous=Environment.GetEnvironmentVariable("SGAME_COMM_ROOT");
+            try
+            {
+                Environment.SetEnvironmentVariable("SGAME_COMM_ROOT",Path.GetFullPath("Builds/MissingSharedRoot-"+Guid.NewGuid().ToString("N")));
+                Assert.Throws<DirectoryNotFoundException>(()=>SharedFile("proto/protocol.lock.json"));
+            }
+            finally { Environment.SetEnvironmentVariable("SGAME_COMM_ROOT",previous); }
         }
 
         private static string Hash(string path)
