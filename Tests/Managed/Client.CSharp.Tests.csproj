@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="*.cs" />
+    <Compile Include="../Fixtures/ProtocolInterop/**/*.cs" />
+    <Compile Include="../../Assets/Scripts/Game/Login/DevelopmentCredentialProvider.cs" Link="DevelopmentCredentialProvider.cs" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
+    <ProjectReference Include="../../../comm/tools/Managed/SGame.Client.Managed.csproj" AdditionalProperties="SGameTarget=CSharp" />
+  </ItemGroup>
+  <Target Name="RequireFixtureGeneration" BeforeTargets="CoreCompile">
+    <Error Condition="!Exists('../Fixtures/ProtocolInterop/Golden/Golden.cs')" Text="Generate the shared ProtocolInterop Golden/V1/V2 fixtures before Managed verification." />
+  </Target>
+</Project>
