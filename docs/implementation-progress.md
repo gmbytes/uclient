@@ -8,9 +8,11 @@
 | --- | --- | --- |
 | N0 | 已验证并通过独立审查 | 24/24输入用例；client c5f5a79、comm467e131 |
 | F1 | 已验证并通过独立审查 | EditMode5/5、PlayMode1/1、两平台实际IL2CPP编译、零测试拒绝；1f6cdc1/0799efc |
-| F2 | 实施中 | 真实GF目录注入、Package A/B与同Player冷启动验证 |
-| F3–F8 | 待实施 | 按依赖推进，代码热更新/回退验证不可省略 |
-| N1–N4 | 待实施 | C#生成、分帧、登录和Tok互操作尚未完成 |
+| F2 | 已验证并通过独立审查 | 9a2982c；真实GF目录注入、同Player冷A/B、发行隔离和快照不变 |
+| F3 | 实施中 | 稳定契约与真实DLL v1/v2同Player执行证明 |
+| F4–F8 | 待实施 | 签名、完整发布、回退和完整热更新验证不可省略 |
+| N1 | 部分实现待审查 | comm58a5f1f生成器28/28；Unity集成仍待F3 |
+| N2–N4 | 待实施 | 分帧、登录和Tok互操作尚未完成 |
 | U1–U5 | 待实施 | 自适配、绑定、制作工具和UILogin尚未完成 |
 | D1–D3 | 待实施 | 最终基线、故障/设备验收及交付文档尚未完成 |
 
@@ -36,5 +38,7 @@
 - Android APK实际11,363,987字节，SHA25681694fb5606e09d3ef30502474dc832a4abb91568d977b6f4552662fd3efc94c；Unity总构建大小是不同指标。雷电运行15秒仍存活，包及日志确认arm64-v8a/il2cpp，经Houdini转译；空Bootstrap截图和图形诊断已保留，不作为UI验收。
 
 用户已选择并启动雷电进行当前Android验证：emulator-5554，Android14/API34，x86_64主ABI、arm64-v8a支持、libhoudini。后续在此运行ARM64 APK，记录转译限制；真实ARM硬件兼容/性能和iOS保持后续未测。
+
+F2最终证据为Builds/ResourceSlots/20261028T175002272Z-eedff18c：同EXE/GameAssembly两次冷启动均自然退出0，分别读取原生Package中的A/B marker，根路径和3个加载代理正确，晚改根/二次激活拒绝，两套Resources与inactive Scratch前后快照不变。F2 PlayMode3/3、实际无proof define的普通Player脚本编译隔离1/1、F1回归6/6、N0 24/24；独立审查通过。该证明限Windows单marker原型，不代替Android复杂资产或热更/回滚验收。
 
 所有完成声明必须附当前实现证据。Android ARM64 APK在选定模拟器中的功能验收、Windows x64 IL2CPP、完整热更新/回退仍为首期必需门槛；不能用Editor/Mono或只有构建成功代替。

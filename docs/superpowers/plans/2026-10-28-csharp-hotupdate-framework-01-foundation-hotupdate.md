@@ -65,11 +65,14 @@ F1验收：1f6cdc1/0799efc；EditMode5/5、PlayMode1/1、双平台IL2CPP实际�
 
 **Interfaces:** UGF 增加 `void SetCustomResourcePaths(string readOnlyPath, string readWritePath)`，只能在 Start 前调用，Start 后抛 `InvalidOperationException`，未设置时保持官方默认。项目 `ResourceSlotBootstrap.Activate(string slotRoot)` 在创建/激活 GameRoot 前注入 `<slot>/Resources` 和 `<slot>/Scratch`，固定 Package 模式。原生 `IResourceManager`、版本表和 Bundle 格式不改。
 
-- [ ] **Step 1:** 写 `ResourceRootIsInjectedBeforeInitialization`、`LatePathMutationIsRejected`：断言记录顺序为 SetPaths→SetResourceMode→AddAgents→InitResources；迟到修改抛异常且 ReadOnlyPath 不变。
-- [ ] **Step 2:** 运行 `./Tool/Client/Test-Client.ps1 -Task F2 -Mode PlayMode`，确认原生路径覆盖/迟到注入用例失败。
-- [ ] **Step 3:** 实现单一通用 UGF 补丁、项目适配和延迟 GameRoot；制作 A/B 两套同地址不同标记的原生 Package 测试资源。Bootstrap AOT UI 不依赖这些资源。
-- [ ] **Step 4:** 测试通过后运行 `./Tool/Client/Test-ResourceSlots.ps1 -Platform Windows64`，同一 Player 冷启动两次分别读 A/B，预期 `RESOURCE_SLOT_PASS A B`；记录资源根、版本表 hash、加载标记，确认没有跨 slot 文件写入。
-- [ ] **Step 5:** 提交 `feat(resources): 支持初始化前选择完整资源版本`。若固定版 GF 无法完成此原型，停在此 Task 修订适配，不继续假设后续回滚成立。
+- [x] **Step 1:** 写 `ResourceRootIsInjectedBeforeInitialization`、`LatePathMutationIsRejected`：断言记录顺序为 SetPaths→SetResourceMode→AddAgents→InitResources；迟到修改抛异常且 ReadOnlyPath 不变。
+- [x] **Step 2:** 运行 `./Tool/Client/Test-Client.ps1 -Task F2 -Mode PlayMode`，确认原生路径覆盖/迟到注入用例失败。
+- [x] **Step 3:** 实现单一通用 UGF 补丁、项目适配和延迟 GameRoot；制作 A/B 两套同地址不同标记的原生 Package 测试资源。Bootstrap AOT UI 不依赖这些资源。
+- [x] **Step 4:** 测试通过后运行 `./Tool/Client/Test-ResourceSlots.ps1 -Platform Windows64`，同一 Player 冷启动两次分别读 A/B，预期 `RESOURCE_SLOT_PASS A B`；记录资源根、版本表 hash、加载标记，确认没有跨 slot 文件写入。
+- [x] **Step 5:** 提交 `feat(resources): 支持初始化前选择完整资源版本`。若固定版 GF 无法完成此原型，停在此 Task 修订适配，不继续假设后续回滚成立。
+
+
+F2验收：9a2982c，原生Windows Package同Player A/B自然退出0、资源快照不变、PlayMode3/3及普通Player隔离1/1，独立规范/质量审查通过；Android及完整热更新仍待后续Task。
 
 ### Task F3：稳定接口、启动宿主与最小 C# 热更证明
 
