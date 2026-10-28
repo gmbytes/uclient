@@ -2,6 +2,7 @@ function Assert-HotUpdateEvidence($r) {
     if($r.schemaVersion-ne1 -or $r.task-ne'F8' -or -not$r.runId -or -not$r.playerBuildId){throw 'Invalid F8 identity.'}
     if($r.platform-notin@('Windows64','Android')){throw 'Unsupported required platform.'}
     if($r.platform-eq'Android' -and (-not$r.deviceId -or $r.deviceState-ne'device')){throw 'Android device evidence is missing.'}
+    if($r.platform-eq'Android' -and ($r.installCount-ne1 -or $r.installedPrimaryAbi-ne'arm64-v8a' -or $r.apkCertificateSha256-notmatch'^[a-f0-9]{64}$' -or -not$r.apkNativeHashes -or $r.apkHash-cne$r.installedApkBeforeHash -or $r.apkHash-cne$r.installedApkAfterHash)){throw 'Actual installed ARM64 APK/certificate/native evidence is incomplete.'}
     if(($r.nativeBefore|ConvertTo-Json -Compress)-cne($r.nativeAfter|ConvertTo-Json -Compress)){throw 'Native Player changed.'}
     if(-not$r.nativeBefore -or $r.v1DllHash-eq$r.v2DllHash -or $r.v1ResourceHash-eq$r.v2ResourceHash){throw 'Both executable and real native resource must change.'}
     if(@($r.aotNames|Where-Object{$_-like'Client.Game*'}).Count){throw 'Hotfix DLL was compiled into AOT.'}
@@ -13,6 +14,7 @@ function Assert-HotUpdateEvidence($r) {
         $expected=@($r.metadataNames|ForEach-Object{"F6_METADATA $($r.playerBuildId) $_ OK"}|Sort-Object)
         if(($expected-join"`n")-cne(@($c.metadata|Sort-Object)-join"`n")){throw 'Metadata load records differ from original archive.'}
         if($c.markers-notcontains'F8_PROBES all'){throw 'Actual hot generic/Parser probes missing.'}
+        if($r.platform-eq'Android' -and ($c.pointerBits-ne64 -or -not$c.androidProcess64Bit -or $c.observedProcessId-ne$c.processId)){throw 'Actual Android process evidence is missing.'}
     }
     foreach($id in @('v1','v2','throw','fallback','offline')){if(-not$by.ContainsKey($id)){throw "Missing required case $id"}}
     $v1=$by.v1;$v2=$by.v2;$bad=$by.throw;$fallback=$by.fallback;$offline=$by.offline

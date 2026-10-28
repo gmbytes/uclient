@@ -25,4 +25,12 @@ $mutations=@{
     SameProcess={param($r)$r.cases[1].processId=$r.cases[0].processId}
 }
 foreach($name in $mutations.Keys){$r=Fixture;& $mutations[$name] $r;$rejected=$false;try{Assert-HotUpdateEvidence $r}catch{$rejected=$true};if(-not$rejected){throw "F8 validator accepted $name"}}
-Write-Host 'F8_EVIDENCE_TEST_PASS 11'
+function AndroidFixture {
+    $r=Fixture;$r.platform='Android';$r.deviceId='emulator-5554';$r.deviceState='device';$r.installCount=1;$r.installedPrimaryAbi='arm64-v8a';$r.apkCertificateSha256='a'*64;$r.apkNativeHashes=@{native='b'*64};$r.apkHash='c'*64;$r.installedApkBeforeHash='c'*64;$r.installedApkAfterHash='c'*64
+    foreach($c in $r.cases){$c.pointerBits=64;$c.androidProcess64Bit=$true;$c.observedProcessId=$c.processId};return $r
+}
+Assert-HotUpdateEvidence (AndroidFixture)
+foreach($change in @({param($r)$r.installCount=2},{param($r)$r.installedApkAfterHash='e'*64},{param($r)$r.apkCertificateSha256=''},{param($r)$r.cases[1].observedProcessId=999},{param($r)$r.cases[1].androidProcess64Bit=$false})){
+    $r=AndroidFixture;&$change $r;$rejected=$false;try{Assert-HotUpdateEvidence $r}catch{$rejected=$true};if(-not$rejected){throw 'Android installed/native/process evidence was accepted without its required facts.'}
+}
+Write-Host 'F8_EVIDENCE_TEST_PASS 17'

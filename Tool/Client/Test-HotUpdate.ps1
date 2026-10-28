@@ -12,8 +12,24 @@ $adb=Join-Path $env:ANDROID_SDK_ROOT 'platform-tools/adb.exe'
 $server=$null;$reverse=$false;$process=$null;$commands=[Collections.Generic.List[object]]::new()
 function Hash([string]$Path){(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()}
 function Inventory([string]$Root){$r=[ordered]@{};foreach($f in Get-ChildItem -LiteralPath $Root -File -Recurse|Sort-Object FullName){$r[$f.FullName.Substring($Root.Length+1).Replace('\','/')]=Hash $f.FullName};return $r}
-function NativeCommand([string]$File,[string[]]$Arguments,[string]$Log){$start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$File;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true;foreach($a in $Arguments){$start.ArgumentList.Add($a)};$p=[Diagnostics.Process]::Start($start);$out=$p.StandardOutput.ReadToEndAsync();$err=$p.StandardError.ReadToEndAsync();$p.WaitForExit();$text=$out.Result+$err.Result;if($Log){[IO.File]::WriteAllText($Log,$text)};$commands.Add(@{file=$File;arguments=$Arguments;exitCode=$p.ExitCode;log=$Log;utc=[DateTime]::UtcNow});if($p.ExitCode-ne0){throw "$File exited $($p.ExitCode): $text"};return $text}
-function Adb([string[]]$Arguments,[string]$Log){NativeCommand $adb (@('-s',$DeviceId)+$Arguments) $Log}
+function NativeCommand([string]$File,[string[]]$Arguments,[string]$Log,[int[]]$AllowedExitCodes=@(0)){$start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$File;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true;foreach($a in $Arguments){$start.ArgumentList.Add($a)};$p=[Diagnostics.Process]::Start($start);$out=$p.StandardOutput.ReadToEndAsync();$err=$p.StandardError.ReadToEndAsync();if(-not$p.WaitForExit(120000)){$p.Kill();$p.WaitForExit();throw "Owned command timed out: $File"};$text=$out.Result+$err.Result;if($Log){[IO.File]::WriteAllText($Log,$text)};$commands.Add(@{file=$File;arguments=$Arguments;exitCode=$p.ExitCode;log=$Log;utc=[DateTime]::UtcNow});if($AllowedExitCodes-notcontains$p.ExitCode){throw "$File exited $($p.ExitCode): $text"};return $text}
+function Adb([string[]]$Arguments,[string]$Log,[int[]]$AllowedExitCodes=@(0)){NativeCommand $adb (@('-s',$DeviceId)+$Arguments) $Log $AllowedExitCodes}
+function ApkNativeInventory([string]$Path){
+    $zip=[IO.Compression.ZipFile]::OpenRead($Path);$native=[ordered]@{}
+    try{foreach($entry in $zip.Entries|Where-Object{$_.FullName.StartsWith('lib/')-and$_.FullName.EndsWith('.so')}|Sort-Object FullName){
+        if(-not$entry.FullName.StartsWith('lib/arm64-v8a/')){throw 'Non-ARM64 native library in APK.'}
+        $stream=$entry.Open();$header=[byte[]]::new(20);try{if($stream.Read($header,0,20)-ne20 -or $header[0]-ne127 -or $header[1]-ne69 -or $header[2]-ne76 -or $header[3]-ne70 -or [BitConverter]::ToUInt16($header,18)-ne183){throw 'APK native library is not ELF AArch64.'}}finally{$stream.Dispose()}
+        $stream=$entry.Open();$sha=[Security.Cryptography.SHA256]::Create();try{$hash=[Convert]::ToHexString($sha.ComputeHash($stream)).ToLowerInvariant()}finally{$sha.Dispose();$stream.Dispose()}
+        $native[$entry.FullName]=@{length=$entry.Length;sha256=$hash;elfMachine=183}
+    }}finally{$zip.Dispose()}
+    if(-not$native.Contains('lib/arm64-v8a/libil2cpp.so')-or-not$native.Contains('lib/arm64-v8a/libunity.so')){throw 'Required ARM64 native libraries missing.'};return $native
+}
+function CaptureAndroidScreen([string]$Path){
+    $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$adb;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+    foreach($a in @('-s',$DeviceId,'exec-out','screencap','-p')){$start.ArgumentList.Add($a)};$p=[Diagnostics.Process]::Start($start);$file=[IO.File]::Create($Path)
+    try{$copy=$p.StandardOutput.BaseStream.CopyToAsync($file);$err=$p.StandardError.ReadToEndAsync();if(-not$p.WaitForExit(30000)){$p.Kill();$p.WaitForExit();throw 'Owned screenshot command timed out.'};$copy.GetAwaiter().GetResult();if($p.ExitCode-ne0){throw $err.Result}}finally{$file.Dispose()}
+    $commands.Add(@{file=$adb;arguments=@('-s',$DeviceId,'exec-out','screencap','-p');exitCode=$p.ExitCode;binaryOutput=$Path;sha256=(Hash $Path)})
+}
 function StopServer {
     if($null-ne$server){[IO.File]::WriteAllText((Join-Path $RunRoot 'server-stop'),'stop');if(-not$server.WaitForExit(5000)){$server.Kill();$server.WaitForExit()};$commands.Add(@{action='owned-server-stop';pid=$server.Id;exitCode=$server.ExitCode});$script:server=$null}
 }
@@ -91,18 +107,22 @@ $output=Join-Path $RunRoot 'Runtime';New-Item -ItemType Directory -Force $output
 try {
     if($Platform-eq'Android'){
         if(-not$DeviceId){throw 'Android requires an explicit selected device.'};$result.deviceId=$DeviceId
-        $state=(Adb @('get-state') (Join-Path $RunRoot 'device-state.txt')).Trim();if($state-ne'device'){throw 'Selected Android device is unavailable.'};$result.deviceState=$state
+        $state='';for($attempt=1;$attempt-le6;$attempt++){$state=(Adb @('get-state') (Join-Path $RunRoot "device-state-$attempt.txt") @(0,1)).Trim();if($state-eq'device'){break};if($attempt-eq2){Adb @('reconnect') (Join-Path $RunRoot 'device-reconnect.txt') @(0,1)|Out-Null};Start-Sleep -Milliseconds 1000};if($state-ne'device'){throw 'Selected Android device is unavailable.'};$result.deviceState=$state
         $result.deviceProperties=Adb @('shell','getprop') (Join-Path $RunRoot 'device-properties.txt')
-        $existing=Adb @('shell','pm','path','com.sgame.client.hotupdateproof') $null;if($existing.Trim()){throw 'Proof package already installed; refuse to overwrite an existing scenario.'}
+        $existing=Adb @('shell','pm','path','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'preinstall-package-query.txt') @(0,1);if($existing.Trim()){throw 'Proof package already installed; refuse to overwrite an existing scenario.'}
         $apk=Join-Path $playerRoot 'Client.apk';$buildTools=Join-Path $env:ANDROID_SDK_ROOT 'build-tools/32.0.0'
         $result.apkBadging=NativeCommand (Join-Path $buildTools 'aapt.exe') @('dump','badging',$apk) (Join-Path $RunRoot 'apk-badging.txt')
         if($result.apkBadging-notmatch"native-code: 'arm64-v8a'"){throw 'APK is not ARM64-only.'}
+        $result.apkNativeHashes=ApkNativeInventory $apk;$result.apkHash=Hash $apk
         $result.apkCertificate=NativeCommand (Join-Path $env:JAVA_HOME 'bin/java.exe') @('-jar',(Join-Path $buildTools 'lib/apksigner.jar'),'verify','--print-certs',$apk) (Join-Path $RunRoot 'apk-certificate.txt')
+        if($result.apkCertificate-notmatch'certificate SHA-256 digest: ([a-fA-F0-9]{64})'){throw 'APK certificate digest missing.'};$result.apkCertificateSha256=$Matches[1].ToLowerInvariant()
         Adb @('install','--abi','arm64-v8a',$apk) (Join-Path $RunRoot 'install-once.txt')|Out-Null;$result.installCount=1
         $installed=(Adb @('shell','pm','path','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'installed-package-path.txt')).Trim().Substring(8)
         Adb @('pull',$installed,(Join-Path $RunRoot 'installed-base.apk')) (Join-Path $RunRoot 'installed-package-pull.txt')|Out-Null
         if((Hash (Join-Path $RunRoot 'installed-base.apk'))-cne(Hash $apk)){throw 'Installed APK differs from native archive.'}
+        $result.installedApkBeforeHash=Hash (Join-Path $RunRoot 'installed-base.apk')
         $result.installedPackage=Adb @('shell','dumpsys','package','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'installed-package.txt')
+        if($result.installedPackage-notmatch'primaryCpuAbi=arm64-v8a'){throw 'Installed native ABI is not ARM64.'};$result.installedPrimaryAbi='arm64-v8a'
         Adb @('reverse',"tcp:$port","tcp:$port") (Join-Path $RunRoot 'reverse-create.txt')|Out-Null;$reverse=$true
     }
     foreach($case in @('v1','v2','throw','fallback','offline')){
@@ -122,15 +142,18 @@ try {
             if(-not$found){throw 'Android native result timed out.'}
             Adb @('pull',$remote,(Join-Path $output "$case.json")) (Join-Path $output "$case-pull.txt")|Out-Null
             Adb @('pull',($remote-replace'\.json$','.png'),(Join-Path $output "$case.png")) $null|Out-Null
+            $actualPid=(Adb @('shell','pidof','com.sgame.client.hotupdateproof') (Join-Path $output "$case-pid.txt")).Trim();CaptureAndroidScreen (Join-Path $output "$case-device.png")
             Adb @('shell','dumpsys','activity','processes') (Join-Path $output "$case-processes.txt")|Out-Null
-            Adb @('logcat','-d','-s','Unity') (Join-Path $output "$case-logcat.txt")|Out-Null
-            if($case-eq'v2'){Adb @('shell','input','keyevent','KEYCODE_HOME') (Join-Path $output 'background.txt')|Out-Null;Start-Sleep -Milliseconds 1000;Adb @('shell','am','start','-W','-n','com.sgame.client.hotupdateproof/com.unity3d.player.UnityPlayerActivity') (Join-Path $output 'resume.txt')|Out-Null}
+            Adb @('logcat','-d',"--pid=$actualPid",'-s','Unity') (Join-Path $output "$case-logcat.txt")|Out-Null
+            if($case-eq'v2'){Adb @('shell','input','keyevent','KEYCODE_HOME') (Join-Path $output 'background.txt')|Out-Null;Start-Sleep -Milliseconds 1000;Adb @('shell','am','start','-W','-n','com.sgame.client.hotupdateproof/com.unity3d.player.UnityPlayerActivity') (Join-Path $output 'resume.txt')|Out-Null;$resumedPid=(Adb @('shell','pidof','com.sgame.client.hotupdateproof') (Join-Path $output 'resumed-pid.txt')).Trim();if($resumedPid-cne$actualPid){throw 'Background/resume did not preserve the V2 process.'};$result.backgroundResume=@{before=$actualPid;after=$resumedPid}}
         }
         $record=Get-Content -LiteralPath (Join-Path $output "$case.json") -Raw|ConvertFrom-Json -AsHashtable;$result.cases+=,$record
+        if($Platform-eq'Android'){if([string]$record.processId-cne$actualPid){throw 'Native reported PID differs from device PID.'};$record.observedProcessId=[int]$actualPid}
         if($case-ne'throw' -and -not$record.ready){throw "Required $case launch failed: $($record.launchError) $($record.error)"}
         if((Inventory $playerRoot|ConvertTo-Json -Compress)-cne($nativeBefore|ConvertTo-Json -Compress)){throw 'Native Player hash changed during scenario.'}
         Write-RunJson (Join-Path $RunRoot 'hotupdate-result.json') $result
     }
+    if($Platform-eq'Android'){Adb @('pull',$installed,(Join-Path $RunRoot 'installed-base-after.apk')) (Join-Path $RunRoot 'installed-package-after-pull.txt')|Out-Null;$result.installedApkAfterHash=Hash (Join-Path $RunRoot 'installed-base-after.apk')}
     $result.nativeAfter=Inventory $playerRoot;Assert-HotUpdateEvidence $result;$result.passed=$true
 }catch{$result.error=$_.Exception.ToString();Write-Host $result.error}
 finally{
