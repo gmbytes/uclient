@@ -139,11 +139,11 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 
 **Interfaces:** `AotMetadataLoader.Load(ArchivedMetadataSet set):void`；每次 `RuntimeApi.LoadMetadataForAOTAssembly` 检查返回码；只读匹配 platform/playerBuildId。`HotfixCompatibilityCheck.Check(string playerArchive,string compiledHotfixRoot):CompatibilityReport`，输出缺失AOT引用、程序集依赖/顺序及是否需要新Player。
 
-- [ ] **Step 1:** 写 `RejectsMetadataFromAnotherPlatform`、`MissingAotApiRequiresNewPlayer`、`AssemblyOrderIsTopologicalAndComplete`，断言错集/缺DLL/循环/未预留程序集名在加载前失败；运行 F6 EditMode 确认失败。
-- [ ] **Step 2:** 实现正式启动只接受F4/F5的Verified/Prepared产物。按元数据→Client.Game.Protocol→Client.Game顺序加载，移除产品对F3 Proof fixture的所有引用。
-- [ ] **Step 3:** 主包构建先编译热DLL、生成link/桥接/泛型引用和目标AOT输出，封装基线，再构建Player；将最终post-strip输出与用于包内基线的元数据逐文件比对，不一致使构建失败并重建基线。归档不可变PlayerBuildId、依赖锁、裁剪配置、平台、元数据hash和原生产物hash。
-- [ ] **Step 4:** 补丁构建只从选定Player归档取元数据，使用锁定HybridCLR的 MissingMetadataChecker 或同等官方检查入口；新增未保留AOT API、库升级或稳定契约改变返回RequiresNewPlayer。
-- [ ] **Step 5:** 跑 F6 EditMode，并用 Release IL2CPP probe 覆盖 `List<热更struct>`、`Dictionary<uint,IMessage>`、async/Task状态机、Protobuf RepeatedField/MapField、注册Parser与未知字段；任一失败不能发布。提交 `feat(hotfix): 绑定AOT归档并拦截不兼容补丁`。
+- [x] **Step 1:** 写 `RejectsMetadataFromAnotherPlatform`、`MissingAotApiRequiresNewPlayer`、`AssemblyOrderIsTopologicalAndComplete`，断言错集/缺DLL/循环/未预留程序集名在加载前失败；运行 F6 EditMode 确认失败。
+- [x] **Step 2:** 实现正式启动只接受F4/F5的Verified/Prepared产物。按元数据→Client.Game.Protocol→Client.Game顺序加载，移除产品对F3 Proof fixture的所有引用。
+- [x] **Step 3:** 主包构建先编译热DLL、生成link/桥接/泛型引用和目标AOT输出，封装基线，再构建Player；将最终post-strip输出与用于包内基线的元数据逐文件比对，不一致使构建失败并重建基线。归档不可变PlayerBuildId、依赖锁、裁剪配置、平台、元数据hash和原生产物hash。
+- [x] **Step 4:** 补丁构建只从选定Player归档取元数据，使用锁定HybridCLR的 MissingMetadataChecker 或同等官方检查入口；新增未保留AOT API、库升级或稳定契约改变返回RequiresNewPlayer。
+- [x] **Step 5:** 跑 F6 EditMode，并用 Release IL2CPP probe 覆盖 `List<热更struct>`、`Dictionary<uint,IMessage>`、async/Task状态机、Protobuf RepeatedField/MapField、注册Parser与未知字段；任一失败不能发布。提交 `feat(hotfix): 绑定AOT归档并拦截不兼容补丁`。
 
 ### Task F7：启动状态机、试运行提交与下进程回退
 
