@@ -66,6 +66,27 @@ namespace Client.Tests
         }
         internal static void SetKeyboardVisible(KeyboardVisibilityController controller, System.Func<bool> visible) => controller.KeyboardVisibleSource=visible;
 
+        [UnityTest]
+        public IEnumerator DestroyedEventSystemSelectionDoesNotBreakWindowKeyboardLifecycle()
+        {
+            var fixture=CreateManualFixture(720,1280,1280);
+            var eventSystem=UnityEngine.EventSystems.EventSystem.current;
+            if(eventSystem==null)
+            {
+                events=new GameObject("StaleSelectionEventSystem",typeof(UnityEngine.EventSystems.EventSystem));
+                eventSystem=events.GetComponent<UnityEngine.EventSystems.EventSystem>();
+            }
+            var previous=eventSystem.currentSelectedGameObject;
+            var expired=new GameObject("ExpiredSelectedWindowControl");
+            eventSystem.SetSelectedGameObject(expired);
+            Object.DestroyImmediate(expired);
+            Assert.That(ReferenceEquals(eventSystem.currentSelectedGameObject,null),Is.False,"Exercise the destroyed Unity object retained by EventSystem.");
+            fixture.Controller.SetLayoutSnapshot(AdaptiveLayoutTests.Snapshot(720,1280,new Rect(0,0,720,1280)));
+            yield return null;
+            LogAssert.NoUnexpectedReceived();
+            eventSystem.SetSelectedGameObject(previous!=null?previous:null);
+        }
+
         private sealed class ManualFixture
         {
             public RectTransform Viewport,Content,Primary;

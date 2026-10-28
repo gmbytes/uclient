@@ -1,6 +1,6 @@
 {
   "name": "Client.Editor",
-  "references": ["Client.Framework", "Client.Contracts", "Client.Bootstrap", "UnityEngine.UI", "UnityGameFramework.Runtime", "UnityGameFramework.Editor", "HybridCLR.Editor"],
+  "references": ["Client.Framework", "Client.Contracts", "Client.Bootstrap", "UnityEngine.UI", "Unity.TextMeshPro", "UnityGameFramework.Runtime", "UnityGameFramework.Editor", "HybridCLR.Editor"],
   "includePlatforms": ["Editor"],
   "autoReferenced": false
 }
