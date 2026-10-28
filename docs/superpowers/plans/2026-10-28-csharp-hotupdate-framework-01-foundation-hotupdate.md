@@ -154,7 +154,7 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 
 **Interfaces:** `ReleaseCoordinator.PrepareLaunchAsync(CancellationToken token):Task<LaunchSelection>`；`BeginTrial(LaunchSelection selection):void` 在资源初始化前持久化；实际提交只接受绑定当前selection/context/epoch的Ready请求，稳定`IClientContext.ReportReady()`由该捕获上下文转发。兼容形状`ReportReady(string releaseId):void`缺少调用者代次，必须有限拒绝且不得推断当前上下文提交。`FailCurrent(ReleaseErrorCode code):void`标记坏候选并进入RestartRequired。一个未完成trial下次启动即排除候选并回退，不无限循环尝试。
 
-- [x] **Step 1:** 写 `UnfinishedTrialRollsBackOnNextProcess`：模拟重建协调器，选择PreviousGood；写 `ServerLoginFailureDoesNotBlacklistRelease`：网络/认证失败不改变known-good；写 `StaleReadyCannotCommitAnotherRelease`。
+- [x] **Step 1:** 写 `UnfinishedTrialRollsBackOnNextProcess`：重建协调器后隔离未完成的Candidate C，选择仍有效的KnownGood K并保留PreviousGood P；`FailedKnownGoodPromotesSurvivingPreviousAtomically`另验证KnownGood自身失败时原子转向PreviousGood。写 `ServerLoginFailureDoesNotBlacklistRelease`：网络/认证失败不改变known-good；写 `StaleReadyCannotCommitAnotherRelease`。
 - [x] **Step 2:** 运行 F7 EditMode，确认默认状态机无法满足上述断言。
 - [x] **Step 3:** 实现 Check→Prepare→Select→Trial→ResourceInit→Metadata→Hotfix→LoginReady；Check先下载并验签channel.json/channel.sig，再按指定hash读取并验签release清单；使用F4结果驱动F5。启动场景AOT UI显示有限状态、进度、重试/退出。准备阶段失败保留旧版本；Resource开始初始化后失败进入RestartRequired，禁止同进程再次切根/Assembly.Load。
 - [x] **Step 4:** `ReportReady` 必须由本地资源加载、热入口、Protobuf自检和登录首帧共同触发；服务器不可用不能阻止本地版本成为known-good。取消/退出清理下载和监听，旧代次回调无效；只清理不被任何状态引用的版本，保留至少当前和上一可用版本。
