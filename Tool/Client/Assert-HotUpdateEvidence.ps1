@@ -4,6 +4,8 @@ function Assert-HotUpdateEvidence($r) {
     if($r.platform-eq'Android' -and (-not$r.deviceId -or $r.deviceState-ne'device')){throw 'Android device evidence is missing.'}
     if($r.platform-eq'Android' -and ($r.installCount-ne1 -or $r.installedPrimaryAbi-ne'arm64-v8a' -or $r.apkCertificateSha256-notmatch'^[a-f0-9]{64}$' -or -not$r.apkNativeHashes -or $r.apkHash-cne$r.installedApkBeforeHash -or $r.apkHash-cne$r.installedApkAfterHash)){throw 'Actual installed ARM64 APK/certificate/native evidence is incomplete.'}
     if(($r.nativeBefore|ConvertTo-Json -Compress)-cne($r.nativeAfter|ConvertTo-Json -Compress)){throw 'Native Player changed.'}
+    if($r.archiveNative.Count-ne$r.nativeBefore.Count){throw 'Native inventory differs from the original archive.'}
+    foreach($path in $r.archiveNative.Keys){if(-not$r.nativeBefore.Contains($path)-or$r.nativeBefore[$path]-cne$r.archiveNative[$path]){throw 'Native Player differs from its original archive before execution.'}}
     if(-not$r.nativeBefore -or $r.v1DllHash-eq$r.v2DllHash -or $r.v1ResourceHash-eq$r.v2ResourceHash){throw 'Both executable and real native resource must change.'}
     if(@($r.aotNames|Where-Object{$_-like'Client.Game*'}).Count){throw 'Hotfix DLL was compiled into AOT.'}
     if(@($r.metadataNames).Count-eq0){throw 'Original metadata inventory missing.'}
@@ -11,10 +13,11 @@ function Assert-HotUpdateEvidence($r) {
     foreach($c in @($r.cases)){
         if($by.ContainsKey($c.caseId) -or $c.runId-cne$r.runId -or $c.playerBuildId-cne$r.playerBuildId -or $c.epoch-le0 -or $c.manifestHash-notmatch'^[a-f0-9]{64}$'){throw 'Stale, duplicate or unbound process evidence.'}
         if($c.processId-le0 -or $pids-contains$c.processId){throw 'A fresh OS process is required.'};$pids+=$c.processId;$by[$c.caseId]=$c
+        if($c.observedProcessId-ne$c.processId){throw 'Player evidence does not match the owned OS process.'}
         $expected=@($r.metadataNames|ForEach-Object{"F6_METADATA $($r.playerBuildId) $_ OK"}|Sort-Object)
         if(($expected-join"`n")-cne(@($c.metadata|Sort-Object)-join"`n")){throw 'Metadata load records differ from original archive.'}
         if($c.markers-notcontains'F8_PROBES all'){throw 'Actual hot generic/Parser probes missing.'}
-        if($c.observerCleanupErrors){throw 'Owned download observation handlers did not clean up.'}
+        if($c['observerCleanupErrors']){throw 'Owned download observation handlers did not clean up.'}
         if($r.platform-eq'Android' -and ($c.pointerBits-ne64 -or -not$c.androidProcess64Bit -or $c.observedProcessId-ne$c.processId)){throw 'Actual Android process evidence is missing.'}
     }
     foreach($id in @('v1','v2','throw','fallback','offline')){if(-not$by.ContainsKey($id)){throw "Missing required case $id"}}

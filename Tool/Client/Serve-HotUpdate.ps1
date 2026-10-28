@@ -1,4 +1,4 @@
-[CmdletBinding()]param([Parameter(Mandatory)][string]$RunRoot,[Parameter(Mandatory)][int]$Port)
+[CmdletBinding()]param([Parameter(Mandatory)][string]$RunRoot,[Parameter(Mandatory)][string]$ReleaseRoot,[Parameter(Mandatory)][int]$Port)
 $ErrorActionPreference='Stop'
 $listener=[Net.HttpListener]::new();$listener.Prefixes.Add("http://127.0.0.1:$Port/");$listener.Start()
 [IO.File]::WriteAllText((Join-Path $RunRoot 'server-ready'),[string]$PID)
@@ -9,7 +9,7 @@ try {
         $context=$pending.Result;$started=[DateTime]::UtcNow;$bytes=0;$status=404;$path=$context.Request.Url.AbsolutePath
         try {
             $active=[IO.File]::ReadAllText((Join-Path $RunRoot 'active-release.txt')).Trim()
-            $base=[IO.Path]::GetFullPath((Join-Path $RunRoot "Build/Releases/$active"))
+            $base=[IO.Path]::GetFullPath((Join-Path $ReleaseRoot $active))
             $relative=[Uri]::UnescapeDataString($path).TrimStart('/')
             $file=[IO.Path]::GetFullPath((Join-Path $base $relative))
             if($context.Request.HttpMethod-ne'GET' -or -not$file.StartsWith($base+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Invalid path.'}

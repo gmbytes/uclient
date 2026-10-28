@@ -1,6 +1,7 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][ValidateSet('Android','Windows64')][string]$Platform,[string]$DeviceId,[string]$UnityEditor,[switch]$BuildOnly,[string]$RunRoot)
+param([Parameter(Mandatory)][ValidateSet('Android','Windows64')][string]$Platform,[string]$DeviceId,[string]$UnityEditor,[switch]$BuildOnly,[string]$RunRoot,[switch]$RetryRuntime)
 if($BuildOnly -and $RunRoot){throw 'BuildOnly creates a fresh buildRun; RunRoot executes an existing completed build.'}
+if($RetryRuntime -and (-not$RunRoot -or $Platform-ne'Windows64')){throw 'A runtime retry requires an existing Windows build; Android never clears or reinstalls an existing scenario.'}
 . "$PSScriptRoot/Unity-Common.ps1"
 . "$PSScriptRoot/Assert-HotUpdateEvidence.ps1"
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -36,7 +37,7 @@ function StopServer {
 }
 function StartServer {
     Remove-Item -LiteralPath (Join-Path $RunRoot 'server-stop'),(Join-Path $RunRoot 'server-ready') -ErrorAction SilentlyContinue
-    $script:server=Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @('-NoProfile','-File',"`"$PSScriptRoot/Serve-HotUpdate.ps1`"",'-RunRoot',"`"$RunRoot`"",'-Port',$port) -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $RunRoot 'server.stdout.log') -RedirectStandardError (Join-Path $RunRoot 'server.stderr.log')
+    $script:server=Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @('-NoProfile','-File',"`"$PSScriptRoot/Serve-HotUpdate.ps1`"",'-RunRoot',"`"$RunRoot`"",'-ReleaseRoot',"`"$(Join-Path $buildRoot 'Releases')`"",'-Port',$port) -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $RunRoot 'server.stdout.log') -RedirectStandardError (Join-Path $RunRoot 'server.stderr.log')
     $until=[DateTime]::UtcNow.AddSeconds(10);while(-not(Test-Path -LiteralPath (Join-Path $RunRoot 'server-ready'))){if($server.HasExited -or [DateTime]::UtcNow-gt$until){throw 'Owned loopback server did not start.'};Start-Sleep -Milliseconds 100}
     $commands.Add(@{action='owned-server-start';pid=$server.Id;port=$port})
 }
@@ -98,14 +99,25 @@ if(-not$RunRoot){
         foreach($p in $restore){$full=Join-Path $projectRoot $p;if($null-ne$original[$p]){[IO.File]::WriteAllBytes($full,$original[$p])}else{Remove-Item -LiteralPath $full -ErrorAction SilentlyContinue}}
         foreach($p in $generated){$full=[IO.Path]::GetFullPath((Join-Path $projectRoot $p));if(-not$full.StartsWith($projectRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe owned cleanup.'};if(Test-Path -LiteralPath $full){Remove-Item -LiteralPath $full -Recurse -Force};Remove-Item -LiteralPath ($full+'.meta') -ErrorAction SilentlyContinue}
     }
-}else{$RunRoot=[IO.Path]::GetFullPath($RunRoot);$config=Get-Content -LiteralPath (Join-Path $RunRoot 'run.json') -Raw|ConvertFrom-Json;if($config.platform-ne$Platform){throw 'Run platform mismatch.'};$runId=$config.runId;$port=$config.port}
+}else{
+    $RunRoot=[IO.Path]::GetFullPath($RunRoot);$config=Get-Content -LiteralPath (Join-Path $RunRoot 'run.json') -Raw|ConvertFrom-Json -AsHashtable;if($config.platform-ne$Platform){throw 'Run platform mismatch.'};$runId=$config.runId;$port=$config.port
+    if($RetryRuntime){
+        $originalRun=$RunRoot;$nativeBuild=if($config.ContainsKey('nativeBuildRoot')){$config.nativeBuildRoot}else{Join-Path $RunRoot 'Build'}
+        if(-not(Test-Path -LiteralPath (Join-Path $nativeBuild 'Archive/archive.json'))){throw 'A completed original native archive is required.'}
+        $runId=[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8);$RunRoot=Join-Path $projectRoot "Builds/HotUpdate/$Platform/$runId";New-Item -ItemType Directory -Path $RunRoot|Out-Null
+        Write-RunJson (Join-Path $RunRoot 'run.json') @{runId=$runId;platform=$Platform;port=$port;sourceCommit=(& git -C $projectRoot rev-parse HEAD);nativeBuildRoot=$nativeBuild;retryOf=$originalRun;createdUtc=[DateTime]::UtcNow}
+    }
+}
 Write-Host "F8_EVIDENCE $RunRoot"
 if($BuildOnly){Write-Host 'F8_BUILD_ONLY_COMPLETE';exit 0}
 if(Test-Path -LiteralPath (Join-Path $RunRoot 'hotupdate-result.json')){throw 'This run already has native evidence; preserve it and use a fresh buildRun.'}
-$archive=Get-Content -LiteralPath (Join-Path $RunRoot 'Build/Archive/archive.json') -Raw|ConvertFrom-Json
-$playerRoot=Join-Path $RunRoot 'Build/Player';$nativeBefore=Inventory $playerRoot
-$result=[ordered]@{schemaVersion=1;task='F8';runId=$runId;platform=$Platform;playerBuildId=$archive.playerBuildId;nativeBefore=$nativeBefore;nativeAfter=$null;metadataNames=@($archive.metadata|ForEach-Object path);aotNames=@($archive.metadata|ForEach-Object{[IO.Path]::GetFileNameWithoutExtension($_.path)});cases=@();passed=$false;physicalArm='NotRun';iOS='NotRun';scope='Fresh native Player; endpoint unavailable means owned update endpoint, not radio disable';archive=(Join-Path $RunRoot 'Build/Archive/archive.json')}
-foreach($v in @('v1','v2')){$result[$v+'DllHash']=Hash (Join-Path $RunRoot "Build/Releases/$v/Hotfix/Client.Game.dll");$result[$v+'ResourceHash']=Hash (Join-Path $RunRoot "Build/Releases/$v/Resources/GameFrameworkVersion.dat");$result[$v+'ManifestHash']=Hash (Join-Path $RunRoot "Build/Releases/$v/release.json")}
+$config=Get-Content -LiteralPath (Join-Path $RunRoot 'run.json') -Raw|ConvertFrom-Json -AsHashtable
+$buildRoot=if($config.ContainsKey('nativeBuildRoot')){[IO.Path]::GetFullPath($config.nativeBuildRoot)}else{Join-Path $RunRoot 'Build'}
+$archive=Get-Content -LiteralPath (Join-Path $buildRoot 'Archive/archive.json') -Raw|ConvertFrom-Json
+$playerRoot=Join-Path $buildRoot 'Player';$nativeBefore=Inventory $playerRoot;$archiveNative=[ordered]@{};foreach($file in $archive.player){$archiveNative[$file.path]=$file.sha256}
+if($nativeBefore.Count-ne$archiveNative.Count){throw 'Native inventory differs from original archive.'};foreach($path in $archiveNative.Keys){if(-not$nativeBefore.Contains($path)-or$nativeBefore[$path]-cne$archiveNative[$path]){throw 'Native Player differs from original archive.'}}
+$result=[ordered]@{schemaVersion=1;task='F8';runId=$runId;platform=$Platform;playerBuildId=$archive.playerBuildId;archiveNative=$archiveNative;nativeBefore=$nativeBefore;nativeAfter=$null;metadataNames=@($archive.metadata|ForEach-Object path);aotNames=@($archive.metadata|ForEach-Object{[IO.Path]::GetFileNameWithoutExtension($_.path)});cases=@();passed=$false;physicalArm='NotRun';iOS='NotRun';scope='Fresh native Player; endpoint unavailable means owned update endpoint, not radio disable';archive=(Join-Path $buildRoot 'Archive/archive.json');nativeBuildRoot=$buildRoot}
+foreach($v in @('v1','v2')){$result[$v+'DllHash']=Hash (Join-Path $buildRoot "Releases/$v/Hotfix/Client.Game.dll");$result[$v+'ResourceHash']=Hash (Join-Path $buildRoot "Releases/$v/Resources/GameFrameworkVersion.dat");$result[$v+'ManifestHash']=Hash (Join-Path $buildRoot "Releases/$v/release.json")}
 $output=Join-Path $RunRoot 'Runtime';New-Item -ItemType Directory -Force $output|Out-Null
 try {
     if($Platform-eq'Android'){
@@ -152,6 +164,7 @@ try {
         }
         $record=Get-Content -LiteralPath (Join-Path $output "$case.json") -Raw|ConvertFrom-Json -AsHashtable;$result.cases+=,$record
         if($Platform-eq'Android'){if([string]$record.processId-cne$actualPid){throw 'Native reported PID differs from device PID.'};$record.observedProcessId=[int]$actualPid}
+        else{if($record.processId-ne$pidOwned){throw 'Native reported PID differs from owned Windows process.'};$record.observedProcessId=$pidOwned}
         if($case-ne'throw' -and -not$record.ready){throw "Required $case launch failed: $($record.launchError) $($record.error)"}
         if((Inventory $playerRoot|ConvertTo-Json -Compress)-cne($nativeBefore|ConvertTo-Json -Compress)){throw 'Native Player hash changed during scenario.'}
         Write-RunJson (Join-Path $RunRoot 'hotupdate-result.json') $result
