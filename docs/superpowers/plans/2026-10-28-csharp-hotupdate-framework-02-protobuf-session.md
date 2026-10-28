@@ -62,11 +62,11 @@ N0验收：client c5f5a79 / comm467e131，24/24用例通过，独立规范与质
 - CSharp目标输出生成的`*.cs`、`GameMessageRegistry.cs`、`descriptor.bytes`、`protocol-manifest.json`；来源来自共享协议锁，protoc/runtime版本来自工具链锁。固定信封`--envelope-output`也校验同一来源锁，不把旧工具锁内的Tok提交号写成新来源。
 - `IMessageRegistry.TryGetParser(uint messageId,out Google.Protobuf.MessageParser parser):bool`；`TryGetResponseId(uint requestId,out uint responseId):bool`。不使用运行时扫描程序集、字符串反射找Parser。
 
-- [ ] **Step 1:** 写生成器测试：空业务准入→合法空registry；fixture request/response/notify ID正确；重复ID/类型/方向冲突拒绝；修改信封任一字节两个生成入口都拒绝；共享必需源缺失/为空失败且保持旧输出完整。
-- [ ] **Step 2:** `dotnet test ../comm/tools/ProtocolGen.Tests/ProtocolGen.Tests.csproj --filter "CSharpTargetTests|EnvelopeLockTests"`，确认新目标/锁校验缺失时失败；测试项目沿用ProtocolGen目标框架并锁定测试依赖。
-- [ ] **Step 3:** 实现`--target csharp`和显式共享协议锁参数，复用DescriptorValidator、SchemaCompatibility、准入和hash门禁；所有入口统一comm/proto，不从客户端或缓存隐式回退读取协议。protoc36.2生成C#，parser/ID映射由同一准入表生成；固定信封和业务输出分开，禁止业务声明tok.client.v1包。
-- [ ] **Step 4:** 用共享restore安装Google.Protobuf3.36.2及必要Unsafe，避免覆盖Unity已有Memory/Buffers/Numerics；记录依赖hash。生成AOT固定信封和热更空registry，Unity编译通过；fixture V1→V2只允许兼容字段增量，非法变更拒绝。
-- [ ] **Step 5:** 重跑测试，并用显式fixture源对其他工具目标做隔离回归；确认客户端只保留生成C#、协议源统一comm/proto后提交`feat(protocol): 新增CSharp协议与静态注册表生成`。不增加正式game/业务准入。
+- [x] **Step 1:** 写生成器测试：空业务准入→合法空registry；fixture request/response/notify ID正确；重复ID/类型/方向冲突拒绝；修改信封任一字节两个生成入口都拒绝；共享必需源缺失/为空失败且保持旧输出完整。
+- [x] **Step 2:** `dotnet test ../comm/tools/ProtocolGen.Tests/ProtocolGen.Tests.csproj --filter "CSharpTargetTests|EnvelopeLockTests"`，确认新目标/锁校验缺失时失败；测试项目沿用ProtocolGen目标框架并锁定测试依赖。
+- [x] **Step 3:** 实现`--target csharp`和显式共享协议锁参数，复用DescriptorValidator、SchemaCompatibility、准入和hash门禁；所有入口统一comm/proto，不从客户端或缓存隐式回退读取协议。protoc36.2生成C#，parser/ID映射由同一准入表生成；固定信封和业务输出分开，禁止业务声明tok.client.v1包。
+- [x] **Step 4:** 用共享restore安装Google.Protobuf3.36.2及必要Unsafe，避免覆盖Unity已有Memory/Buffers/Numerics；记录依赖hash。生成AOT固定信封和热更空registry，Unity编译通过；fixture V1→V2只允许兼容字段增量，非法变更拒绝。
+- [x] **Step 5:** 重跑测试，并用显式fixture源对其他工具目标做隔离回归；确认客户端只保留生成C#、协议源统一comm/proto后提交`feat(protocol): 新增CSharp协议与静态注册表生成`。不增加正式game/业务准入。
 
 ### Task N2：有界 TCP 分帧与 GF 主线程宿主
 
