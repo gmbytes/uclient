@@ -78,18 +78,23 @@ namespace Client.Tests
         [Test] public void LateConnectCompletionAndOldCancellationCannotCloseReplacement() => Run(async () =>
         {
             var oldConnect = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var wire = new Connection { ConnectGate = oldConnect };
-            using (var session = New(wire)) using (var cancel = new CancellationTokenSource())
+            var context = new Context(); var wire = new Connection { ConnectGate = oldConnect };
+            using (var session = new SessionClient(wire, new SessionOptions("localhost", 1), context: context))
+            using (var cancel = new CancellationTokenSource())
             {
-                var old = session.LoginAsync(Input, cancel.Token); cancel.Cancel();
+                var old = session.LoginAsync(Input, cancel.Token); context.Drain(); cancel.Cancel(); context.Drain();
                 Assert.That((await Limit(old)).Error, Is.EqualTo(LoginError.Cancelled));
                 wire.ConnectGate = null;
-                var replacement = session.LoginAsync(Input, CancellationToken.None); wire.Deliver(Success(2));
+                var replacement = session.LoginAsync(Input, CancellationToken.None); context.Drain();
+                wire.Deliver(Success(2)); context.Drain();
                 Assert.That((await Limit(replacement)).Succeeded, Is.True);
+                var staleQueued = context.ExpectPost();
                 oldConnect.SetException(new InvalidOperationException("stale failure"));
-                await Task.Yield(); cancel.Cancel();
+                Assert.That(await Limit(staleQueued), Is.True, "Stale connect completion did not reach the owner queue.");
+                context.Drain(); cancel.Cancel(); context.Drain();
                 Assert.That(session.State, Is.EqualTo(SessionState.Authenticated)); Assert.That(wire.Closed, Is.False);
             }
+            context.Drain();
         });
         [Test] public void CancellationAfterSuccessDoesNotEndAuthenticatedSession()
         {
@@ -300,7 +305,15 @@ namespace Client.Tests
         private sealed class Context : SynchronizationContext
         {
             private readonly Queue<Action> actions = new Queue<Action>();
-            public override void Post(SendOrPostCallback callback, object state) { lock (actions) actions.Enqueue(() => callback(state)); }
+            private TaskCompletionSource<bool> nextPost;
+            public Task<bool> ExpectPost()
+            {
+                lock (actions) { nextPost = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously); return nextPost.Task; }
+            }
+            public override void Post(SendOrPostCallback callback, object state)
+            {
+                lock (actions) { actions.Enqueue(() => callback(state)); nextPost?.TrySetResult(true); nextPost = null; }
+            }
             public void Drain() { while (true) { Action next; lock (actions) { if (actions.Count == 0) return; next = actions.Dequeue(); } next(); } }
         }
         private sealed class Clock : ITransportClock

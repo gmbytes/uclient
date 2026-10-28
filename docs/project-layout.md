@@ -133,7 +133,7 @@ client/
 
 Framework根的asmdef不会吞并有独立asmdef的Bootstrap、Contracts和Envelope子树；Game根的asmdef也不包含独立的Game.Protocol子树。`Assets/Scripts`根不放统一大asmdef；自研源码都归属明确程序集。
 
-Game目录名称本身不提供热更新隔离。Client.Game和Client.Game.Protocol保留autoReferenced=false，并进入HybridCLR热更程序集列表；发行Player中排除其AOT编译。当前尚未实施，程序集名称随本次目录规范确定；D1建立Player基线后名称、入口类型与发布契约保持稳定。
+Game目录名称本身不提供热更新隔离。Client.Game和Client.Game.Protocol已设置autoReferenced=false并进入HybridCLR热更程序集列表；原生探针已验证从Player AOT编译排除。D1最终框架基线和完整双平台更新验收仍待完成；建立最终基线后名称、入口类型与发布契约保持稳定。
 
 依赖方向固定为Bootstrap→Framework/Contracts，Framework→Contracts/Envelope，Game→Framework/Contracts/Game.Protocol；Framework、Contracts、Envelope均不得引用Game，Framework也不能反向引用Bootstrap。Bootstrap选择版本和调用稳定热更入口；Game.Entry初始化应用并打开登录页，二者不各自维护一套更新流程。
 

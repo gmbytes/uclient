@@ -4,7 +4,7 @@
 
 ## 1. 协议归属
 
-协议统一放`E:/sgame/comm/proto`，作为客户端和服务端协同维护的共享协议源。该目录当前为空，Task N0将根据Tok当前定义建立兼容信封、来源锁和准入表；客户端只保留生成后的C#及provenance，不维护另一份可编辑proto。生成和验证工具继续复用`comm/tools`。
+协议统一放`E:/sgame/comm/proto`，作为客户端和服务端协同维护的共享协议源。N0已根据Tok canonical定义建立兼容信封、来源锁和空正式业务准入表，测试源隔离于共享fixtures目录；客户端只保留生成后的C#及provenance，不维护另一份可编辑proto。生成和验证工具继续复用`comm/tools`。
 
 接入Tok demo时，线格式必须兼容Tok当前实现。`comm/proto/tok/client/v1/client.proto`保存服务端完整信封的兼容副本，保留全部消息、package、字段编号、oneof和Frame版本。
 

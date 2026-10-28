@@ -84,12 +84,12 @@
 
 **Interfaces:** `UIWindowCreator.Create(string windowName,string contentDirectory):UIViewDefinition`，windowName使用UILogin等完整UI名；`UIBindingGenerator.Generate(UIBindings source,string namespaceName,string className,string outputFile):BindingGenerationResult`；`UIAuthoringValidator.Validate(UIViewDefinition definition):UIValidationReport`。错误包含稳定Code、AssetPath、ObjectPath、Message、Severity。输出必须为当前Game/<功能>/Generated/<className>.G.Bindings.cs；className、Prefab根名及ViewID一致。生成partial与手写文件同namespace/程序集，手写文件不覆盖，失败不改已有生成物。
 
-- [ ] **Step 1:** 写`CreatesWindowWithSeparateCanvasAndDefinition`、`RejectsWindowOwnedEventSystem`、`RejectsDuplicateViewAndBindingIds`、`RejectsOutOfRootOrWrongTypeReference`、`NestedWidgetHasNoWindowBridge`、`GeneratorPreservesHandwrittenPartial`、`SecondGenerationHasNoDiff`、`SameUINameAcrossCodePrefabAndConfig`、`GeneratedAndHandwrittenCompileAsOnePartialType`；非法UI名/输出后缀、缺引用或非法字段名生成失败且旧文件hash不变。
-- [ ] **Step 2:** 运行`./Tool/Client/Test-Client.ps1 -Task U4 -Mode EditMode`，确认缺工具或不合规样例时失败。
-- [ ] **Step 3:** 实现Game/UI/Create Window和Config：校验UI{Name}命名，创建同名Prefab根、手写UI{Name}.cs骨架、UI{Name}.Config/Layout/Text.asset；按模板建UINode/Background/SafeArea/Static/Dynamic/PoolNode，根挂UIViewBridge+UIBindings，Canvas/CanvasGroup/Raycaster在UINode。已有资产/代码拒绝覆盖，修改可Undo并保存；ViewID与UI名一致，公共组件保留嵌套Prefab。
-- [ ] **Step 4:** 实现UIBindings Inspector拖拽、类型选择、对象定位和数组重排；生成同一UI{Name} partial类型的强类型引用、BindComponents(UIBindings)和ClearBindings，写UI{Name}.G.Bindings.cs并标auto-generated，不生成业务/事件方法。节点名只作首次ID建议，运行时按显式引用Resolve；UI统一大写。
-- [ ] **Step 5:** 实现Validate Selected和Preview：复用绑定校验，增加规范中的主/子窗口、Canvas/Scaler/Raycaster、Missing脚本、TMP字体和公共Prefab检查。打开独立UIEdit场景做布局预览，无更新/服务器流程；原编辑内容需先由用户正常保存，不强制丢弃。输出错误/警告和对象定位；测试资产写忽略的Assets/Tests/Generated/<runId>并安全清理。
-- [ ] **Step 6:** 重跑U4 EditMode，预期TASK_PASS U4；用生成模板完成一次“新建→登记→拖引用→生成→编译→校验→横竖预览”，记录产物路径和生成前后hash。提交`feat(ui-editor): 建立CSharp界面制作与校验流程`。本Task不要求实现登录业务。
+- [x] **Step 1:** 写`CreatesWindowWithSeparateCanvasAndDefinition`、`RejectsWindowOwnedEventSystem`、`RejectsDuplicateViewAndBindingIds`、`RejectsOutOfRootOrWrongTypeReference`、`NestedWidgetHasNoWindowBridge`、`GeneratorPreservesHandwrittenPartial`、`SecondGenerationHasNoDiff`、`SameUINameAcrossCodePrefabAndConfig`、`GeneratedAndHandwrittenCompileAsOnePartialType`；非法UI名/输出后缀、缺引用或非法字段名生成失败且旧文件hash不变。
+- [x] **Step 2:** 运行`./Tool/Client/Test-Client.ps1 -Task U4 -Mode EditMode`，确认缺工具或不合规样例时失败。
+- [x] **Step 3:** 实现Game/UI/Create Window和Config：校验UI{Name}命名，创建同名Prefab根、手写UI{Name}.cs骨架、UI{Name}.Config/Layout/Text.asset；按模板建UINode/Background/SafeArea/Static/Dynamic/PoolNode，根挂UIViewBridge+UIBindings，Canvas/CanvasGroup/Raycaster在UINode。已有资产/代码拒绝覆盖，修改可Undo并保存；ViewID与UI名一致，公共组件保留嵌套Prefab。
+- [x] **Step 4:** 实现UIBindings Inspector拖拽、类型选择、对象定位和数组重排；生成同一UI{Name} partial类型的强类型引用、BindComponents(UIBindings)和ClearBindings，写UI{Name}.G.Bindings.cs并标auto-generated，不生成业务/事件方法。节点名只作首次ID建议，运行时按显式引用Resolve；UI统一大写。
+- [x] **Step 5:** 实现Validate Selected和Preview：复用绑定校验，增加规范中的主/子窗口、Canvas/Scaler/Raycaster、Missing脚本、TMP字体和公共Prefab检查。打开独立UIEdit场景做布局预览，无更新/服务器流程；原编辑内容需先由用户正常保存，不强制丢弃。输出错误/警告和对象定位；测试资产写忽略的Assets/Tests/Generated/<runId>并安全清理。
+- [x] **Step 6:** 重跑U4 EditMode，预期TASK_PASS U4；用生成模板完成一次“新建→登记→拖引用→生成→编译→校验→横竖预览”，记录产物路径和生成前后hash。提交`feat(ui-editor): 建立CSharp界面制作与校验流程`。本Task不要求实现登录业务。
 
 ### Task U5：无业务登录示例与首帧就绪
 
@@ -101,11 +101,11 @@
 
 **Interfaces:** `Entry:IHotfixEntry`创建普通C# `UILogin`对象；`UILogin.Bind(IViewHandle view,ISessionClient session)`、`Unbind()`定义在手写partial。Bind调用生成partial的`BindComponents(UIBindings bindings)`取得并校验Title、AccountInput、LoginButton、CancelButton、StatusLabel、VersionLabel，再注册事件；Unbind先取消请求/订阅，再`ClearBindings()`。两个文件属于同一Client.Game.Login.UILogin类型，不挂Prefab。ViewID=UILogin，Profile选择LocalSimulation或TokDevelopment。
 
-- [ ] **Step 1:** 写 `OneClickCreatesOneLogin`、`ButtonStatesFollowSessionState`、`RotateDuringLoginRetainsTextFocusAndRequest`、`CloseThenLateSuccessDoesNotTouchView`、`SimulationNeverClaimsServerAuthentication`；运行U5 PlayMode确认红灯。
-- [ ] **Step 2:** 使用U4模板/配置/绑定生成器制作登录页，遵循UI编辑规范；包括标题、测试账号、登录/取消、有限错误/状态、演示版本。模拟模式始终显示“本地模拟”；真实开发登录使用N3 demo凭据，不加密码注册、SDK或区服业务。
-- [ ] **Step 3:** 登录中禁重入、允许取消；成功停在本页显示“已登录（框架演示）”；拒绝/断线恢复按钮并如实显示。旋转不新建UILogin页面对象或session，不重绑控件/事件。账号/令牌不进入日志。
-- [ ] **Step 4:** 本地资源、Envelope自检和登录首帧完成后调用context.ReportReady一次；此时不要求远程登录成功。运行 `./Tool/Client/Test-Client.ps1 -Task U5 -Mode PlayMode`，20次开关与返回登录后事件/资源句柄回基线。
-- [ ] **Step 5:** 提交 `feat(login): 添加可热更自适配登录示例`。
+- [x] **Step 1:** 写 `OneClickCreatesOneLogin`、`ButtonStatesFollowSessionState`、`RotateDuringLoginRetainsTextFocusAndRequest`、`CloseThenLateSuccessDoesNotTouchView`、`SimulationNeverClaimsServerAuthentication`；运行U5 PlayMode确认红灯。
+- [x] **Step 2:** 使用U4模板/配置/绑定生成器制作登录页，遵循UI编辑规范；包括标题、测试账号、登录/取消、有限错误/状态、演示版本。模拟模式始终显示“本地模拟”；真实开发登录使用N3 demo凭据，不加密码注册、SDK或区服业务。
+- [x] **Step 3:** 登录中禁重入、允许取消；成功停在本页显示“已登录（框架演示）”；拒绝/断线恢复按钮并如实显示。旋转不新建UILogin页面对象或session，不重绑控件/事件。账号/令牌不进入日志。
+- [x] **Step 4:** 本地资源、Envelope自检和登录首帧完成后调用context.ReportReady一次；此时不要求远程登录成功。运行 `./Tool/Client/Test-Client.ps1 -Task U5 -Mode PlayMode`，20次开关与返回登录后事件/资源句柄回基线。
+- [x] **Step 5:** 提交 `feat(login): 添加可热更自适配登录示例`。
 
 ### Task D1：统一Player/补丁构建与不可变基线归档
 

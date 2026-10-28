@@ -27,6 +27,7 @@ namespace Client.Editor.UI
             string dir=(contentDirectory??"").Replace('\\','/').TrimEnd('/');
             string full=Path.GetFullPath(dir), assets=Path.GetFullPath("Assets")+Path.DirectorySeparatorChar;
             if(!full.StartsWith(assets,StringComparison.OrdinalIgnoreCase) || Path.GetFileName(dir)!=windowName.Substring(2))throw new ArgumentException("UI_DIRECTORY: content feature directory must match UI name.");
+            string namespaceName=UIBindingGenerator.NamespaceFor(dir);
             string codeDir=UIBindingGenerator.CodeDirectory(dir),hand=codeDir+"/"+windowName+".cs",generated=UIBindingGenerator.OutputFor(dir,windowName);
             string[] targets={dir+"/"+windowName+".prefab",dir+"/"+windowName+".Config.asset",dir+"/"+windowName+".Layout.asset",dir+"/"+windowName+".Text.asset",hand,generated};
             var reusedLayout=AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>(targets[2]);
@@ -51,8 +52,8 @@ namespace Client.Editor.UI
                 var definition=new UIViewDefinition{ViewID=windowName,PrefabAddress=targets[0],Group=UIGroups.Page,LayoutDefinition=layout};
                 Undo.RecordObject(catalog,"Register UI window");catalog.Configure(old.Concat(new[]{definition}).ToArray());EditorUtility.SetDirty(catalog);
                 var config=ScriptableObject.CreateInstance<UIWindowConfig>();config.Catalog=catalog;config.ViewID=windowName;AssetDatabase.CreateAsset(config,targets[1]);
-                File.WriteAllText(hand,"namespace Client.Game\n{\n    public sealed partial class "+windowName+"\n    {\n    }\n}\n",new System.Text.UTF8Encoding(false));
-                var generation=UIBindingGenerator.Generate(root.GetComponent<UIBindings>(),"Client.Game",windowName,generated);
+                File.WriteAllText(hand,"namespace "+namespaceName+"\n{\n    public sealed partial class "+windowName+"\n    {\n    }\n}\n",new System.Text.UTF8Encoding(false));
+                var generation=UIBindingGenerator.Generate(root.GetComponent<UIBindings>(),namespaceName,windowName,generated);
                 if(!generation.Success)throw new InvalidOperationException(generation.Error);
                 AssetDatabase.SaveAssetIfDirty(catalog);AssetDatabase.Refresh();return definition;
             }

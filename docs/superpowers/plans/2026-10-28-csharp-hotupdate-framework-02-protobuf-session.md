@@ -111,11 +111,11 @@ N0验收：client c5f5a79 / comm467e131，24/24用例通过，独立规范与质
 
 **Interfaces:** `Test-ProtocolInterop.ps1 -TokRoot E:/sgame/tok -ProtoRoot E:/sgame/comm/proto` 输出 `Builds/ProtocolInterop/<runId>/result.json`。Managed项目显式Include实际纯C#根`Assets/Scripts/Framework/Protocol`、`Network/Core`及纯SessionContracts/ISessionClient等必要文件；`Framework/Core`是预留目录，有实际代码时才纳入。不能宽泛Include带Unity/GF的文件，不把asmdef或Unity组件链接到.NET测试。边界检查必须使用新根，必需根缺失/扫描零文件直接失败；不能为满足扫描建立占位代码。
 
-- [ ] **Step 1:** 写Golden fixture字段断言，覆盖Frame所有oneof、控制请求/回应、bytes正文、uint64边界；新增字段V2经V1解析后保留未知字段，再经V2读取仍在。比较语义字段，不依赖任意Protobuf序列化输出的规范顺序。
-- [ ] **Step 2:** 运行新Managed测试，确认缺生成物/错误Frame实现时失败；验证新根缺失或被注入UnityEditor/Hotfix反向引用时边界检查失败，防止仍扫旧路径而假通过。更新所有测试.proto读取者到comm/proto/tests/fixtures，客户端Tests/Fixtures与Tests/Managed只保留生成物、向量和C#测试。
-- [ ] **Step 3:** 执行现有Rust emit→新C#逐字段读取→C#emit→现有Rust verify/verify-golden；所有路径和工具版本进入result.json，Rust工具链或protoc缺失报阻塞，不把缓存日志记通过。
-- [ ] **Step 4:** 在Tok根执行`just run examples/demo-game/config/local.toml`持续运行demo，Windows连接127.0.0.1:7000、账号42→demo:42，验证成功/拒绝/断线；拒绝误用7001内部gRPC。AndroidUSB联调先`adb -s <serial> reverse tcp:7000 tcp:7000`并记录，结束移除映射。服务未运行/依赖未满足时真实联调项保持未完成，不修改Tok核心或虚报fixture为真实demo。
-- [ ] **Step 5:** 归档供F8/D2复用的fixture V1/V2生成物和Parser向量，断言AOT固定Envelope hash不变；本Task以Managed互操作和真实Tok demo结果验收，不等待D2。真实IL2CPP热更新类型验证由F8/D2负责并单独记录。提交 `test(protocol): 验证Tok互操作与热更生成类型`。
+- [x] **Step 1:** 写Golden fixture字段断言，覆盖Frame所有oneof、控制请求/回应、bytes正文、uint64边界；新增字段V2经V1解析后保留未知字段，再经V2读取仍在。比较语义字段，不依赖任意Protobuf序列化输出的规范顺序。
+- [x] **Step 2:** 运行新Managed测试，确认缺生成物/错误Frame实现时失败；验证新根缺失或被注入UnityEditor/Hotfix反向引用时边界检查失败，防止仍扫旧路径而假通过。更新所有测试.proto读取者到comm/proto/tests/fixtures，客户端Tests/Fixtures与Tests/Managed只保留生成物、向量和C#测试。
+- [x] **Step 3:** 执行现有Rust emit→新C#逐字段读取→C#emit→现有Rust verify/verify-golden；所有路径和工具版本进入result.json，Rust工具链或protoc缺失报阻塞，不把缓存日志记通过。
+- [x] **Step 4:** 在Tok根执行`just run examples/demo-game/config/local.toml`持续运行demo，Windows连接127.0.0.1:7000、账号42→demo:42，验证成功/拒绝/断线；拒绝误用7001内部gRPC。若内部7001被无关进程占用，保留该进程，在Builds复制run-local配置仅把内部RPC改为已验证空闲的loopback端口，以`just run <run-config>`运行同一demo；若安装的just无法解析既有justfile，记录失败并显式执行其中等价的`cargo run -p demo-game --locked -- --config <run-config>`。记录原配置/副本hash和精确差异，TCP7000和其余配置保持一致，不声称默认命令已通过。AndroidUSB联调先`adb -s <serial> reverse tcp:7000 tcp:7000`并记录，结束移除映射。服务未运行/依赖未满足时真实联调项保持未完成，不修改Tok核心或虚报fixture为真实demo。
+- [x] **Step 5:** 归档供F8/D2复用的fixture V1/V2生成物和Parser向量，断言AOT固定Envelope hash不变；本Task以Managed互操作和真实Tok demo结果验收，不等待D2。真实IL2CPP热更新类型验证由F8/D2负责并单独记录。提交 `test(protocol): 验证Tok互操作与热更生成类型`。
 
 ## 明确后置的会话能力
 
