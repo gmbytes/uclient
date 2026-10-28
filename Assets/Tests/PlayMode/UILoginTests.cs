@@ -124,6 +124,21 @@ namespace Client.Tests
             session.Complete(new LoginResult(true,LoginError.None,0,new SessionIdentity("p","new",2,"secret",1),null));yield return null;
             Assert.That(Control<Text>("StatusLabel").text,Is.EqualTo("已登录（框架演示）"));
         }
+        [UnityTest] public IEnumerator DisconnectAfterCompletedSuccessBeforeContinuationKeepsRetryEnabled()
+        {
+            Control<InputField>("AccountInput").text="10001";Control<Button>("LoginButton").onClick.Invoke();
+            session.Emit(SessionState.Authenticated);
+            session.Complete(new LoginResult(true,LoginError.None,0,new SessionIdentity("p","s",1,"secret",1),null));
+            session.Emit(SessionState.Disconnected);
+            Assert.That(Control<Text>("StatusLabel").text,Is.EqualTo("连接已断开，请重试"));
+            Assert.That(Control<Button>("LoginButton").interactable,Is.True);Assert.That(Control<Button>("CancelButton").interactable,Is.False);
+            yield return null;
+            Assert.That(Control<Text>("StatusLabel").text,Is.EqualTo("连接已断开，请重试"));
+            Assert.That(Control<Button>("LoginButton").interactable,Is.True);Assert.That(Control<Button>("CancelButton").interactable,Is.False);
+            Control<Button>("LoginButton").onClick.Invoke();Assert.That(session.Calls,Is.EqualTo(2));
+            session.Complete(new LoginResult(false,LoginError.Rejected,3,null,null));yield return null;
+            Assert.That(Control<Button>("LoginButton").interactable,Is.True);Assert.That(Control<Text>("StatusLabel").text,Does.Contain("拒绝"));
+        }
         [UnityTest] public IEnumerator TwentyOpenCloseCyclesReturnEventsAndNativeHandlesToBaseline()
         {
             Call(presenter,"Unbind");view.Close();
@@ -187,7 +202,7 @@ namespace Client.Tests
             public TaskCompletionSource<LoginResult> Pending=>pending;
             public int Calls,Subscribers;public LoginInput Input;public CancellationToken Token;
             public event Action<SessionState> StateChanged{add{changed+=value;Subscribers++;}remove{changed-=value;Subscribers--;}}
-            public Task<LoginResult> LoginAsync(LoginInput input,CancellationToken token){Calls++;Input=input;Token=token;pending=new TaskCompletionSource<LoginResult>();Emit(SessionState.Connecting);return pending.Task;}
+            public Task<LoginResult> LoginAsync(LoginInput input,CancellationToken token){Calls++;Input=input;Token=token;pending=new TaskCompletionSource<LoginResult>(TaskCreationOptions.RunContinuationsAsynchronously);Emit(SessionState.Connecting);return pending.Task;}
             public void Disconnect()=>Emit(SessionState.Disconnected);
             public void Emit(SessionState state)=>changed?.Invoke(state);
             public void Complete(LoginResult result)=>pending.TrySetResult(result);
