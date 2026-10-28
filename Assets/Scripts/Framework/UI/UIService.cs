@@ -22,6 +22,7 @@ namespace Client.Framework.UI
         private readonly HashSet<OpenRequest> pending = new HashSet<OpenRequest>();
         private readonly List<UIViewHandle> active = new List<UIViewHandle>();
         private bool listening, disposed;
+        internal event Action<UIViewHandle> FirstFramePresented;
 
         public UIService(UIComponent ui, EventComponent events, UIViewDefinitions catalog, AdaptiveCanvas canvas, Transform windows)
         {
@@ -172,6 +173,52 @@ namespace Client.Framework.UI
             active.Remove(handle); RefreshInput();
         }
 
+        internal Task WaitForFirstFrameAsync(UIViewHandle handle, CancellationToken token)
+        {
+            CheckThread(); token.ThrowIfCancellationRequested();
+            if (disposed || handle.IsClosed || !active.Contains(handle)) throw new ObjectDisposedException(nameof(UIViewHandle));
+            return new FirstFrameObservation(this, handle, token).Start();
+        }
+
+        internal bool CanPresent(UIViewHandle handle)
+        {
+            if (disposed || handle.IsClosed || handle.Lifetime.IsCancellationRequested || !active.Contains(handle) ||
+                !ui.HasUIForm(handle.SerialId) || ui.GetUIForm(handle.SerialId).Logic != handle.Bridge) return false;
+            var bridge = handle.Bridge;
+            var snapshot = bridge.AppliedSnapshot;
+            var windowCanvas = bridge.RootCanvas;
+            if (snapshot == null || !ReferenceEquals(snapshot, screen.Current) || snapshot.Width <= 0 || snapshot.Height <= 0 ||
+                !bridge.Visible || !bridge.isActiveAndEnabled || !bridge.gameObject.activeInHierarchy ||
+                windowCanvas == null || !windowCanvas.isActiveAndEnabled ||
+                SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return false;
+            var rootCanvas = windowCanvas.rootCanvas;
+            if (rootCanvas == null || !rootCanvas.isActiveAndEnabled || rootCanvas.pixelRect.width <= 0 || rootCanvas.pixelRect.height <= 0) return false;
+            if (rootCanvas.renderMode == RenderMode.ScreenSpaceCamera &&
+                (rootCanvas.worldCamera == null || !rootCanvas.worldCamera.isActiveAndEnabled)) return false;
+            if (!(windowCanvas.transform is RectTransform rect) || rect.rect.width <= 0 || rect.rect.height <= 0) return false;
+            float opacity = 1;
+            for (Transform current = windowCanvas.transform; current != null; current = current.parent)
+            {
+                foreach (var currentCanvas in current.GetComponents<Canvas>()) if (!currentCanvas.isActiveAndEnabled) return false;
+                foreach (var group in current.GetComponents<CanvasGroup>())
+                    if (group.isActiveAndEnabled) opacity *= Mathf.Clamp01(group.alpha);
+                if (opacity <= .001f) return false;
+            }
+            return true;
+        }
+
+        internal bool ConfirmFirstFrame(UIViewHandle handle)
+        {
+            CheckThread();
+            if (!CanPresent(handle)) return false;
+            if (!handle.HasPresentedFrame)
+            {
+                handle.MarkPresented();
+                FirstFramePresented?.Invoke(handle);
+            }
+            return CanPresent(handle);
+        }
+
         private void RefreshInput()
         {
             int modalOrder = int.MinValue;
@@ -199,13 +246,14 @@ namespace Client.Framework.UI
             { request.Completion.TrySetCanceled(); Cancel(request); }
             foreach (var handle in active.ToArray()) handle.Close();
             SetListening(false);
+            FirstFramePresented = null;
         }
 
         private void CheckThread()
         {
             if (Thread.CurrentThread.ManagedThreadId != threadId) throw new InvalidOperationException("UI operations require the Unity main thread.");
         }
-        private void OnMainThread(Action action)
+        internal void OnMainThread(Action action)
         {
             if (Thread.CurrentThread.ManagedThreadId == threadId) action();
             else if (context != null) context.Post(_ => action(), null);
