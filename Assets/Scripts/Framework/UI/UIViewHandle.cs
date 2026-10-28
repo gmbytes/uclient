@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Client.Contracts;
 using UnityEngine;
 using UnityEngine.Events;
@@ -22,6 +23,9 @@ namespace Client.Framework.UI
         public bool IsClosed { get; private set; }
         public CancellationToken Lifetime => token;
         public event Action Closed;
+        internal bool HasPresentedFrame { get; private set; }
+        internal Task WaitForFirstFrameAsync(CancellationToken cancellation) => owner.WaitForFirstFrameAsync(this, cancellation);
+        internal void MarkPresented() => HasPresentedFrame = true;
 
         internal UIViewHandle(UIService owner, UIViewBridge bridge, UIViewDefinition definition, int serialId)
         {
@@ -59,7 +63,7 @@ namespace Client.Framework.UI
         internal void Invalidate()
         {
             if (IsClosed) return;
-            IsClosed = true; Bridge.Closed -= Invalidate;
+            IsClosed = true; HasPresentedFrame = false; Bridge.Closed -= Invalidate;
             foreach (var subscription in subscriptions) subscription.Dispose();
             subscriptions.Clear();
             // Removal/order state must be settled before presenter continuations run.

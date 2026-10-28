@@ -26,6 +26,7 @@ namespace Client.Framework.UI
         public event Action<bool> VisibilityChanged;
         public event Action Closed;
         internal event Action OrderChanged;
+        internal ScreenLayoutSnapshot AppliedSnapshot { get; private set; }
 
         public void Configure(Canvas rootCanvas, CanvasGroup rootCanvasGroup, UIBindings bindings,
             AdaptiveLayout layout = null, KeyboardVisibilityController keyboard = null, Button mask = null, SafeAreaRoot localSafeArea = null)
@@ -40,10 +41,12 @@ namespace Client.Framework.UI
         /// <summary>Shared runtime/preview ordering: local safe content, layout, then keyboard baseline.</summary>
         public void Apply(ScreenLayoutSnapshot snapshot)
         {
+            AppliedSnapshot = null;
             if (snapshot == null) return;
             if (m_LocalSafeArea != null) m_LocalSafeArea.Apply(snapshot.ClampedSafeArea, new Vector2(snapshot.Width, snapshot.Height));
             if (m_Layout != null) m_Layout.Apply(snapshot);
             if (m_Keyboard != null) m_Keyboard.SetLayoutSnapshot(snapshot);
+            AppliedSnapshot = snapshot;
         }
 
         internal void SetInputEnabled(bool enabled)
@@ -57,7 +60,7 @@ namespace Client.Framework.UI
         {
             base.OnClose(isShutdown, userData);
             try { Closed?.Invoke(); }
-            finally { Closed = null; VisibilityChanged = null; OrderChanged = null; }
+            finally { AppliedSnapshot = null; Closed = null; VisibilityChanged = null; OrderChanged = null; }
         }
         protected override void OnDepthChanged(int uiGroupDepth, int depthInUIGroup)
         {
