@@ -13,7 +13,6 @@ using Client.Framework.UI;
 using GameFramework.Event;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -54,9 +53,10 @@ namespace Client.Bootstrap
                 await Task.Yield();
                 var identity=JObject.Parse(await ReadNativeDocument("ClientIdentity.json"));
                 var player=new PlayerIdentity((string)identity["playerBuildId"],(string)identity["platform"],(string)identity["architecture"],(string)identity["unityVersion"],(string)identity["contractVersion"],(string)identity["envelopeSha256"],(string)identity["aotMetadataSetId"]);
-                if(profile.PackageId!=Application.identifier)throw new InvalidDataException("Baked profile package differs from this native application.");
+                evidence.Record("native.runtime",new {applicationId=Application.identifier,profilePackageId=profile.PackageId,platform=Application.platform.ToString(),unityVersion=Application.unityVersion,pointerBits=IntPtr.Size*8});
+                RequireRuntimeIdentity(player,profile.PackageId,Application.platform,Application.identifier,Application.unityVersion,IntPtr.Size);
                 releaseRoot=Path.Combine(ReleaseStore.PersistentRoot,player.PlayerBuildId);
-                evidence.Record("native.identity",new {player,releaseRoot,applicationId=Application.identifier,platform=Application.platform.ToString(),pointerBits=IntPtr.Size*8,processor=SystemInfo.processorType,profileSha256=HotfixLoadPlan.Hash(System.Text.Encoding.UTF8.GetBytes(profile.Json))});
+                evidence.Record("native.identity",new {player,releaseRoot,applicationId=Application.identifier,profilePackageId=profile.PackageId,platform=Application.platform.ToString(),pointerBits=IntPtr.Size*8,processor=SystemInfo.processorType,profileSha256=HotfixLoadPlan.Hash(System.Text.Encoding.UTF8.GetBytes(profile.Json))});
                 var verifier=profile.CreateVerifier();state=new ReleaseStateStore(releaseRoot,verifier,player,evidence);
                 evidence.Record("state.before",state.Read());
                 events=GameEntry.GetComponent<EventComponent>();
@@ -83,6 +83,16 @@ namespace Client.Bootstrap
                 Debug.LogException(error);evidence?.Record("host.failure",new {error=Bounded(error.ToString())});completed=true;
                 if(options?.AutoExit==true)StartCoroutine(FinishAcceptance());
             }
+        }
+        private static void RequireRuntimeIdentity(PlayerIdentity player,string profilePackageId,RuntimePlatform runtimePlatform,string actualApplicationId,string runtimeUnityVersion,int pointerBytes)
+        {
+            if(runtimePlatform!=RuntimePlatform.WindowsPlayer&&runtimePlatform!=RuntimePlatform.Android)throw new InvalidDataException("Unsupported native runtime platform.");
+            string platform=runtimePlatform==RuntimePlatform.Android?"Android":"StandaloneWindows64";
+            string architecture=runtimePlatform==RuntimePlatform.Android?"arm64":"x64";
+            if(player.Platform!=platform||player.Architecture!=architecture||player.UnityVersion!=runtimeUnityVersion||pointerBytes!=8)
+                throw new InvalidDataException("Native Player identity differs from the actual platform, target architecture, Unity version or pointer width.");
+            // Win32 standalone has no Android-style OS package identifier. Native package pins still bind the full Player identity.
+            if(runtimePlatform==RuntimePlatform.Android&&profilePackageId!=actualApplicationId)throw new InvalidDataException("Baked profile package differs from this native Android application.");
         }
         private void OnChanged(ReleaseDiagnostics diagnostics)
         {
@@ -121,7 +131,7 @@ namespace Client.Bootstrap
         private void LateUpdate()
         {
             if(evidence==null||options?.Enabled!=true)return;
-            var input=FindObjectsOfType<TMP_InputField>().FirstOrDefault();
+            var input=FindObjectsOfType<InputField>().FirstOrDefault();
             var layout=FindObjectsOfType<ScreenLayoutComponent>().FirstOrDefault(c=>c.Service.Current!=null);
             var bridge=FindObjectsOfType<UIViewBridge>().FirstOrDefault();
             var buttons=FindObjectsOfType<Button>().Select(b=>new {id=b.GetInstanceID(),name=b.name,active=b.gameObject.activeInHierarchy,interactable=b.IsInteractable(),bounds=Bounds(b.transform as RectTransform)}).ToArray();

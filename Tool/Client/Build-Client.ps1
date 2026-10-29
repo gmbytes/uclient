@@ -11,7 +11,7 @@ param(
     [string]$ReleaseId,
     [string]$HotfixOverlay,
     [string]$UnityEditor,
-    [string]$ProtocSource='E:/sgame/client/Builds/tools/protoc/36.2/bin/protoc.exe',
+    [string]$ProtocSource,
     [string]$HybridClrSource='E:/sgame/client/Builds/dependencies/assembled-libil2cpp'
 )
 . "$PSScriptRoot/Unity-Common.ps1"
@@ -40,7 +40,7 @@ $env:JAVA_HOME='E:/sgame/.tools/unity-android-2022.3.25f1/jdk11'
 $env:SDK_TEST_BASE_URL='file:///E:/sgame/client/Builds/tools/sdk-metadata/'
 $protoc=Join-Path $project 'Builds/tools/protoc/36.2/bin/protoc.exe';NoReparse $protoc
 $expected=(Get-Content (Join-Path $project 'Tests/Fixtures/Delivery/provenance.json') -Raw|ConvertFrom-Json).protocSha256
-if(-not(Test-Path -LiteralPath $protoc)){if((Get-FileHash -LiteralPath $ProtocSource -Algorithm SHA256).Hash.ToLowerInvariant()-cne$expected){throw 'Pinned protoc source bytes differ.'};New-Item -ItemType Directory -Force (Split-Path -Parent $protoc)|Out-Null;Copy-Item -LiteralPath $ProtocSource -Destination $protoc}
+if(-not(Test-Path -LiteralPath $protoc)){if([string]::IsNullOrWhiteSpace($ProtocSource)){throw "Pinned protoc is missing. Run '$env:SGAME_COMM_ROOT/tools/Dependencies/Restore-Dependencies.ps1 -ClientRoot $project' or supply an explicit pinned -ProtocSource."};if((Get-FileHash -LiteralPath $ProtocSource -Algorithm SHA256).Hash.ToLowerInvariant()-cne$expected){throw 'Pinned protoc source bytes differ.'};New-Item -ItemType Directory -Force (Split-Path -Parent $protoc)|Out-Null;Copy-Item -LiteralPath $ProtocSource -Destination $protoc}
 if((Get-FileHash -LiteralPath $protoc -Algorithm SHA256).Hash.ToLowerInvariant()-cne$expected){throw 'Owned protoc cache differs from the pinned input.'}
 if(-not$LinkerPolicy){& "$PSScriptRoot/Build-LinkerPolicy.ps1" -UnityEditor $editor;if($LASTEXITCODE-ne0){throw 'Linker policy producer failed.'};$LinkerPolicy=Join-Path $project 'Builds/LinkerPolicy/policy.json'}else{$LinkerPolicy=Full $LinkerPolicy}
 $invocation=Join-Path $project ('Builds/BuildInvocations/'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8));New-Item -ItemType Directory -Path $invocation|Out-Null

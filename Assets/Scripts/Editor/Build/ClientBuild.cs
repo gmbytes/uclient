@@ -63,7 +63,12 @@ namespace Client.Editor.Build
                     }
                     finally
                     {
-                        try{AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport|ImportAssetOptions.ForceUpdate);EditorSceneManager.RestoreSceneManagerSetup(scenes);}
+                        try
+                        {
+                            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport|ImportAssetOptions.ForceUpdate);
+                            if(scenes.Length==0)EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+                            else EditorSceneManager.RestoreSceneManagerSetup(scenes);
+                        }
                         finally{AssetDatabase.AllowAutoRefresh();EditorApplication.UnlockReloadAssemblies();}
                     }
                     inputs.VerifyRestoration();
