@@ -1,0 +1,5 @@
+syntax = "proto3";
+package client.acceptance.v1;
+option csharp_namespace = "Client.Game.Protocol.AcceptanceV1";
+message BaselineItem { string value = 1; }
+message BaselineMessage { uint64 number = 1; repeated BaselineItem items = 2; map<uint64, BaselineItem> by_id = 3; }

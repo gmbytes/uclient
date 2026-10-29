@@ -54,6 +54,7 @@ namespace Client.Framework.Release
                 ReleaseState before = state.Read();
                 if (before.Attempt > 0) throw new InvalidOperationException("An unfinished candidate trial must be recovered before preparation.");
                 string destination = ReleaseFileSystem.Child(root, "slots/" + release.ReleaseId);
+                (faults as IReleaseBoundaryObserver)?.Preparation(release, destination);
                 if (Directory.Exists(destination))
                 {
                     VerifiedRelease existing = state.VerifySlot(release.ReleaseId);

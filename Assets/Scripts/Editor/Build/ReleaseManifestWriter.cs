@@ -7,6 +7,16 @@ namespace Client.Editor.Build
 {
     public static class ReleaseManifestWriter
     {
+        public static void WriteSignedWithProfile(string outputDirectory,byte[] json,NativeBuildProfile profile,RSA signingKey,PlayerIdentity player)
+        {
+            if(profile==null)throw new ArgumentNullException(nameof(profile));profile.RequireSigner(signingKey);
+            if(profile.KeyId.StartsWith("test",StringComparison.OrdinalIgnoreCase)||profile.KeyId.StartsWith("dev",StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("A non-test/development signing key ID is required.");
+            byte[] raw=(byte[])(json??throw new ArgumentNullException(nameof(json))).Clone();
+            byte[] signature=signingKey.SignData(raw,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1);
+            var release=profile.CreateVerifier().Verify(raw,signature,player);
+            if(release.KeyId!=profile.KeyId)throw new InvalidOperationException("The document key ID differs from the trusted public profile.");
+            Directory.CreateDirectory(outputDirectory);File.WriteAllBytes(Path.Combine(outputDirectory,"release.json"),raw);File.WriteAllBytes(Path.Combine(outputDirectory,"release.sig"),signature);
+        }
         // Editor-only signer. Callers obtain the signing key outside the repository.
         public static void WriteSigned(string outputDirectory, byte[] json, string keyId, RSA signingKey, PlayerIdentity player)
         {

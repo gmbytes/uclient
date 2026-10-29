@@ -32,6 +32,7 @@ namespace Client.Game
             if(context==null)throw new ArgumentNullException(nameof(context));
             if(started)throw new InvalidOperationException("An entry instance initializes only once.");
             started=true;ownerContext=SynchronizationContext.Current;
+            context.Log?.Write(ClientLogLevel.Info,"CLIENT_ENTRY_EXECUTING","Client.Game.Entry");
             lifetime=CancellationTokenSource.CreateLinkedTokenSource(context.Lifetime,token);
             var launchToken=lifetime.Token;
             try
@@ -53,10 +54,12 @@ namespace Client.Game
                 view=opened;
                 launchToken.ThrowIfCancellationRequested();
                 presenter=new UILogin();presenter.ConfigurePresentation(label,version);presenter.Bind(opened,session);
+                context.Log?.Write(ClientLogLevel.Info,"CLIENT_VIEW",Newtonsoft.Json.JsonConvert.SerializeObject(new {view=opened.Root.GetInstanceID(),presenter=System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(presenter),version,mode=mode.ToString()}));
                 await UIFirstFrame.WaitAsync(opened,launchToken);
                 launchToken.ThrowIfCancellationRequested();
                 ((UIViewHandle)opened).Lifetime.ThrowIfCancellationRequested();
                 if(!ReferenceEquals(view,opened))throw new OperationCanceledException(launchToken);
+                DeliveryVersion.Run(context.Log);
                 context.ReportReady();
             }
             catch

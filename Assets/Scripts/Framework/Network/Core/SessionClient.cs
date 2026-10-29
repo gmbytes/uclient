@@ -24,6 +24,9 @@ namespace Client.Framework.Network
         private volatile SessionIdentity identity;
         public SessionState State => state;
         public SessionIdentity Identity => identity;
+        // Owning-context observations only; these values confer no request/state mutation capability.
+        public long ConnectionEpoch => epoch;
+        public ulong ActiveRequestId => current?.RequestId ?? 0;
         public event Action<SessionState> StateChanged;
 #if UNITY_EDITOR
         // Per-instance scheduling seam for the split mailbox publication regression only.

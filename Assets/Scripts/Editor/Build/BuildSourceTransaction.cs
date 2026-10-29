@@ -22,6 +22,8 @@ namespace Client.Editor.Build
             Capture(() => PlayerSettings.defaultScreenWidth, v => PlayerSettings.defaultScreenWidth = v);
             Capture(() => PlayerSettings.defaultScreenHeight, v => PlayerSettings.defaultScreenHeight = v);
             Capture(() => PlayerSettings.resizableWindow, v => PlayerSettings.resizableWindow = v);
+            Capture(() => PlayerSettings.fullScreenMode, v => PlayerSettings.fullScreenMode = v);
+            Capture(() => PlayerSettings.insecureHttpOption, v => PlayerSettings.insecureHttpOption = v);
             Capture(() => PlayerSettings.defaultInterfaceOrientation, v => PlayerSettings.defaultInterfaceOrientation = v);
             Capture(() => PlayerSettings.allowedAutorotateToPortrait, v => PlayerSettings.allowedAutorotateToPortrait = v);
             Capture(() => PlayerSettings.allowedAutorotateToPortraitUpsideDown, v => PlayerSettings.allowedAutorotateToPortraitUpsideDown = v);
@@ -38,9 +40,15 @@ namespace Client.Editor.Build
             }
             Capture(() => EditorUserBuildSettings.development, v => EditorUserBuildSettings.development = v);
             Capture(() => EditorUserBuildSettings.buildScriptsOnly, v => EditorUserBuildSettings.buildScriptsOnly = v);
+            Capture(() => EditorUserBuildSettings.buildAppBundle, v => EditorUserBuildSettings.buildAppBundle = v);
             Capture(() => EditorUserBuildSettings.exportAsGoogleAndroidProject, v => EditorUserBuildSettings.exportAsGoogleAndroidProject = v);
 #if UNITY_EDITOR_WIN
             Capture(() => UnityEditor.WindowsStandalone.UserBuildSettings.createSolution, v => UnityEditor.WindowsStandalone.UserBuildSettings.createSolution = v);
+#endif
+#if UNITY_ANDROID
+            Capture(() => UnityEditor.Android.AndroidExternalToolsSettings.sdkRootPath, v => UnityEditor.Android.AndroidExternalToolsSettings.sdkRootPath = v);
+            Capture(() => UnityEditor.Android.AndroidExternalToolsSettings.ndkRootPath, v => UnityEditor.Android.AndroidExternalToolsSettings.ndkRootPath = v);
+            Capture(() => UnityEditor.Android.AndroidExternalToolsSettings.jdkRootPath, v => UnityEditor.Android.AndroidExternalToolsSettings.jdkRootPath = v);
 #endif
             Capture(() => EditorSettings.serializationMode, v => EditorSettings.serializationMode = v);
             Capture(() => EditorBuildSettings.scenes, v => EditorBuildSettings.scenes = v);
