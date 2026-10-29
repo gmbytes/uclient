@@ -25,8 +25,8 @@ namespace Client.Framework.Release
             RelativePathPolicy.RequireCanonical(relativePath); token.ThrowIfCancellationRequested();
             if (!android) return new FileStream(ReleaseFileSystem.Child(ReleaseFileSystem.Root(root), relativePath), FileMode.Open, FileAccess.Read, FileShare.Read);
             // Android's APK jar URI is read through Unity's platform transport into bounded-memory scratch.
-            Directory.CreateDirectory(temporaryRoot);
             string temporary = ReleaseFileSystem.Child(temporaryRoot, Guid.NewGuid().ToString("N") + ".partial");
+            Directory.CreateDirectory(temporaryRoot);
             try
             {
                 string uri = root.TrimEnd('/') + "/" + string.Join("/", relativePath.Split('/').Select(Uri.EscapeDataString));

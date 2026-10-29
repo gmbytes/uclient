@@ -1,0 +1,9 @@
+using Client.Contracts;
+namespace Client.Game.HotUpdateProof
+{
+    public static class VersionBranch
+    {
+        public static void Execute(IClientContext context) { context.Log.Write(ClientLogLevel.Info,"HOTFIX_V1_EXECUTED","1"); }
+        public static void AfterReady(IClientContext context) { }
+    }
+}

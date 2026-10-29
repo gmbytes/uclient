@@ -1,0 +1,32 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Client.Contracts;
+using Client.Framework.UI;
+using Client.Game.Protocol.F6Probe;
+using Google.Protobuf;
+
+namespace Client.Game.HotUpdateProof
+{
+    public struct HotStruct { public int Value; }
+    public sealed class Entry : IHotfixEntry
+    {
+        private readonly Client.Game.Entry login = new Client.Game.Entry();
+        public async Task InitializeAsync(IClientContext context, CancellationToken token)
+        {
+            var values=new List<HotStruct>{new HotStruct{Value=42}};
+            var messages=new Dictionary<uint,IMessage>{[101]=ProtocolProbe.CreateMessage()};
+            await Task.Yield();token.ThrowIfCancellationRequested();
+            if(values[0].Value!=42 || messages[101].CalculateSize()==0)throw new InvalidOperationException("Hot generic execution failed.");
+            ProtocolProbe.Run();context.Log.Write(ClientLogLevel.Info,"F8_PROBES","all");
+            using(var profile=await context.Resources.LoadAsync<LoginPresentationProfile>(Client.Game.Entry.LocalSimulationProfilePath,token))
+                context.Log.Write(ClientLogLevel.Info,"F8_RESOURCE",profile.Asset.Version);
+            VersionBranch.Execute(context);
+            await login.InitializeAsync(context,token);
+            VersionBranch.AfterReady(context);
+            context.Log.Write(ClientLogLevel.Info,"F8_ENTRY_RETURN","");
+        }
+        public Task ShutdownAsync(CancellationToken token)=>login.ShutdownAsync(token);
+    }
+}

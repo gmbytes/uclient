@@ -14,6 +14,7 @@ namespace Client.Framework.Release
         public string Code { get; internal set; }
         public Exception Error { get; internal set; }
         public ReleaseProgress Progress { get; internal set; }
+        public ReleaseSelectionSnapshot Selection { get; internal set; }
         internal void RecordFailure(string releaseId, long epoch, ReleasePhase phase, string code, Exception exception)
         {
             if (exception == null) return;
@@ -23,6 +24,16 @@ namespace Client.Framework.Release
                 failures.Add(new ReleaseFailureRecord(releaseId, epoch, phase, code, exception));
             }
         }
+    }
+    /// <summary>Immutable observation of the real authenticated selection, never a launch capability.</summary>
+    public sealed class ReleaseSelectionSnapshot
+    {
+        public string ReleaseId { get; }
+        public long Epoch { get; }
+        public string ManifestSha256 { get; }
+        public string Root { get; }
+        internal ReleaseSelectionSnapshot(LaunchSelection selection)
+        { ReleaseId = selection.ReleaseId; Epoch = selection.Epoch; ManifestSha256 = selection.Prepared.Release.ManifestSha256; Root = selection.Prepared.Root; }
     }
     /// <summary>Immutable local evidence, independent of the current UI phase. Never displayed as raw UI text.</summary>
     public sealed class ReleaseFailureRecord

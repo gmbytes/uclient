@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +33,8 @@ namespace Client.Framework.Release
             if (SynchronizationContext.Current != context) throw new InvalidOperationException("UGF downloads must run on the Unity main thread.");
             if (disposed) throw new ObjectDisposedException(nameof(GfDownloadTransport));
             RelativePathPolicy.RequireCanonical(relativePath); token.ThrowIfCancellationRequested();
+            destination = Path.GetFullPath(destination);
+            ReleaseFileSystem.RequireDownloadPath(destination);
             string uri = baseUri + string.Join("/", relativePath.Split('/').Select(Uri.EscapeDataString));
             var completion = new TaskCompletionSource<bool>();
             int id = downloads.AddDownload(destination, uri, this);

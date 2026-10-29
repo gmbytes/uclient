@@ -1,0 +1,159 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Client.Bootstrap;
+using Client.Contracts;
+using Client.Framework.HotUpdateProof;
+using Client.Framework.Release;
+using Client.Framework.Resource;
+using Client.Framework.UI;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
+using UnityGameFramework.Runtime;
+using GameFramework.Event;
+
+namespace Client.Bootstrap.HotUpdateProof
+{
+    public sealed class Runtime : MonoBehaviour, ILogService
+    {
+        public GameObject uiRoot;
+        private readonly JObject result=new JObject();
+        private readonly JArray metadata=new JArray(),markers=new JArray(),phases=new JArray();
+        private string output;
+        private EventComponent downloadEvents;
+        private GfDownloadTransport ownedTransport;
+        private bool observingDownloads;
+        private readonly Dictionary<int,JObject> downloadFacts=new Dictionary<int,JObject>();
+        private async void Start()
+        {
+            string run=Input("f8Run"),scenario=Input("f8Case");
+            if(!SafeId(run)||!SafeId(scenario))throw new InvalidDataException("Bounded run/case identity is required.");
+            string directory=Application.platform==RuntimePlatform.Android?Path.Combine(Application.persistentDataPath,"F8",run):Input("f8Output");
+            Directory.CreateDirectory(directory);output=Path.Combine(directory,scenario+".json");
+            result["runId"]=run;result["caseId"]=scenario;result["processId"]=System.Diagnostics.Process.GetCurrentProcess().Id;
+            result["startedUtc"]=DateTime.UtcNow;result["persistentDataPath"]=Application.persistentDataPath;result["applicationId"]=Application.identifier;
+            result["platform"]=Application.platform.ToString();result["processorType"]=SystemInfo.processorType;result["pointerBits"]=IntPtr.Size*8;
+            if(Application.platform==RuntimePlatform.Android)
+            {using(var system=new AndroidJavaClass("java.lang.System"))result["javaProcessArchitecture"]=system.CallStatic<string>("getProperty","os.arch");using(var process=new AndroidJavaClass("android.os.Process"))result["androidProcess64Bit"]=process.CallStatic<bool>("is64Bit");}
+            result["graphicsDevice"]=SystemInfo.graphicsDeviceType.ToString();result["metadata"]=metadata;result["markers"]=markers;result["phases"]=phases;
+            result["ready"]=false;result["restartRequired"]=false;result["sameProcessReloadRejected"]=false;result["answer"]=0;
+            ReleaseCoordinator coordinator=null;ReleaseStateStore state=null;ObservedReleaseTransport transport=null;CountingReader baseline=null;
+            var host=FindObjectOfType<ClientBootstrap>();var resources=FindObjectOfType<ResourceSlotBootstrap>();
+            Application.LogCallback observe=(message,stack,type)=>{if(message.StartsWith("F6_METADATA ",StringComparison.Ordinal))metadata.Add(message);};
+            Application.logMessageReceived+=observe;
+            try
+            {
+                await Task.Yield();
+                var reader=new PlatformReleaseStreamReader();
+                JObject identity=JObject.Parse(await ReadDocument(reader,"F8PlayerIdentity.json"));
+                var player=new PlayerIdentity((string)identity["playerBuildId"],(string)identity["platform"],(string)identity["architecture"],(string)identity["unityVersion"],(string)identity["contractVersion"],(string)identity["envelopeSha256"],(string)identity["aotMetadataSetId"]);
+                result["playerBuildId"]=player.PlayerBuildId;result["nativeIdentity"]=identity;
+                string root=Application.platform==RuntimePlatform.Android?Path.Combine(ReleaseStore.PersistentRoot,player.PlayerBuildId):Path.GetFullPath(Input("f8Store"));
+                result["releaseStore"]=root;
+                var verifier=ProofProfile.CreateVerifier();state=new ReleaseStateStore(root,verifier,player);
+                result["stateBefore"]=JObject.FromObject(state.Read());
+                downloadEvents=GameEntry.GetComponent<EventComponent>();
+                ownedTransport=new GfDownloadTransport(GameEntry.GetComponent<DownloadComponent>(),downloadEvents,ProofProfile.Endpoint);
+                transport=new ObservedReleaseTransport(ownedTransport);
+                foreach(int id in DownloadEventIds)downloadEvents.Subscribe(id,ObserveDownload);observingDownloads=true;
+                var store=new ReleaseStore(root,new ReleaseDownloader(transport),state);
+                baseline=new CountingReader(new PlatformReleaseStreamReader(Application.streamingAssetsPath.TrimEnd('/')+"/F8Baseline",Application.platform==RuntimePlatform.Android,Path.Combine(root,"streams")));
+                coordinator=new ReleaseCoordinator(state,new NativeLaunchConfiguration(player,"Client.Game.HotUpdateProof.Entry","UILogin",TimeSpan.FromSeconds(90)),store,verifier,transport,baseline);
+                coordinator.Changed+=d=>
+                {
+                    phases.Add(new JObject{["phase"]=d.Phase.ToString(),["utc"]=DateTime.UtcNow,["frame"]=Time.frameCount,["selection"]=d.Selection==null?null:JObject.FromObject(d.Selection)});
+                    if(d.Selection!=null){result["releaseId"]=d.Selection.ReleaseId;result["manifestHash"]=d.Selection.ManifestSha256;result["epoch"]=d.Selection.Epoch;result["selectedRoot"]=d.Selection.Root;}
+                };
+                var composition=new NativeClientComposition(uiRoot,"Assets/Content/UI/Common/UIViewDefinitions.asset",this,host.Lifetime);
+                host.ConfigureLaunchAsync(coordinator,resources,composition.ComposeAsync,false);
+                host.enabled=true;
+                var launch=host.LaunchAsync(host.Lifetime);
+                try { await launch; }
+                catch(Exception error)
+                {
+                    Debug.LogException(error);result["launchError"]=ErrorText(error.ToString());int count=metadata.Count;int instance=resources.ResourceComponent==null?0:resources.ResourceComponent.GetInstanceID();
+                    Task retry=host.LaunchAsync(host.Lifetime);try{await retry;}catch{}
+                    result["sameProcessReloadRejected"]=ReferenceEquals(launch,retry)&&count==metadata.Count&&(resources.ResourceComponent==null?0:resources.ResourceComponent.GetInstanceID())==instance&&coordinator.RestartRequired;
+                }
+                result["ready"]=coordinator.IsReady;result["restartRequired"]=coordinator.RestartRequired;result["state"]=JObject.FromObject(state.Read());
+                result["failures"]=new JArray(coordinator.Diagnostics.Failures.Select(f=>new JObject{["releaseId"]=f.ReleaseId,["epoch"]=f.Epoch,["phase"]=f.Phase.ToString(),["code"]=f.Code,["error"]=ErrorText(f.Exception.ToString()),["utc"]=f.ObservedAtUtc}));
+                result["newType"]=Type.GetType("Client.Game.HotUpdateProof.AddedAnswer, Client.Game")!=null;
+                result["loadedHotAssemblies"]=new JArray(AppDomain.CurrentDomain.GetAssemblies().Where(a=>a.GetName().Name.StartsWith("Client.Game",StringComparison.Ordinal)).Select(a=>a.GetName().Name));
+                result["resourceInitialized"]=resources.Initialization.IsCompletedSuccessfully;
+                result["resourceComponentInstance"]=resources.ResourceComponent==null?0:resources.ResourceComponent.GetInstanceID();
+                string screenshot=Path.Combine(directory,scenario+".png");await Capture(screenshot);result["screenshot"]=screenshot;
+            }
+            catch(Exception error){result["error"]=ErrorText(error.ToString());Debug.LogException(error);}
+            finally
+            {
+                result["baselineReads"]=baseline?.Count??0;
+                result["network"]=new JArray((transport?.Records??Array.Empty<ReleaseTransferObservation>()).Select(o=>new JObject{["path"]=o.Path,["success"]=o.Success,["bytes"]=o.Bytes,["bytesKnown"]=o.BytesKnown,["observationError"]=ErrorText(o.ObservationError),["error"]=ErrorText(o.Error),["startedUtc"]=o.StartedUtc,["finishedUtc"]=o.FinishedUtc}));
+                StopObservingDownloads();result["downloadEvents"]=new JArray(downloadFacts.OrderBy(p=>p.Key).Select(p=>p.Value));
+                result["finishedUtc"]=DateTime.UtcNow;
+                File.WriteAllText(output,result.ToString(Formatting.Indented)+"\n");Debug.Log("F8_RESULT "+output+" "+result.ToString(Formatting.None));
+                Application.logMessageReceived-=observe;
+                if(Application.platform!=RuntimePlatform.Android){await host.ShutdownAsync(CancellationToken.None);Application.Quit(result["error"]==null?0:1);}
+            }
+        }
+        private static readonly int[] DownloadEventIds={DownloadStartEventArgs.EventId,DownloadUpdateEventArgs.EventId,DownloadSuccessEventArgs.EventId,DownloadFailureEventArgs.EventId};
+        private void ObserveDownload(object sender,GameEventArgs raw)
+        {
+            switch(raw)
+            {
+                case DownloadStartEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"start",e.CurrentLength);break;
+                case DownloadUpdateEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"update",e.CurrentLength);break;
+                case DownloadSuccessEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"success",e.CurrentLength);break;
+                case DownloadFailureEventArgs e: RecordDownload(e.SerialId,e.DownloadPath,e.DownloadUri,e.UserData,"failure",null,e.ErrorMessage);break;
+            }
+        }
+        private void RecordDownload(int serial,string path,string uri,object owner,string kind,long? length,string error=null)
+        {
+            if(!ReferenceEquals(owner,ownedTransport))return;
+            if(!downloadFacts.TryGetValue(serial,out var fact))
+            {
+                fact=new JObject{["runId"]=(string)result["runId"],["processId"]=(int)result["processId"],["serialId"]=serial,["path"]=path,["uri"]=uri,["startCount"]=0,["failed"]=false,["succeeded"]=false,["identityMismatch"]=false};downloadFacts.Add(serial,fact);
+            }
+            if((string)fact["path"]!=path||(string)fact["uri"]!=uri)fact["identityMismatch"]=true;
+            if(length.HasValue)fact["maxLength"]=Math.Max((long?)fact["maxLength"]??length.Value,length.Value);
+            if(kind=="start"){fact["startCount"]=(int)fact["startCount"]+1;fact["startLength"]=length;fact["startedUtc"]=DateTime.UtcNow;}
+            if(kind=="failure"){fact["failed"]=true;fact["error"]=ErrorText(error);fact["finishedUtc"]=DateTime.UtcNow;}
+            if(kind=="success"){fact["succeeded"]=true;fact["finishedUtc"]=DateTime.UtcNow;}
+        }
+        private void StopObservingDownloads()
+        {
+            if(!observingDownloads)return;observingDownloads=false;
+            if(downloadEvents==null)return;
+            foreach(int id in DownloadEventIds)
+                try{downloadEvents.Unsubscribe(id,ObserveDownload);}catch(Exception error){if(result["observerCleanupErrors"]==null)result["observerCleanupErrors"]=new JArray();((JArray)result["observerCleanupErrors"]).Add(ErrorText(error.ToString()));}
+        }
+        private void OnDestroy(){StopObservingDownloads();}
+        public void Write(ClientLogLevel level,string code,string message)
+        {
+            string marker=(code+" "+message).TrimEnd();markers.Add(marker);Debug.Log(marker);
+            if(code=="F8_RESOURCE")result["resourceVersion"]=message;
+            if(code=="HOTFIX_V2_EXECUTED")result["answer"]=int.Parse(message);
+        }
+        private Task Capture(string path){var done=new TaskCompletionSource<bool>();StartCoroutine(CaptureFrame(path,done));return done.Task;}
+        private IEnumerator CaptureFrame(string path,TaskCompletionSource<bool> done)
+        {
+            yield return new WaitForEndOfFrame();
+            try{var image=ScreenCapture.CaptureScreenshotAsTexture();try{File.WriteAllBytes(path,image.EncodeToPNG());}finally{Destroy(image);}done.TrySetResult(true);}catch(Exception error){done.TrySetException(error);}
+        }
+        private static async Task<string> ReadDocument(IReleaseStreamReader reader,string name)
+        {using(var input=await reader.OpenReadAsync(name,CancellationToken.None))using(var output=new MemoryStream()){var bytes=new byte[4096];int count;while((count=await input.ReadAsync(bytes,0,bytes.Length))>0){if(output.Length+count>256*1024)throw new InvalidDataException("Native identity is oversized.");output.Write(bytes,0,count);}return System.Text.Encoding.UTF8.GetString(output.ToArray());}}
+        private static bool SafeId(string text)=>!string.IsNullOrEmpty(text)&&text.Length<=80&&text.All(c=>char.IsLetterOrDigit(c)||c=='-'||c=='_');
+        private static string ErrorText(string text)=>text==null?null:text.Length<=16384?text:text.Substring(0,16384)+" [truncated; see raw Player log]";
+        private static string Input(string name)
+        {
+            if(Application.platform==RuntimePlatform.Android){using(var unity=new AndroidJavaClass("com.unity3d.player.UnityPlayer"))using(var activity=unity.GetStatic<AndroidJavaObject>("currentActivity"))using(var intent=activity.Call<AndroidJavaObject>("getIntent"))return intent.Call<string>("getStringExtra",name);}
+            string[] args=Environment.GetCommandLineArgs();int index=Array.IndexOf(args,"-"+name);return index>=0&&index+1<args.Length?args[index+1]:null;
+        }
+        private sealed class CountingReader:IReleaseStreamReader
+        {private readonly IReleaseStreamReader inner;public int Count{get;private set;}public CountingReader(IReleaseStreamReader inner){this.inner=inner;}public Task<Stream> OpenReadAsync(string path,CancellationToken token){Count++;return inner.OpenReadAsync(path,token);}}
+    }
+}

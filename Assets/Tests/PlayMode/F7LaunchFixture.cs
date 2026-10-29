@@ -21,7 +21,7 @@ namespace Client.Tests
         internal readonly ReleaseCoordinator Coordinator;
         internal readonly Faults Fault = new Faults();
         private readonly RSA key;
-        internal F7LaunchFixture(IReleaseTransport updates=null)
+        internal F7LaunchFixture(IReleaseTransport updates=null, TimeSpan? readyTimeout=null)
         {
             Root=Path.GetFullPath(Path.Combine("Builds","F7PlayScratch",Guid.NewGuid().ToString("N")));
             key=new RSACryptoServiceProvider(2048){PersistKeyInCsp=false};
@@ -42,7 +42,7 @@ namespace Client.Tests
                 store.PrepareAsync(verified,null,CancellationToken.None).GetAwaiter().GetResult();
             }
             State.WriteAtomic(new ReleaseState{KnownGood="K",Candidate="C"});
-            Coordinator=new ReleaseCoordinator(State,new NativeLaunchConfiguration(Player,"Client.Game.Entry","Page",TimeSpan.FromSeconds(10)),updates==null?null:store,updates==null?null:verifier,updates);
+            Coordinator=new ReleaseCoordinator(State,new NativeLaunchConfiguration(Player,"Client.Game.Entry","Page",readyTimeout??TimeSpan.FromSeconds(10)),updates==null?null:store,updates==null?null:verifier,updates);
         }
         private static string FileEntry(string path,byte[] bytes,string kind)
         {using(var hash=SHA256.Create())return "{\"path\":\""+path+"\",\"length\":"+bytes.Length+",\"sha256\":\""+BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-","").ToLowerInvariant()+"\",\"kind\":\""+kind+"\"}";}

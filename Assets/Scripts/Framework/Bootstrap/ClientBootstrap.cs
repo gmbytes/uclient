@@ -19,7 +19,7 @@ namespace Client.Bootstrap
         private IHotfixEntry proofEntry;
         private ReleaseCoordinator coordinator;
         private ResourceSlotBootstrap resources;
-        private Func<ResourceSlotBootstrap, IClientContext> compose;
+        private Func<ResourceSlotBootstrap, CancellationToken, Task<IClientContext>> compose;
         private LaunchSelection selection;
         private Task launchTask;
         private Task shutdownTask;
@@ -45,6 +45,13 @@ namespace Client.Bootstrap
         public void ConfigureLaunch(ReleaseCoordinator coordinator, ResourceSlotBootstrap resources,
             Func<ResourceSlotBootstrap, IClientContext> compose, bool autoStart = true)
         {
+            if (compose == null) throw new ArgumentNullException(nameof(compose));
+            ConfigureLaunchAsync(coordinator, resources, (root, token) => Task.FromResult(compose(root)), autoStart);
+        }
+        /// <summary>Loads native Package service assets asynchronously inside the existing local-ready deadline.</summary>
+        public void ConfigureLaunchAsync(ReleaseCoordinator coordinator, ResourceSlotBootstrap resources,
+            Func<ResourceSlotBootstrap, CancellationToken, Task<IClientContext>> compose, bool autoStart = true)
+        {
             if (destroyed || started || launchTask != null || this.coordinator != null) throw new InvalidOperationException("The native host can only be configured once before launch.");
             this.coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             this.resources = resources != null ? resources : throw new ArgumentNullException(nameof(resources));
@@ -69,10 +76,11 @@ namespace Client.Bootstrap
             try
             {
                 await coordinator.ActivateResourcesAsync(selection, resources, token);
-                var source = compose(resources);
-                await InitializeAsync(selection.Prepared, coordinator.Configuration.Player, coordinator.Configuration.EntryTypeName, source, token);
+                if (started) throw new InvalidOperationException("The hotfix host has already started.");
+                started = true;
+                await coordinator.InitializeComposedAsync(selection, compose, token);
             }
-            catch (OperationCanceledException cancelled)
+            catch (Exception cancelled) when (ContainsCancellation(cancelled))
             {
                 try { await ShutdownAsync(CancellationToken.None); }
                 catch (Exception cleanup) { throw new AggregateException("Launch cancellation and owned cleanup failed.", cancelled, cleanup); }
@@ -84,6 +92,13 @@ namespace Client.Bootstrap
                     coordinator.FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, error);
                 throw;
             }
+        }
+        private static bool ContainsCancellation(Exception error)
+        {
+            if (error is OperationCanceledException) return true;
+            if (error is AggregateException aggregate)
+                foreach (var cause in aggregate.InnerExceptions) if (ContainsCancellation(cause)) return true;
+            return false;
         }
 
         public Task InitializeAsync(PreparedRelease prepared, PlayerIdentity player, string entryTypeName, IClientContext context, CancellationToken token)

@@ -82,6 +82,60 @@ namespace Client.Tests.EditMode
             Assert.That(File.ReadAllBytes(Path.Combine(prepared.Root, "release.manifest.sig")), Is.EqualTo(nextRelease.SignatureBytes));
         }
 
+        [Test] public void CompactStagePreservesFullDigestAndObservedAndroidMetadataName()
+        {
+            const string metadataPath="Metadata/System.Runtime.CompilerServices.Unsafe.dll";
+            const string observedRoot="/storage/emulated/0/Android/data/com.sgame.client.hotupdateproof/files/Releases/1dd3c37d5217454da8ca90e368e74981";
+            string originalRoot=root;string owned=Path.GetFullPath(Path.Combine(Path.GetTempPath(),"F8path-"+Guid.NewGuid().ToString("N").Substring(0,12)));
+            Assert.That(owned.Length,Is.LessThan(observedRoot.Length-1));root=Path.Combine(owned,new string('x',observedRoot.Length-owned.Length-1));
+            Assert.That(Encoding.UTF8.GetByteCount(root),Is.EqualTo(Encoding.UTF8.GetByteCount(observedRoot)));
+            try
+            {
+                state=new ReleaseStateStore(root,verifier,player,faults);store=new ReleaseStore(root,new ReleaseDownloader(transport),state,new DiskBudget(_=>long.MaxValue),faults);
+                var first=SignMetadata("old",new byte[]{1},metadataPath);Put(first,new byte[]{1});transport.Data[metadataPath]=new byte[]{9,8,7};Run(()=>store.PrepareAsync(first,null,CancellationToken.None));state.WriteAtomic(new ReleaseState{KnownGood="old"});transport.Requests.Clear();
+                var next=SignMetadata("throw",new byte[]{2},metadataPath);Put(next,new byte[]{2});string captured=null;
+                faults.At=point=>{if(point=="rename.before"){
+                    string path=Directory.GetFiles(Path.Combine(root,"staging"),"System.Runtime.CompilerServices.Unsafe.dll",SearchOption.AllDirectories).Single();
+                    Assert.That(Encoding.UTF8.GetByteCount(path),Is.LessThanOrEqualTo(240),"The observed 257-byte Android staging path must be shortened before materialization.");
+                    captured=Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(path))));
+                }};
+                var prepared=Run(()=>store.PrepareAsync(next,null,CancellationToken.None));
+                Assert.That(captured,Does.EndWith(".partial"));string keyName=captured.Substring(0,captured.Length-8);Assert.That(keyName,Does.Match("^[A-Z2-7]{52}$"));Assert.That(DecodeBase32(keyName),Is.EqualTo(next.ManifestSha256));
+                Assert.That(File.ReadAllBytes(Path.Combine(prepared.Root,metadataPath)),Is.EqualTo(new byte[]{9,8,7}));Assert.That(transport.Requests,Does.Not.Contain(metadataPath));Assert.That(state.Read().KnownGood,Is.EqualTo("old"));
+            }
+            finally{faults.At=null;string full=Path.GetFullPath(root);Assert.That(full.StartsWith(owned+Path.DirectorySeparatorChar,StringComparison.Ordinal),Is.True);if(Directory.Exists(owned))Directory.Delete(owned,true);root=originalRoot;}
+        }
+        [Test] public void StageKeyRetainsEveryDigestBitAndIsCaseFoldSafe()
+        {
+            var type=typeof(ReleaseStore).Assembly.GetType("Client.Framework.Release.ReleaseFileSystem");var method=type.GetMethod("StageKey",BindingFlags.Static|BindingFlags.NonPublic);Assert.That(method,Is.Not.Null);
+            var keys=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for(int bit=-1;bit<256;bit++){var bytes=new byte[32];if(bit>=0)bytes[bit/8]=(byte)(1<<(7-bit%8));string hex=BitConverter.ToString(bytes).Replace("-","").ToLowerInvariant();string encoded=(string)method.Invoke(null,new object[]{hex});Assert.That(encoded,Does.Match("^[A-Z2-7]{52}$"));Assert.That(DecodeBase32(encoded),Is.EqualTo(hex));Assert.That(keys.Add(encoded),Is.True);}
+            Assert.That((string)method.Invoke(null,new object[]{new string('f',64)}),Is.EqualTo(new string('7',51)+"Q"));
+        }
+        [Test] public void MaterializedPathBudgetCountsUtf8AndAcceptsExactBoundary()
+        {
+            var type=typeof(ReleaseStore).Assembly.GetType("Client.Framework.Release.ReleaseFileSystem");var method=type.GetMethod("RequireSupportedPath",BindingFlags.Static|BindingFlags.NonPublic);Assert.That(method,Is.Not.Null);
+            string prefix=Path.GetPathRoot(Path.GetFullPath(root));string ascii=prefix+new string('a',240-Encoding.UTF8.GetByteCount(prefix));method.Invoke(null,new object[]{ascii});
+            var failure=Assert.Throws<TargetInvocationException>(()=>method.Invoke(null,new object[]{ascii+"a"}));Assert.That(failure.InnerException,Is.TypeOf<PathTooLongException>());
+            int remaining=240-Encoding.UTF8.GetByteCount(prefix);string unicode=prefix+new string('界',remaining/3)+new string('a',remaining%3);method.Invoke(null,new object[]{unicode});failure=Assert.Throws<TargetInvocationException>(()=>method.Invoke(null,new object[]{unicode+"a"}));Assert.That(failure.InnerException,Is.TypeOf<PathTooLongException>());
+        }
+        [Test] public void OverBudgetPayloadRejectsBeforeAnyCandidateMaterialization()
+        {
+            InstallGood();var before=Directory.GetFileSystemEntries(root,"*",SearchOption.AllDirectories).OrderBy(p=>p).ToArray();byte[] primary=File.ReadAllBytes(Path.Combine(root,"state.json"));byte[] backup=File.ReadAllBytes(Path.Combine(root,"state.json.bak"));faults.Hits.Clear();transport.Requests.Clear();
+            string longPath="Metadata/"+new string('x',190)+".dll";var next=SignMetadata("long",new byte[]{4},longPath);Put(next,new byte[]{4});transport.Data[longPath]=new byte[]{9,8,7};
+            Throws<PathTooLongException>(()=>store.PrepareAsync(next,null,CancellationToken.None));Assert.That(transport.Requests,Is.Empty);Assert.That(faults.Hits,Is.Empty);Assert.That(Directory.GetFileSystemEntries(root,"*",SearchOption.AllDirectories).OrderBy(p=>p),Is.EqualTo(before));Assert.That(File.ReadAllBytes(Path.Combine(root,"state.json")),Is.EqualTo(primary));Assert.That(File.ReadAllBytes(Path.Combine(root,"state.json.bak")),Is.EqualTo(backup));Assert.That(state.Read().KnownGood,Is.EqualTo("old"));
+        }
+        [Test] public void StateTemporaryPathBudgetRejectsBeforeCreatingStorage()
+        {
+            string target=Path.Combine(root,new string('x',200-root.Length-1));Assert.That(Encoding.UTF8.GetByteCount(target),Is.EqualTo(200));
+            var local=new ReleaseStateStore(target,verifier,player,faults);faults.Hits.Clear();Assert.Throws<PathTooLongException>(()=>local.WriteAtomic(new ReleaseState()));
+            Assert.That(Directory.Exists(target),Is.False);Assert.That(faults.Hits,Is.Empty);
+        }
+        private VerifiedRelease SignMetadata(string id,byte[] dll,string path)
+        {var basic=Sign(id,dll);var doc=JObject.Parse(Encoding.UTF8.GetString(basic.ManifestBytes));((JArray)doc["files"]).Add(Entry(path,new byte[]{9,8,7},"AotMetadata"));byte[] raw=Encoding.UTF8.GetBytes(doc.ToString(Formatting.None));return verifier.Verify(raw,key.SignData(raw,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1),player);}
+        private static string DecodeBase32(string value)
+        {const string alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";string bits=string.Concat(value.Select(c=>Convert.ToString(alphabet.IndexOf(c),2).PadLeft(5,'0')));Assert.That(bits.Substring(256),Is.EqualTo("0000"));return string.Concat(Enumerable.Range(0,32).Select(i=>Convert.ToByte(bits.Substring(i*8,8),2).ToString("x2")));}
+
         [TestCase("copy.before")]
         [TestCase("copy.after")]
         [TestCase("download.before")]
@@ -380,8 +434,8 @@ namespace Client.Tests.EditMode
         private static string Hash(byte[] bytes) { using (var sha = SHA256.Create()) return BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant(); }
         private sealed class Faults : IFileFaultInjector
         {
-            public string Checkpoint; public readonly List<string> Hits = new List<string>();
-            public void Hit(string checkpoint) { Hits.Add(checkpoint); if (Checkpoint == checkpoint) throw new IOException("Injected: " + checkpoint); }
+            public string Checkpoint; public readonly List<string> Hits = new List<string>(); public Action<string> At;
+            public void Hit(string checkpoint) { Hits.Add(checkpoint); At?.Invoke(checkpoint); if (Checkpoint == checkpoint) throw new IOException("Injected: " + checkpoint); }
         }
         private sealed class FilesTransport : IReleaseTransport
         {
