@@ -1,7 +1,8 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][ValidateSet('Android','Windows64')][string]$Platform,[string]$DeviceId,[string]$UnityEditor,[switch]$BuildOnly,[string]$RunRoot,[switch]$RetryRuntime)
+param([Parameter(Mandatory)][ValidateSet('Android','Windows64')][string]$Platform,[string]$DeviceId,[string]$UnityEditor,[switch]$BuildOnly,[string]$RunRoot,[switch]$RetryRuntime,[string]$ReplaceFailedRun)
 if($BuildOnly -and $RunRoot){throw 'BuildOnly creates a fresh buildRun; RunRoot executes an existing completed build.'}
 if($RetryRuntime -and (-not$RunRoot -or $Platform-ne'Windows64')){throw 'A runtime retry requires an existing Windows build; Android never clears or reinstalls an existing scenario.'}
+if($ReplaceFailedRun -and ($Platform-ne'Android' -or $BuildOnly)){throw 'Owned failed-APK replacement is only available immediately before an Android runtime baseline.'}
 . "$PSScriptRoot/Unity-Common.ps1"
 . "$PSScriptRoot/Assert-HotUpdateEvidence.ps1"
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -29,7 +30,7 @@ function ApkNativeInventory([string]$Path){
 function CaptureAndroidScreen([string]$Path){
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$adb;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
     foreach($a in @('-s',$DeviceId,'exec-out','screencap','-p')){$start.ArgumentList.Add($a)};$p=[Diagnostics.Process]::Start($start);$file=[IO.File]::Create($Path)
-    try{$copy=$p.StandardOutput.BaseStream.CopyToAsync($file);$err=$p.StandardError.ReadToEndAsync();if(-not$p.WaitForExit(30000)){$p.Kill();$p.WaitForExit();throw 'Owned screenshot command timed out.'};$copy.GetAwaiter().GetResult();if($p.ExitCode-ne0){throw $err.Result}}finally{$file.Dispose()}
+    try{$copy=$p.StandardOutput.BaseStream.CopyToAsync($file);$err=$p.StandardError.ReadToEndAsync();if(-not$p.WaitForExit(30000)){$p.Kill();$p.WaitForExit();throw 'Owned screenshot command timed out.'};$null=$copy.GetAwaiter().GetResult();if($p.ExitCode-ne0){throw $err.Result}}finally{$file.Dispose()}
     $commands.Add(@{file=$adb;arguments=@('-s',$DeviceId,'exec-out','screencap','-p');exitCode=$p.ExitCode;binaryOutput=$Path;sha256=(Hash $Path)})
 }
 function StopServer {
@@ -124,21 +125,40 @@ try {
         if(-not$DeviceId){throw 'Android requires an explicit selected device.'};$result.deviceId=$DeviceId
         $state='';for($attempt=1;$attempt-le6;$attempt++){$state=(Adb @('get-state') (Join-Path $RunRoot "device-state-$attempt.txt") @(0,1)).Trim();if($state-eq'device'){break};if($attempt-eq2){Adb @('reconnect') (Join-Path $RunRoot 'device-reconnect.txt') @(0,1)|Out-Null};Start-Sleep -Milliseconds 1000};if($state-ne'device'){throw 'Selected Android device is unavailable.'};$result.deviceState=$state
         $result.deviceProperties=Adb @('shell','getprop') (Join-Path $RunRoot 'device-properties.txt')
-        $existing=Adb @('shell','pm','path','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'preinstall-package-query.txt') @(0,1);if($existing.Trim()){throw 'Proof package already installed; refuse to overwrite an existing scenario.'}
+        $existing=Adb @('shell','pm','path','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'preinstall-package-query.txt') @(0,1)
         $apk=Join-Path $playerRoot 'Client.apk';$buildTools=Join-Path $env:ANDROID_SDK_ROOT 'build-tools/32.0.0'
         $result.apkBadging=NativeCommand (Join-Path $buildTools 'aapt.exe') @('dump','badging',$apk) (Join-Path $RunRoot 'apk-badging.txt')
         if($result.apkBadging-notmatch"native-code: 'arm64-v8a'"){throw 'APK is not ARM64-only.'}
         $result.apkNativeHashes=ApkNativeInventory $apk;$result.apkHash=Hash $apk
         $result.apkCertificate=NativeCommand (Join-Path $env:JAVA_HOME 'bin/java.exe') @('-jar',(Join-Path $buildTools 'lib/apksigner.jar'),'verify','--print-certs',$apk) (Join-Path $RunRoot 'apk-certificate.txt')
         if($result.apkCertificate-notmatch'certificate SHA-256 digest: ([a-fA-F0-9]{64})'){throw 'APK certificate digest missing.'};$result.apkCertificateSha256=$Matches[1].ToLowerInvariant()
-        Adb @('install','--abi','arm64-v8a',$apk) (Join-Path $RunRoot 'install-once.txt')|Out-Null;$result.installCount=1
+        $replace=$false;$oldRoot=$null
+        if($existing.Trim()){
+            if(-not$ReplaceFailedRun){throw 'Proof package already installed; refuse to overwrite an existing scenario.'}
+            $priorRoot=[IO.Path]::GetFullPath($ReplaceFailedRun);$prior=Get-Content -LiteralPath (Join-Path $priorRoot 'hotupdate-result.json') -Raw|ConvertFrom-Json -AsHashtable
+            if($prior.task-ne'F8'-or$prior.platform-ne'Android'-or$prior.passed-or$prior.deviceId-cne$DeviceId-or$prior.installCount-ne1-or-not$prior.cleanup.ownedPlayerTerminal-or-not$prior.cleanup.ownedServerStopped-or-not$prior.cleanup.ownedReverseRemoved){throw 'Replacement is not an ended failed owned F8 Android run.'}
+            $oldPackagePath=$existing.Trim();if($oldPackagePath-notmatch'^package:[^\r\n]+$'){throw 'Unexpected existing package layout.'};$oldPackagePath=$oldPackagePath.Substring(8)
+            $oldApk=Join-Path $RunRoot 'prior-owned-base.apk';Adb @('pull',$oldPackagePath,$oldApk) (Join-Path $RunRoot 'prior-owned-package-pull.txt')|Out-Null
+            if((Hash $oldApk)-cne$prior.apkHash){throw 'Installed package does not match the failed task APK.'}
+            $oldCertificate=NativeCommand (Join-Path $env:JAVA_HOME 'bin/java.exe') @('-jar',(Join-Path $buildTools 'lib/apksigner.jar'),'verify','--print-certs',$oldApk) (Join-Path $RunRoot 'prior-owned-certificate.txt')
+            if($oldCertificate-notmatch'certificate SHA-256 digest: ([a-fA-F0-9]{64})'-or$Matches[1].ToLowerInvariant()-cne$prior.apkCertificateSha256-or$result.apkCertificateSha256-cne$prior.apkCertificateSha256){throw 'Owned package certificate or replacement signer differs.'}
+            $oldRoot=[string]$prior.cases[0].releaseStore
+            if($oldRoot-cnotmatch('^/storage/emulated/0/Android/data/com\.sgame\.client\.hotupdateproof/files/Releases/'+[regex]::Escape($prior.playerBuildId)+'$')){throw 'Unexpected prior owned release root.'}
+            Adb @('pull',($oldRoot+'/state.json'),(Join-Path $RunRoot 'prior-state-before.json')) (Join-Path $RunRoot 'prior-state-before-pull.txt')|Out-Null
+            Adb @('shell','am','force-stop','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'prior-owned-force-stop.txt')|Out-Null
+            $replace=$true;$result.replacedFailedRun=@{path=$priorRoot;playerBuildId=$prior.playerBuildId;apkHash=$prior.apkHash;certificateSha256=$prior.apkCertificateSha256;preserveData=$true}
+        }elseif($ReplaceFailedRun){throw 'Expected owned failed package is absent; replacement ownership cannot be assumed.'}
+        $installArguments=if($replace){@('install','-r','--abi','arm64-v8a',$apk)}else{@('install','--abi','arm64-v8a',$apk)}
+        Adb $installArguments (Join-Path $RunRoot 'install-once.txt')|Out-Null;$result.installCount=1
+        if($replace){Adb @('pull',($oldRoot+'/state.json'),(Join-Path $RunRoot 'prior-state-after.json')) (Join-Path $RunRoot 'prior-state-after-pull.txt')|Out-Null;if((Hash (Join-Path $RunRoot 'prior-state-before.json'))-cne(Hash (Join-Path $RunRoot 'prior-state-after.json'))){throw 'Prior data changed during the owned package replacement.'}}
         $installed=(Adb @('shell','pm','path','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'installed-package-path.txt')).Trim().Substring(8)
         Adb @('pull',$installed,(Join-Path $RunRoot 'installed-base.apk')) (Join-Path $RunRoot 'installed-package-pull.txt')|Out-Null
         if((Hash (Join-Path $RunRoot 'installed-base.apk'))-cne(Hash $apk)){throw 'Installed APK differs from native archive.'}
         $result.installedApkBeforeHash=Hash (Join-Path $RunRoot 'installed-base.apk')
         $result.installedPackage=Adb @('shell','dumpsys','package','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'installed-package.txt')
         if($result.installedPackage-notmatch'primaryCpuAbi=arm64-v8a'){throw 'Installed native ABI is not ARM64.'};$result.installedPrimaryAbi='arm64-v8a'
-        Adb @('reverse',"tcp:$port","tcp:$port") (Join-Path $RunRoot 'reverse-create.txt')|Out-Null;$reverse=$true
+        Adb @('reverse','--list') (Join-Path $RunRoot 'reverse-before.txt')|Out-Null
+        Adb @('reverse','--no-rebind',"tcp:$port","tcp:$port") (Join-Path $RunRoot 'reverse-create.txt')|Out-Null;$reverse=$true
     }
     foreach($case in @('v1','v2','throw','fallback','offline')){
         if($case-eq'v2'){[IO.File]::WriteAllText((Join-Path $RunRoot 'active-release.txt'),'v2');StartServer}
@@ -165,7 +185,14 @@ try {
         $record=Get-Content -LiteralPath (Join-Path $output "$case.json") -Raw|ConvertFrom-Json -AsHashtable;$result.cases+=,$record
         if($Platform-eq'Android'){if([string]$record.processId-cne$actualPid){throw 'Native reported PID differs from device PID.'};$record.observedProcessId=[int]$actualPid}
         else{if($record.processId-ne$pidOwned){throw 'Native reported PID differs from owned Windows process.'};$record.observedProcessId=$pidOwned}
-        if($case-ne'throw' -and -not$record.ready){throw "Required $case launch failed: $($record.launchError) $($record.error)"}
+        if($case-ne'throw' -and -not$record.ready){throw "Required $case launch failed: $($record['launchError']) $($record['error'])"}
+        if($Platform-eq'Android'){
+            $unsafePath=[string]$record.selectedRoot+'/Metadata/System.Runtime.CompilerServices.Unsafe.dll'
+            $unsafeLine=(Adb @('shell','sha256sum',$unsafePath) (Join-Path $output "$case-unsafe-metadata-sha.txt")).Trim()
+            $expectedUnsafe=@($archive.metadata|Where-Object path -ceq 'System.Runtime.CompilerServices.Unsafe.dll');if($expectedUnsafe.Count-ne1-or$unsafeLine-notmatch'^([a-fA-F0-9]{64})\s'){throw 'Exact native Unsafe.dll metadata evidence is missing.'}
+            $record.unsafeMetadataSha256=$Matches[1].ToLowerInvariant();$record.unsafeMetadataPath=$unsafePath
+            if($record.unsafeMetadataSha256-cne$expectedUnsafe[0].sha256){throw 'Exact native Unsafe.dll bytes differ from the original archive.'}
+        }
         if((Inventory $playerRoot|ConvertTo-Json -Compress)-cne($nativeBefore|ConvertTo-Json -Compress)){throw 'Native Player hash changed during scenario.'}
         Write-RunJson (Join-Path $RunRoot 'hotupdate-result.json') $result
     }
