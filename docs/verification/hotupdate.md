@@ -1,6 +1,13 @@
 # Native hot-update proof (F8)
 
-F8 is in progress. Build-only success and Editor tests do not establish native hot-update acceptance.
+The native F8 gate passed on fresh Windows64 and the selected LDPlayer Android ARM64 environment. Build-only success and Editor tests do not substitute for these native results. Whole-framework D1/D2 acceptance remains separate.
+
+| Platform | Current native evidence | Original PlayerBuildId |
+|---|---|---|
+| Windows64 Release IL2CPP | `Builds/HotUpdate/Windows64/20261029T005757118Z-8f8bb21a/hotupdate-result.json` | `b04b5e10f177424ca9488623c7cae7cc` |
+| Android ARM64 Release IL2CPP, LDPlayer/Houdini | `Builds/HotUpdate/Android/20261029T010559687Z-48bad4d2/hotupdate-result.json` | `f1271ffd245a49ed8916d44f9023f56d` |
+
+Both actual wrappers exited0 with `HOTUPDATE_PASS`; all five cases ran. Windows loaded59 original metadata DLLs per process, Android48. V2 executed the new type/method returning42 and the changed real GF resource; ThrowOnStart required restart without reloading; subsequent processes selected V2, including real endpoint-unavailable startup. Each package's full native inventory remained unchanged and matched its original archive. Native logs/results/screenshots and commands are retained in those directories. Earlier failures are preserved separately and do not count as current acceptance.
 
 Run from the Unity project with PowerShell 7:
 
@@ -12,6 +19,8 @@ pwsh -NoProfile -File Tool/Client/Test-HotUpdate.ps1 -Platform Android -DeviceId
 Each invocation creates an independent `Builds/HotUpdate/<platform>/<runId>` directory. `-BuildOnly` produces a fresh native archive and both compatible patches; `-RunRoot <that run>` subsequently runs those artifacts once. Existing runtime evidence cannot be overwritten. The Android package is `com.sgame.client.hotupdateproof`; the runner refuses to overwrite an already installed scenario package. It installs V1 once and uses only signed release changes thereafter.
 
 For a Windows orchestration-only retry, `-RunRoot <build run> -RetryRuntime` creates a new run, result and installed-store directory while retaining an explicit reference to the same current immutable native build/archive. It preserves the earlier evidence, does not rebuild or modify the Player, and checks its full inventory against the original archive before running. This option is unavailable for Android and never clears or reinstalls its package. Runtime evidence must match the actual owned OS process ID on both platforms.
+
+An ended failed task-owned Android APK can be replaced only with explicit `-ReplaceFailedRun <old failed run>`: current installed hash/certificate and the new signer must match the ownership evidence. Exactly one `install -r` occurs before the fresh V1 boundary; old state bytes are compared before/after, and no data clear or further install occurs through V2/throw/fallback/offline. The successful Android run used this recorded replacement after the earlier path-truncation failure. Every native case also verifies the full `System.Runtime.CompilerServices.Unsafe.dll` filename and its current original-archive hash.
 
 The proof fixes a public RSA pin and local endpoint into generated native compiler inputs before bounded official HybridCLR generation. Private keys stay in ignored run output. `PublicInputs` and `public-input-hashes.json` retain the generated public profile, source templates and fixed input settings; the profile remains present through native and patch compilation. All seven fixed compiler references must match the original archive byte for byte. Production default trust pins remain empty and fail closed.
 
