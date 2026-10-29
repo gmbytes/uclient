@@ -31,6 +31,7 @@ namespace Client.Editor.Build
             try
             {
                 string output = Path.GetFullPath(request.OutputRoot);
+                SourceFileTransaction.RejectReparsePoints(output);
                 if (File.Exists(output)) throw new IOException("OutputRoot is a file.");
                 if (request.Kind == BuildKind.Player)
                 {
@@ -39,6 +40,7 @@ namespace Client.Editor.Build
                 }
                 if (string.IsNullOrWhiteSpace(request.PlayerArchive)) throw new BuildFailedException("Patch requires an explicit finalized PlayerArchive.");
                 string archiveRoot = Path.GetFullPath(request.PlayerArchive);
+                SourceFileTransaction.RejectReparsePoints(archiveRoot);
                 if (!File.Exists(Path.Combine(archiveRoot, "archive.json"))) throw new BuildFailedException("Patch requires an existing finalized PlayerArchive.");
                 if (output.Equals(archiveRoot, StringComparison.OrdinalIgnoreCase) || output.StartsWith(archiveRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     throw new BuildFailedException("Patch output cannot modify its immutable PlayerArchive.");

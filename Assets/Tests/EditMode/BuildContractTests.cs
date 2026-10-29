@@ -2,8 +2,13 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Collections.Generic;
+using System.Text;
+using Client.Editor.Build;
 using Client.Editor.UI;
+using Client.Framework.HotUpdate;
 using Client.Framework.UI;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Build;
@@ -16,8 +21,14 @@ namespace Client.Tests.EditMode
     public sealed class BuildContractTests
     {
         private string root;
+        private readonly Dictionary<string, string> junctions = new Dictionary<string, string>();
         [SetUp] public void Setup() { root = Path.GetFullPath("Builds/Tests/D1/Cases/" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root); }
-        [TearDown] public void Cleanup() { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        [TearDown] public void Cleanup()
+        {
+            foreach (var pair in junctions.ToArray()) RemoveOwnedJunction(pair.Key, pair.Value);
+            Assert.That(Path.GetFullPath(root), Does.StartWith(Path.GetFullPath("Builds/Tests/D1/Cases") + Path.DirectorySeparatorChar));
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
         private static Type Required(string name)
         {
             var type = Type.GetType("Client.Editor.Build." + name + ", Client.Editor");
@@ -54,6 +65,104 @@ namespace Client.Tests.EditMode
             if (state == "pending") { Directory.CreateDirectory(archive); File.WriteAllText(Path.Combine(archive, "pending.json"), "{}"); }
             Assert.Throws<BuildFailedException>(() => Call("BuildPreflight", "ValidateRequest", Request("Patch", "Windows64", archive)));
             Assert.That(Directory.GetDirectories(root, "Build_*"), Is.Empty);
+        }
+
+        [TestCase("descendant"), TestCase("output-junction"), TestCase("output-junction-descendant"), TestCase("archive-junction")]
+        public void PatchRejectsArchiveAliasesBeforeOutputMutation(string pathKind)
+        {
+            string archive = CreateArchiveIntegrityFixture();
+            string before = JsonConvert.SerializeObject(PlayerBaselineArchive.Inventory(archive));
+            string alias = Path.Combine(root, "ArchiveAlias");
+            if (pathKind != "descendant") CreateOwnedJunction(alias, archive);
+            string selectedArchive = pathKind == "archive-junction" ? alias : archive;
+            string output = pathKind == "output-junction" ? alias : pathKind == "output-junction-descendant" ? Path.Combine(alias, "Forbidden") : Path.Combine(archive, "Forbidden");
+            Exception failure = null;
+            try { BuildOutput.Create(new BuildRequest(BuildKind.Patch, BuildPlatform.Windows64, output, selectedArchive)); }
+            catch (Exception error) { failure = error; }
+            bool unchanged = before == JsonConvert.SerializeObject(PlayerBaselineArchive.Inventory(archive));
+            bool noOutput = Directory.GetDirectories(archive, "Build_*", SearchOption.AllDirectories).Length == 0;
+            bool noMarker = Directory.GetFiles(archive, ".build-owner", SearchOption.AllDirectories).Length == 0;
+            TestContext.Progress.WriteLine(JsonConvert.SerializeObject(new { pathKind, archiveUnchanged = unchanged, noOutput, noMarker, error = failure?.GetType().Name }));
+            Assert.That(failure, Is.TypeOf<BuildFailedException>());
+            Assert.That(unchanged && noOutput && noMarker, Is.True, "Immutable archive fixture must remain byte-identical without output or ownership markers.");
+        }
+
+        [Test] public void PlayerOutputJunctionCannotWriteIntoOwnedSourceFixture()
+        {
+            string source = Path.Combine(root, "Source"), alias = Path.Combine(root, "SourceAlias");
+            Directory.CreateDirectory(source); File.WriteAllText(Path.Combine(source, "sentinel.cs"), "// owned fixture\n");
+            string before = JsonConvert.SerializeObject(PlayerBaselineArchive.Inventory(source));
+            CreateOwnedJunction(alias, source);
+            Exception failure = null;
+            try { BuildOutput.Create(new BuildRequest(BuildKind.Player, BuildPlatform.Windows64, Path.Combine(alias, "Output"))); }
+            catch (Exception error) { failure = error; }
+            bool unchanged = before == JsonConvert.SerializeObject(PlayerBaselineArchive.Inventory(source));
+            TestContext.Progress.WriteLine(JsonConvert.SerializeObject(new { sourceUnchanged = unchanged, error = failure?.GetType().Name }));
+            Assert.That(failure, Is.TypeOf<BuildFailedException>());
+            Assert.That(unchanged, Is.True);
+            Assert.That(Directory.Exists(Path.Combine(source, "Output")), Is.False);
+        }
+
+        // A self-contained integrity fixture for Open/containment only; no native build claim.
+        private string CreateArchiveIntegrityFixture()
+        {
+            string archive = Path.Combine(root, "Archive");
+            foreach (string directory in new[] { "Metadata", "Baseline", "Player", "Compiled", "Inputs", "Facades" }) Directory.CreateDirectory(Path.Combine(archive, directory));
+            File.Copy(typeof(object).Assembly.Location, Path.Combine(archive, "Metadata/mscorlib.dll"));
+            File.Copy("Packages/com.code-philosophy.hybridclr/Data~/NetStandard/netstandard2.1.dll", Path.Combine(archive, "Facades/netstandard.dll"));
+            foreach (string input in PlayerBaselineArchive.CompatibilityInputFiles())
+            { string destination = Path.Combine(archive, "Inputs", input); Directory.CreateDirectory(Path.GetDirectoryName(destination)); File.Copy(input, destination); }
+            File.WriteAllText(Path.Combine(archive, "Baseline/index.dat"), "owned integrity fixture");
+            File.WriteAllText(Path.Combine(archive, "Player/native.bin"), "owned integrity fixture, not a native Player");
+            var record = new PlayerBaselineArchive.Archive
+            {
+                playerBuildId = "d1-path-integrity-fixture", platform = "StandaloneWindows64", architecture = "x64", unityVersion = Application.unityVersion,
+                contractVersion = "1", envelopeSha256 = new string('a', 64), compatibilityInputsSha256 = PlayerBaselineArchive.CompatibilityInputsHash(),
+                aotMetadataSetId = HotfixLoadPlan.MetadataSetId(new[] { new KeyValuePair<string, byte[]>("mscorlib.dll", File.ReadAllBytes(Path.Combine(archive, "Metadata/mscorlib.dll"))) }),
+                metadata = PlayerBaselineArchive.Inventory(Path.Combine(archive, "Metadata")), baseline = PlayerBaselineArchive.Inventory(Path.Combine(archive, "Baseline")),
+                player = PlayerBaselineArchive.Inventory(Path.Combine(archive, "Player")), compiled = PlayerBaselineArchive.Inventory(Path.Combine(archive, "Compiled")),
+                inputs = PlayerBaselineArchive.Inventory(Path.Combine(archive, "Inputs")), facades = PlayerBaselineArchive.Inventory(Path.Combine(archive, "Facades"))
+            };
+            File.WriteAllText(Path.Combine(archive, "archive.json"), JsonConvert.SerializeObject(record));
+            Assert.That(PlayerBaselineArchive.Open(archive).playerBuildId, Is.EqualTo("d1-path-integrity-fixture"));
+            return archive;
+        }
+
+        private void CreateOwnedJunction(string alias, string target)
+        {
+            AssertOwnedJunctionPaths(alias, target);
+            Assert.That(Directory.Exists(alias) || File.Exists(alias), Is.False);
+            junctions.Add(alias, target);
+            RunPowerShell("New-Item -ItemType Junction -Path " + Quote(alias) + " -Target " + Quote(target) + " | Out-Null");
+            Assert.That((File.GetAttributes(alias) & FileAttributes.ReparsePoint) != 0, Is.True);
+            Assert.That(Path.GetFullPath(RunPowerShell("(Get-Item -LiteralPath " + Quote(alias) + " -Force).Target").Trim()), Is.EqualTo(target));
+        }
+        private void RemoveOwnedJunction(string alias, string target)
+        {
+            AssertOwnedJunctionPaths(alias, target);
+            if (Directory.Exists(alias))
+            {
+                Assert.That((File.GetAttributes(alias) & FileAttributes.ReparsePoint) != 0, Is.True);
+                Assert.That(Path.GetFullPath(RunPowerShell("(Get-Item -LiteralPath " + Quote(alias) + " -Force).Target").Trim()), Is.EqualTo(target));
+                Directory.Delete(alias, false); // Remove the verified link itself; never recurse through it.
+            }
+            junctions.Remove(alias);
+        }
+        private void AssertOwnedJunctionPaths(string alias, string target)
+        {
+            string prefix = Path.GetFullPath(root) + Path.DirectorySeparatorChar;
+            Assert.That(Path.GetFullPath(alias), Does.StartWith(prefix)); Assert.That(Path.GetFullPath(target), Does.StartWith(prefix));
+        }
+        private static string Quote(string value) => "'" + value.Replace("'", "''") + "'";
+        private static string RunPowerShell(string command)
+        {
+            var start = new System.Diagnostics.ProcessStartInfo("pwsh", "-NoLogo -NoProfile -NonInteractive -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes("$ErrorActionPreference='Stop'; " + command)))
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            using (var process = System.Diagnostics.Process.Start(start))
+            {
+                string output = process.StandardOutput.ReadToEnd(), error = process.StandardError.ReadToEnd(); process.WaitForExit();
+                Assert.That(process.ExitCode, Is.Zero, error); return output;
+            }
         }
 
         [Test] public void MalformedFinalArchiveFailsClosed()
@@ -122,14 +231,33 @@ namespace Client.Tests.EditMode
         [Test] public void TransactionPreservesUnownedSiblingAndOrphanMeta()
         {
             string path = Path.Combine(root, "fresh", "owned.asset"), sibling = Path.Combine(root, "fresh", "unowned.txt");
+            string folderMeta = Path.GetDirectoryName(path) + ".meta", folderGuid = "fileFormatVersion: 2\nguid: f2099c69ec6a441f8de4349ecf088302\nfolderAsset: yes\n";
             string orphan = Path.Combine(root, "orphan.asset"); File.WriteAllText(orphan + ".meta", "original-guid");
             using ((IDisposable)Call("SourceFileTransaction", "Capture", (object)new string[] { path, orphan }))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)); File.WriteAllText(path, "owned"); File.WriteAllText(sibling, "keep");
+                File.WriteAllText(folderMeta, folderGuid);
                 File.WriteAllText(orphan, "temporary"); File.WriteAllText(orphan + ".meta", "changed-guid");
             }
             Assert.That(File.Exists(path), Is.False); Assert.That(File.ReadAllText(sibling), Is.EqualTo("keep"));
+            Assert.That(File.Exists(folderMeta), Is.True, "A retained folder must keep its new GUID-bearing meta.");
+            Assert.That(File.ReadAllText(folderMeta), Is.EqualTo(folderGuid));
             Assert.That(File.Exists(orphan), Is.False); Assert.That(File.ReadAllText(orphan + ".meta"), Is.EqualTo("original-guid"));
+        }
+
+        [TestCase(false), TestCase(true)] public void EmptyOwnedDirectoryCleanupPairsMetaAndRestoresOrphan(bool orphanBefore)
+        {
+            string folder = Path.Combine(root, "owned-folder"), path = Path.Combine(folder, "owned.asset");
+            const string original = "fileFormatVersion: 2\nguid: 1cb3e9b708a94c158a1067586db41c1c\nfolderAsset: yes\n";
+            if (orphanBefore) File.WriteAllText(folder + ".meta", original);
+            using (SourceFileTransaction.Capture(new[] { path }))
+            {
+                Directory.CreateDirectory(folder); File.WriteAllText(path, "temporary");
+                File.WriteAllText(folder + ".meta", "fileFormatVersion: 2\nguid: 4b9302708a64411eb1a77064408866a1\nfolderAsset: yes\n");
+            }
+            Assert.That(Directory.Exists(folder), Is.False);
+            Assert.That(File.Exists(folder + ".meta"), Is.EqualTo(orphanBefore));
+            if (orphanBefore) Assert.That(File.ReadAllText(folder + ".meta"), Is.EqualTo(original));
         }
 
         [Test] public void NativeConfigurationSaveLoadUsesScopedPathsAndPreservesDefaults()
