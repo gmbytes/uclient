@@ -13,7 +13,6 @@ using Client.Framework.UI;
 using GameFramework.Event;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -121,7 +120,7 @@ namespace Client.Bootstrap
         private void LateUpdate()
         {
             if(evidence==null||options?.Enabled!=true)return;
-            var input=FindObjectsOfType<TMP_InputField>().FirstOrDefault();
+            var input=FindObjectsOfType<InputField>().FirstOrDefault();
             var layout=FindObjectsOfType<ScreenLayoutComponent>().FirstOrDefault(c=>c.Service.Current!=null);
             var bridge=FindObjectsOfType<UIViewBridge>().FirstOrDefault();
             var buttons=FindObjectsOfType<Button>().Select(b=>new {id=b.GetInstanceID(),name=b.name,active=b.gameObject.activeInHierarchy,interactable=b.IsInteractable(),bounds=Bounds(b.transform as RectTransform)}).ToArray();
