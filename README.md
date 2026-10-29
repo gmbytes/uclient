@@ -1,6 +1,6 @@
 # C# 客户端框架
 
-Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地，当前证据及未完成边界见[实施进度](docs/implementation-progress.md)。完整发布、回退和双平台设备验收仍在实施。
+Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地，F8 同主包热更新与坏版回退已在 Windows 和雷电 ARM64 APK 中通过。D1 最终构建基线、D2 综合矩阵和 D3 干净工程复现仍在实施，当前证据见[实施进度](docs/implementation-progress.md)。
 
 ## 本地准备
 
@@ -38,4 +38,4 @@ Android 工具安装在 Unity 默认模块目录以外时，可设置 `ANDROID_S
 
 仓库清单查询受网络限制时，官方 SDK manager 支持 `SDK_TEST_BASE_URL` 指向经校验的原始 repository XML 基址（URL 以 `/` 结尾，也支持 `file:///`）。该环境变量会由构建进程继承，并与工具链环境一起记录在每次构建的 `result.json`；SDK 工具、原生编译和 APK 生成仍照常执行。
 
-F1最初只建立单GameFramework启动根；当前Resource/UI通过选定slot初始化，HybridCLR已配置Client.Game.Protocol和Client.Game两个热更模块。登录示例采用普通C# partial与AOT桥接/绑定。F7自动启动、试运行提交和F8双平台更新回退仍须按进度完成，场景打开或Editor测试通过不等于完整发布验收通过。
+F1最初只建立单GameFramework启动根；当前Resource/UI通过选定slot初始化，HybridCLR已配置Client.Game.Protocol和Client.Game两个热更模块。登录示例采用普通C# partial与AOT桥接/绑定。F7启动事务与F8双平台技术闭环已完成；最终Player/Patch交付和完整设备矩阵仍由D1/D2验收。启动与程序集边界见[运行时架构](docs/runtime-architecture.md)，新主包、补丁及回退的操作区别见[发布说明](docs/hotupdate-release.md)。
