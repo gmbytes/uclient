@@ -168,8 +168,8 @@ F3验收：7b58cec，11/11边界测试、实际Windows同Player v1/v2新增类�
 
 **Interfaces:** `Test-HotUpdate.ps1 -Platform Android|Windows64 -DeviceId <Android序列号>` 生成独立buildRun目录，输出 `hotupdate-result.json`；字段包括PlayerBuildId、APK/EXE/native hash、v1/v2 release hash、实执行标记、平台、设备、各步骤结果、日志路径。不得把未连接Android设备记通过。
 
-- [ ] **Step 1:** 固定失败断言：没有安装v1基线、Player hash改变、仅文本资源变化、v2 C#新分支未执行、热DLL被编入AOT、元数据probe失败，任一情况脚本非零退出。
-- [ ] **Step 2:** 在 Windows x64 Release IL2CPP 中，安装/启动v1→只发布v2资源与DLL→完整重启→出现新增类型/方法的 `HOTFIX_V2_EXECUTED 42`；确认Native主包hash完全相同，v2资源标记也改变。
-- [ ] **Step 3:** 在用户选择的雷电Android环境按同流程运行ARM64 APK，不重新安装；记录设备/系统/API、主ABI、转译器、APK/process ABI与签名hash。进入后台、强杀、无网重启验证known-good；真实ARM硬件结果单列NotRun，不混同模拟器结果。
-- [ ] **Step 4:** 发布ThrowOnStart版，确认本进程不二次加载；手工/脚本重新启动后回到v2 known-good；随后关闭网络仍能启动。预期两平台分别输出 `HOTUPDATE_PASS`，JSON每项均有证据。
-- [ ] **Step 5:** 审查并提交 `test(hotfix): 验证两平台同主包代码更新与回退`。F8未通过不得声明框架已具备可交付热更新。
+- [x] **Step 1:** 固定失败断言：没有安装v1基线、Player hash改变、仅文本资源变化、v2 C#新分支未执行、热DLL被编入AOT、元数据probe失败，任一情况脚本非零退出。
+- [x] **Step 2:** 在 Windows x64 Release IL2CPP 中，安装/启动v1→只发布v2资源与DLL→完整重启→出现新增类型/方法的 `HOTFIX_V2_EXECUTED 42`；确认Native主包hash完全相同，v2资源标记也改变。
+- [x] **Step 3:** 在用户选择的雷电Android环境按同流程运行ARM64 APK，不重新安装；记录设备/系统/API、主ABI、转译器、APK/process ABI与签名hash。进入后台、强杀、无网重启验证known-good；真实ARM硬件结果单列NotRun，不混同模拟器结果。
+- [x] **Step 4:** 发布ThrowOnStart版，确认本进程不二次加载；手工/脚本重新启动后回到v2 known-good；随后关闭网络仍能启动。预期两平台分别输出 `HOTUPDATE_PASS`，JSON每项均有证据。
+- [x] **Step 5:** 审查并提交 `test(hotfix): 验证两平台同主包代码更新与回退`。F8未通过不得声明框架已具备可交付热更新。

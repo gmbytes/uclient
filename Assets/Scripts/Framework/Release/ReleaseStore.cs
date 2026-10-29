@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -61,10 +62,11 @@ namespace Client.Framework.Release
                     return new PreparedRelease(destination, existing);
                 }
                 if (File.Exists(destination)) throw new IOException("Release slot path is occupied by a file.");
-                budget.Require(root, release);
-                string stage = ReleaseFileSystem.Child(root, "staging/" + release.ReleaseId + "." + release.ManifestSha256 + ".partial");
+                string stage = ReleaseFileSystem.Child(root, "staging/" + ReleaseFileSystem.StageKey(release.ManifestSha256) + ".partial");
                 string filesRoot = ReleaseFileSystem.Child(stage, "files");
                 string downloadsRoot = ReleaseFileSystem.Child(stage, "downloads");
+                ReleaseFileSystem.RequirePreparationPaths(root, destination, filesRoot, downloadsRoot, release);
+                budget.Require(root, release);
                 Directory.CreateDirectory(filesRoot); Directory.CreateDirectory(downloadsRoot);
                 string reuseRoot = before.KnownGood == null ? null : ReleaseFileSystem.Child(root, "slots/" + before.KnownGood);
                 long completed = 0, total = release.Files.Sum(file => file.Length);
@@ -116,6 +118,9 @@ namespace Client.Framework.Release
 
     internal static class ReleaseFileSystem
     {
+        // Initial-client support policy, in UTF-8 bytes excluding NUL; not a universal OS limit.
+        internal const int MaximumPathBytes = 240;
+        internal const string DownloadTemporarySuffix = ".download";
         private static readonly Dictionary<string, SemaphoreSlim> Gates = new Dictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, object> StateLocks = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         internal static SemaphoreSlim PrepareGate(string root)
@@ -136,9 +141,51 @@ namespace Client.Framework.Release
         }
         internal static void NoReparse(string path)
         {
+            RequireSupportedPath(path);
             for (string current = path; !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
                 if ((Directory.Exists(current) || File.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
                     throw new InvalidDataException("Release paths cannot traverse reparse points.");
+        }
+        internal static void RequireSupportedPath(string path)
+        {
+            string absolute = Path.GetFullPath(path);
+            if (Encoding.UTF8.GetByteCount(absolute) > MaximumPathBytes)
+                throw new PathTooLongException("Client materialized paths support at most 240 UTF-8 bytes excluding NUL: " + absolute);
+        }
+        internal static void RequireDownloadPath(string destination)
+        { NoReparse(destination); NoReparse(destination + DownloadTemporarySuffix); }
+        internal static string StageKey(string digest)
+        {
+            if (digest == null || digest.Length != 64) throw new InvalidDataException("A full SHA256 manifest digest is required.");
+            const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            var result = new StringBuilder(52); int buffer = 0, bits = 0;
+            for (int i = 0; i < 32; i++)
+            {
+                buffer = (buffer << 8) | Convert.ToByte(digest.Substring(i * 2, 2), 16); bits += 8;
+                while (bits >= 5) { bits -= 5; result.Append(alphabet[(buffer >> bits) & 31]); }
+                buffer &= (1 << bits) - 1;
+            }
+            if (bits != 0) result.Append(alphabet[(buffer << (5 - bits)) & 31]);
+            return result.ToString();
+        }
+        internal static void RequirePreparationPaths(string root, string destination, string filesRoot, string downloadsRoot, VerifiedRelease release)
+        {
+            // GUID-generated names have fixed ASCII width; actual generated paths are checked again where used.
+            string guid = new string('0', 32);
+            foreach (string path in new[] {
+                Path.Combine(root,"state.json"), Path.Combine(root,"state.json.bak"), Path.Combine(root,"state."+guid+".partial"),
+                Path.Combine(root,"streams",guid+".partial"), Path.Combine(root,"staging/platform-streams",guid+".partial"),
+                Path.Combine(filesRoot,"release.manifest.json"), Path.Combine(filesRoot,"release.manifest.sig"),
+                Path.Combine(destination,"release.manifest.json"), Path.Combine(destination,"release.manifest.sig"), Path.Combine(destination,"Scratch") })
+                RequireSupportedPath(path);
+            string check = Path.Combine(root,"staging/check-"+guid+".partial");
+            foreach (string name in new[] { "channel.json", "channel.sig", "release.json", "release.sig" })
+            { RequireSupportedPath(Path.Combine(check,name)); RequireSupportedPath(Path.Combine(check,name)+DownloadTemporarySuffix); }
+            for (int i = 0; i < release.Files.Count; i++)
+            {
+                var file = release.Files[i]; Child(filesRoot,file.Path); Child(destination,file.Path);
+                string download = Child(downloadsRoot,i+".partial"); RequireDownloadPath(download);
+            }
         }
         internal static void ValidateId(string id)
         {

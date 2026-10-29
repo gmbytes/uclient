@@ -1,0 +1,10 @@
+using Client.Contracts;
+namespace Client.Game.HotUpdateProof
+{
+    public sealed class AddedAnswer { public int Answer() => 6 * 7; }
+    public static class VersionBranch
+    {
+        public static void Execute(IClientContext context) { context.Log.Write(ClientLogLevel.Info,"HOTFIX_V2_EXECUTED",new AddedAnswer().Answer().ToString()); }
+        public static void AfterReady(IClientContext context) { context.Log.Write(ClientLogLevel.Error,"F8_THROW","after actual UI Ready request");throw new System.InvalidOperationException("F8 ThrowOnStart"); }
+    }
+}
