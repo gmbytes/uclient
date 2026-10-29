@@ -151,6 +151,8 @@ namespace Client.Framework.Release
         private async Task CheckAndPrepareAsync(CancellationToken token, long checkingEpoch)
         {
             string scratch = ReleaseFileSystem.Child(state.Root, "staging/check-" + Guid.NewGuid().ToString("N") + ".partial");
+            foreach (string name in new[] { "channel.json", "channel.sig", "release.json", "release.sig" })
+                ReleaseFileSystem.RequireDownloadPath(Path.Combine(scratch, name));
             Directory.CreateDirectory(scratch);
             try
             {

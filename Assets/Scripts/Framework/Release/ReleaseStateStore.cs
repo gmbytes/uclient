@@ -78,10 +78,10 @@ namespace Client.Framework.Release
                 };
                 byte[] bytes = Encoding.UTF8.GetBytes(json.ToString(Formatting.None));
                 if (bytes.Length > MaximumDocumentBytes) throw new InvalidDataException("State document is too large.");
-                Directory.CreateDirectory(Root);
                 string primary = ReleaseFileSystem.Child(Root, "state.json");
                 string backup = ReleaseFileSystem.Child(Root, "state.json.bak");
                 string temp = ReleaseFileSystem.Child(Root, "state." + Guid.NewGuid().ToString("N") + ".partial");
+                Directory.CreateDirectory(Root);
                 faults.Hit("state.write.before");
                 token.ThrowIfCancellationRequested();
                 ReleaseFileSystem.WriteDurable(temp, bytes);

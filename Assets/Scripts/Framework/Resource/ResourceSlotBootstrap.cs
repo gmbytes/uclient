@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityGameFramework.Runtime;
+using Client.Framework.Release;
 
 namespace Client.Framework.Resource
 {
@@ -24,6 +25,8 @@ namespace Client.Framework.Resource
             string root = Path.GetFullPath(slotRoot);
             string readOnly = Path.Combine(root, "Resources");
             string scratch = Path.Combine(root, "Scratch");
+            ReleaseFileSystem.RequireSupportedPath(Path.Combine(readOnly, "GameFrameworkVersion.dat"));
+            ReleaseFileSystem.RequireSupportedPath(scratch);
             if (!File.Exists(Path.Combine(readOnly, "GameFrameworkVersion.dat")))
                 throw new FileNotFoundException("Complete native Package version table is required.", readOnly);
             if (m_GameRootPrefab == null || m_GameRootPrefab.activeSelf)

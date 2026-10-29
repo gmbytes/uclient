@@ -21,6 +21,34 @@ namespace Client.Tests.PlayMode
     [Category("F5")]
     public sealed class BaseReleaseInstallTests
     {
+        [UnityTest] public IEnumerator StreamScratchBudgetRejectsBeforeCreatingDirectory()
+        {
+            string root=Path.GetFullPath(Path.Combine("Builds","F5StreamPathBudget",Guid.NewGuid().ToString("N")));
+            string cache=Path.Combine(root,new string('x',210-root.Length-1));
+            try
+            {
+                var reader=new PlatformReleaseStreamReader(new Uri(root+Path.DirectorySeparatorChar).AbsoluteUri,true,cache);
+                var task=reader.OpenReadAsync("baseline.bin",CancellationToken.None);while(!task.IsCompleted)yield return null;
+                Assert.That(task.IsFaulted,Is.True);Assert.That(task.Exception.InnerException,Is.TypeOf<PathTooLongException>());Assert.That(Directory.Exists(root),Is.False,"Scratch directory must not precede validation of its actual GUID filename.");
+            }
+            finally{if(Directory.Exists(root))Directory.Delete(root,true);}
+        }
+        [UnityTest] public IEnumerator NativeDownloadTempSuffixBudgetRejectsBeforeQueuingTransfer()
+        {
+            GameEntry.Shutdown(ShutdownType.None);yield return null;
+            var host=new GameObject("F5 download path budget host");host.SetActive(false);host.AddComponent<BaseComponent>().EditorResourceMode=false;
+            var events=host.AddComponent<EventComponent>();var downloads=host.AddComponent<DownloadComponent>();host.SetActive(true);yield return null;yield return null;
+            string root=Path.GetFullPath(Path.Combine("Builds","F5DownloadPathBudget",Guid.NewGuid().ToString("N")));Directory.CreateDirectory(root);
+            var transport=new GfDownloadTransport(downloads,events,"http://127.0.0.1:9");
+            try
+            {
+                string destination=Path.Combine(root,new string('d',235-root.Length-1));int waiting=downloads.WaitingTaskCount,working=downloads.WorkingAgentCount;
+                var task=transport.DownloadAsync("channel.json",destination,CancellationToken.None);Assert.That(task.IsCompleted,Is.True,"The real .download suffix must be checked before native queuing.");
+                Assert.Throws<PathTooLongException>(()=>task.GetAwaiter().GetResult());Assert.That(downloads.WaitingTaskCount,Is.EqualTo(waiting));Assert.That(downloads.WorkingAgentCount,Is.EqualTo(working));Assert.That(Directory.GetFileSystemEntries(root),Is.Empty);
+            }
+            finally{transport.Dispose();GameEntry.Shutdown(ShutdownType.None);Object.Destroy(host);Directory.Delete(root,true);}
+            yield return null;
+        }
         [UnityTest]
         public IEnumerator AndroidBaselineUsesStreamReader()
         {
@@ -157,7 +185,8 @@ namespace Client.Tests.PlayMode
                 using (var transport = new GfDownloadTransport(downloads, events, "http://127.0.0.1:" + port + "/"))
                 {
                     string path = Path.Combine(root, "response.partial");
-                    var task = transport.DownloadAsync("payload.bin", path, CancellationToken.None);
+                    string aliased = Path.Combine(root, string.Concat(System.Linq.Enumerable.Repeat("./", 120)), Path.GetFileName(path));
+                    var task = transport.DownloadAsync("payload.bin", aliased, CancellationToken.None);
                     float deadline = Time.realtimeSinceStartup + 15;
                     while (!task.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
                     Assert.That(task.IsCompleted, Is.True, "Native UGF transport timed out.");
