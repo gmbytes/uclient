@@ -55,6 +55,7 @@ namespace Client.Editor.Build
                 GenerateStableInputs(request,result,inputs.Profile);
                 string compiled=SettingsUtil.GetHotUpdateDllsOutputDirByTarget(target);HotfixCompatibilityCheck.RecordCompileInputs(compiled);
                 string archiveRoot=Path.Combine(result.OutputDirectory,"Archive");var archive=PlayerBaselineArchive.Stage(archiveRoot,target,compiled,baseline);
+                BuildToolArchive.Capture(archiveRoot,request.LinkerPolicyPath,archive.buildProfile,request.SigningKeyPath);result.EvidenceFiles.Add(Path.Combine(archiveRoot,"BuildTools/manifest.json"));
                 BuildFiles.Put(Path.GetFullPath("Assets/StreamingAssets/ClientIdentity.json"),System.Text.Encoding.UTF8.GetBytes(JObject.FromObject(new{archive.playerBuildId,archive.platform,archive.architecture,archive.unityVersion,archive.contractVersion,archive.envelopeSha256,archive.aotMetadataSetId}).ToString(Formatting.Indented)+"\n"));
                 PatchBuilder.SignPayload(request,inputs.Profile,archive,compiled,baseline,false);
                 BuildFiles.CopyTree(baseline,Path.Combine(result.OutputDirectory,"Release"));

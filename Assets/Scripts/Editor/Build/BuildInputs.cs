@@ -42,6 +42,7 @@ namespace Client.Editor.Build
             using(var key=System.Security.Cryptography.RSA.Create()){key.FromXmlString(File.ReadAllText(request.SigningKeyPath));profile.RequireSigner(key);}
             if(request.Kind==BuildKind.Patch)
             {
+                BuildToolArchive.Verify(request.PlayerArchive,PlayerBaselineArchive.Open(request.PlayerArchive).buildProfile);
                 if(request.PublicProfilePath!=null&&NativeBuildProfile.Parse(File.ReadAllText(request.PublicProfilePath)).Json!=profile.Json)throw new BuildFailedException("Patch public profile differs from the selected Player archive.");
                 foreach(string path in new[]{"ProjectSettings/ProjectSettings.asset","ProjectSettings/HybridCLRSettings.asset",GeneratedAot,"Assets/Scripts/Framework/HotUpdate/Generated/link.xml"})prepared[path]=File.ReadAllBytes(Path.Combine(request.PlayerArchive,"Inputs",path));
             }
