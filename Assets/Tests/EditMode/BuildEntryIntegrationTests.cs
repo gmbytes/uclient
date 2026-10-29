@@ -11,6 +11,7 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Build.Player;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace Client.Tests.EditMode
@@ -18,6 +19,38 @@ namespace Client.Tests.EditMode
     [Category("D1")]
     public sealed class BuildEntryIntegrationTests
     {
+        [Test] public void EmptyInitialScenePreservesBuildFailureAndRestoresCleanScene()
+        {
+            var originalScenes=EditorSceneManager.GetSceneManagerSetup();
+            string root=Path.GetFullPath("Builds/Tests/D1/SceneRestore/"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
+            string keyPath=Path.Combine(root,"signer.xml"),profilePath=Path.Combine(root,"public.json"),policyPath=Path.Combine(root,"Linker/policy.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(policyPath));
+            byte[] settings=File.ReadAllBytes("ProjectSettings/ProjectSettings.asset");
+            try
+            {
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+                Assert.That(EditorSceneManager.GetSceneManagerSetup(),Is.Empty,"An unsaved empty startup scene has no persisted SceneSetup entries.");
+                using(var key=new RSACryptoServiceProvider(2048){PersistKeyInCsp=false})
+                {
+                    var data=key.ExportParameters(false);File.WriteAllText(keyPath,key.ToXmlString(true));
+                    File.WriteAllText(profilePath,new JObject{["schemaVersion"]=1,["keyId"]="scene-restore",["modulus"]=Convert.ToBase64String(data.Modulus),["exponent"]=Convert.ToBase64String(data.Exponent),["endpoint"]="http://127.0.0.1:18765/",["acceptance"]=false,["packageId"]="com.sgame.client.acceptance",["sessionHost"]="127.0.0.1",["sessionPort"]=7000}.ToString());
+                }
+                File.WriteAllText(policyPath,"{}");
+                var result=ClientBuild.Execute(new BuildRequest(BuildKind.Player,BuildPlatform.Windows64,Path.Combine(root,"Output"),null,profilePath,keyPath,policyPath,"v1",null));
+                Assert.That(result.Status,Is.EqualTo(BuildStatus.Failed));
+                Assert.That(result.Errors.Single(),Does.Contain("Invalid linker policy evidence.").And.Not.Contain("Invalid SceneManagerSetup"),"Scene restoration must preserve the original pipeline failure.");
+                Assert.That(EditorSceneManager.GetSceneManagerSetup(),Is.Empty);
+                Assert.That(UnityEngine.SceneManagement.SceneManager.GetActiveScene().isLoaded,Is.True);
+                Assert.That(UnityEngine.SceneManagement.SceneManager.GetActiveScene().isDirty,Is.False);
+                Assert.That(File.ReadAllBytes("ProjectSettings/ProjectSettings.asset"),Is.EqualTo(settings));
+                Assert.That(File.Exists(Path.Combine(result.OutputDirectory,"Release/channel.json")),Is.False);
+            }
+            finally
+            {
+                if(originalScenes.Length==0)EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);else EditorSceneManager.RestoreSceneManagerSetup(originalScenes);
+                Assert.That(root,Does.StartWith(Path.GetFullPath("Builds/Tests/D1/SceneRestore")+Path.DirectorySeparatorChar));Directory.Delete(root,true);
+            }
+        }
         [Test] public void AllEntriesReturnSameResolvedOutput()
         {
             string root=Path.GetFullPath("Builds/Tests/D1/MenuReceipt/"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
