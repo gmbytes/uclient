@@ -48,6 +48,9 @@ namespace Client.Editor.Build
             if(!string.IsNullOrEmpty(request.HotfixOverlay))
             {
                 string root=Path.GetFullPath(request.HotfixOverlay);SourceFileTransaction.RejectReparsePoints(root);
+                string fixture=Path.GetFullPath("Tests/Fixtures/Delivery")+Path.DirectorySeparatorChar;
+                if(root.StartsWith(fixture,StringComparison.OrdinalIgnoreCase))
+                    BuildProtocol.Run("pwsh",new[]{"-NoProfile","-File",Path.GetFullPath("Tool/Client/Verify-DeliveryFixtures.ps1"),"-CommRoot",Environment.GetEnvironmentVariable("SGAME_COMM_ROOT")??"","-Protoc",Path.GetFullPath("Builds/tools/protoc/36.2/bin/protoc.exe"),"-OutputDirectory",Path.Combine(result.OutputDirectory,"FixtureSource")},Path.Combine(result.OutputDirectory,"fixture-source-command.json"));
                 foreach(string source in Directory.GetFiles(root,"*.cs",SearchOption.AllDirectories))
                 {
                     SourceFileTransaction.RejectReparsePoints(source);string relative=source.Substring(root.TrimEnd(Path.DirectorySeparatorChar).Length+1).Replace('\\','/');
