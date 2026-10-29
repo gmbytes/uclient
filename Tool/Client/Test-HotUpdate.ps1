@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][ValidateSet('Android','Windows64')][string]$Platform,[string]$DeviceId,[string]$UnityEditor,[switch]$BuildOnly,[string]$RunRoot,[switch]$RetryRuntime,[string]$ReplaceFailedRun)
+param([Parameter(Mandatory)][ValidateSet('Android','Windows64')][string]$Platform,[string]$DeviceId,[string]$UnityEditor,[switch]$BuildOnly,[string]$RunRoot,[switch]$RetryRuntime,[string]$ReplaceFailedRun,[string]$FrameworkRunId,[string]$FrameworkEvidenceDirectory)
+if([bool]$FrameworkRunId -ne [bool]$FrameworkEvidenceDirectory){throw 'FrameworkRunId and FrameworkEvidenceDirectory must be supplied together.'}
+if($FrameworkRunId){. "$PSScriptRoot/Framework-Evidence.ps1";. "$PSScriptRoot/Framework-IO.ps1"}
 if($BuildOnly -and $RunRoot){throw 'BuildOnly creates a fresh buildRun; RunRoot executes an existing completed build.'}
 if($RetryRuntime -and (-not$RunRoot -or $Platform-ne'Windows64')){throw 'A runtime retry requires an existing Windows build; Android never clears or reinstalls an existing scenario.'}
 if($ReplaceFailedRun -and ($Platform-ne'Android' -or $BuildOnly)){throw 'Owned failed-APK replacement is only available immediately before an Android runtime baseline.'}
@@ -205,5 +207,6 @@ finally{
     if($reverse){Adb @('reverse','--remove',"tcp:$port") (Join-Path $RunRoot 'reverse-cleanup.txt')|Out-Null;$reverse=$false}
     if($Platform-eq'Android' -and $result.Contains('installCount')){Adb @('shell','am','force-stop','com.sgame.client.hotupdateproof') (Join-Path $RunRoot 'final-force-stop.txt')|Out-Null}
     $result.commands=$commands;$result.cleanup=@{ownedServerStopped=($null-eq$server);ownedReverseRemoved=(-not$reverse);ownedPlayerTerminal=$true};Write-RunJson (Join-Path $RunRoot 'hotupdate-result.json') $result
+    if($FrameworkRunId){Write-FrameworkToolEvidence $FrameworkEvidenceDirectory $FrameworkRunId 'F8' (Join-Path $RunRoot 'hotupdate-result.json') 'LegacyNativeF8'|Out-Null}
 }
 if(-not$result.passed){Write-Host 'HOTUPDATE_FAIL';exit 1};Write-Host 'HOTUPDATE_PASS'

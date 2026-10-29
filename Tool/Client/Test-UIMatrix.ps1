@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param([ValidateSet('Editor')][string] $Profile='Editor',[string] $UnityEditor)
+param([ValidateSet('Editor')][string] $Profile='Editor',[string] $UnityEditor,[string]$FrameworkRunId,[string]$FrameworkEvidenceDirectory)
+if([bool]$FrameworkRunId -ne [bool]$FrameworkEvidenceDirectory){throw 'FrameworkRunId and FrameworkEvidenceDirectory must be supplied together.'}
+if($FrameworkRunId){. "$PSScriptRoot/Framework-Evidence.ps1";. "$PSScriptRoot/Framework-IO.ps1"}
 . "$PSScriptRoot/Unity-Common.ps1"
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $editor=Resolve-UnityEditor $UnityEditor
@@ -18,6 +20,7 @@ if((Test-Path $xmlPath) -and (Test-Path (Join-Path $output 'matrix.json'))) {
     foreach($case in $matrix.cases) { if(-not(Test-Path (Join-Path $output $case.screenshot))) { $passed=$false } }
 }
 Write-RunJson (Join-Path $output 'result.json') ([ordered]@{profile=$Profile; editor=$editor; exitCode=$exitCode;caseCount=$count;passed=$passed;evidence=$output;scope='Editor preview only; Android keyboard/rotation remain D2 device validation'})
+if($FrameworkRunId){Write-FrameworkToolEvidence $FrameworkEvidenceDirectory $FrameworkRunId 'U2' (Join-Path $output 'result.json') 'EditorGeometry'|Out-Null}
 Write-Host "Evidence: $output"
 if(-not $passed) { Write-Host 'U2_MATRIX_FAIL'; exit 1 }
 Write-Host 'U2_MATRIX_PASS'

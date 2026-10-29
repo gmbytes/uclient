@@ -2,7 +2,9 @@
 param([Parameter(Mandatory)][string]$TokRoot,[Parameter(Mandatory)][string]$ProtoRoot,
     [string]$ClientRoot=(Join-Path $PSScriptRoot '../..'),
     [ValidateRange(1,65535)][int]$InternalRpcPort=7001,
-    [ValidateSet('Just','Cargo')][string]$Launcher='Just')
+    [ValidateSet('Just','Cargo')][string]$Launcher='Just',[string]$FrameworkRunId,[string]$FrameworkEvidenceDirectory)
+if([bool]$FrameworkRunId -ne [bool]$FrameworkEvidenceDirectory){throw 'FrameworkRunId and FrameworkEvidenceDirectory must be supplied together.'}
+if($FrameworkRunId){. "$PSScriptRoot/Framework-Evidence.ps1";. "$PSScriptRoot/Framework-IO.ps1"}
 $ErrorActionPreference='Stop'
 $ClientRoot=[IO.Path]::GetFullPath($ClientRoot);$TokRoot=[IO.Path]::GetFullPath($TokRoot);$ProtoRoot=[IO.Path]::GetFullPath($ProtoRoot)
 $commTools=[IO.Path]::GetFullPath((Join-Path $ProtoRoot '../tools'))
@@ -122,6 +124,7 @@ finally{
     if(-not $result.cleanup.complete){$result.status='FAIL';$result.error='Owned server listener cleanup incomplete'}
     $result.finishedUtc=[DateTime]::UtcNow.ToString('o')
     $result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $out 'result.json') -Encoding utf8NoBOM
+    if($FrameworkRunId){Write-FrameworkToolEvidence $FrameworkEvidenceDirectory $FrameworkRunId 'N3' (Join-Path $out 'result.json') 'ManagedInterop'|Out-Null}
     Write-Output (Join-Path $out 'result.json')
 }
 if($result.status -ne 'PASS'){throw "Protocol interop failed: $($result.error)"}

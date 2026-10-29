@@ -1,0 +1,480 @@
+{
+  "schemaVersion": 1,
+  "task": "D2",
+  "frozenContractCommit": "7ba8acd1167d4401c7a0357e47354b7d6fb949f9",
+  "platforms": [
+    "Windows64",
+    "Android"
+  ],
+  "cases": [
+    {
+      "id": "baseline-offline",
+      "kind": "ready",
+      "taskId": "D2.Step2",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "cleanInstall": true,
+      "offline": true,
+      "version": "v1"
+    },
+    {
+      "id": "update-v2",
+      "kind": "ready",
+      "taskId": "D2.Step2",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "online": true,
+      "version": "v2"
+    },
+    {
+      "id": "restart-v2",
+      "kind": "ready",
+      "taskId": "D2.Step2",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "version": "v2",
+      "newProcessAfter": "update-v2"
+    },
+    {
+      "id": "offline-v2",
+      "kind": "ready",
+      "taskId": "D2.Step2",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "offline": true,
+      "version": "v2",
+      "newProcessAfter": "restart-v2"
+    },
+    {
+      "id": "bad-signature",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "signature"
+    },
+    {
+      "id": "bad-hash",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "hash|SHA256"
+    },
+    {
+      "id": "wrong-player-build",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "PlayerBuildId|identity"
+    },
+    {
+      "id": "wrong-architecture",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "architecture|identity"
+    },
+    {
+      "id": "missing-dll",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "missing|not found|404"
+    },
+    {
+      "id": "missing-bundle",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "missing|not found|404"
+    },
+    {
+      "id": "tampered-version-table",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "hash|SHA256|signature"
+    },
+    {
+      "id": "disk-budget",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "space|budget"
+    },
+    {
+      "id": "download-cancel",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "cancel"
+    },
+    {
+      "id": "network-interruption",
+      "kind": "preparation-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "network|transport|connect|download"
+    },
+    {
+      "id": "semantic-version-table",
+      "kind": "semantic-reject",
+      "taskId": "D2.Step3",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "failurePattern": "GameFramework|Deserialize|version|Package"
+    },
+    {
+      "id": "kill-download-partial",
+      "kind": "strong-kill",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "point": "download.partial"
+    },
+    {
+      "id": "kill-rename-before",
+      "kind": "strong-kill",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "point": "rename.before"
+    },
+    {
+      "id": "kill-state-replace-before",
+      "kind": "strong-kill",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "statePurpose": "candidate",
+      "point": "state.replace.before"
+    },
+    {
+      "id": "kill-state-replace-after",
+      "kind": "strong-kill",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "statePurpose": "candidate",
+      "point": "state.replace.after"
+    },
+    {
+      "id": "kill-trial-persisted",
+      "kind": "strong-kill",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "point": "trial.persisted"
+    },
+    {
+      "id": "kill-hotentry-executing",
+      "kind": "strong-kill",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "point": "hotentry.executing"
+    },
+    {
+      "id": "throw-on-start",
+      "kind": "throw",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true
+    },
+    {
+      "id": "tok-rejection",
+      "kind": "session",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "outcome": "Rejected"
+    },
+    {
+      "id": "tok-disconnect",
+      "kind": "session",
+      "taskId": "D2.Step4",
+      "platforms": [
+        "Windows64",
+        "Android"
+      ],
+      "required": true,
+      "outcome": "Disconnected"
+    },
+    {
+      "id": "windows-720x1280",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 1280,
+      "action": "resize",
+      "width": 720
+    },
+    {
+      "id": "windows-1080x1920",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 1920,
+      "action": "resize",
+      "width": 1080
+    },
+    {
+      "id": "windows-1080x2400",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 2400,
+      "action": "resize",
+      "width": 1080
+    },
+    {
+      "id": "windows-1536x2048",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 2048,
+      "action": "resize",
+      "width": 1536
+    },
+    {
+      "id": "windows-1280x720",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 720,
+      "action": "resize",
+      "width": 1280
+    },
+    {
+      "id": "windows-1920x1080",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 1080,
+      "action": "resize",
+      "width": 1920
+    },
+    {
+      "id": "windows-2560x1080",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 1080,
+      "action": "resize",
+      "width": 2560
+    },
+    {
+      "id": "windows-720x480",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "height": 480,
+      "action": "resize",
+      "width": 720
+    },
+    {
+      "id": "windows-drag",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "action": "window-drag"
+    },
+    {
+      "id": "windows-short-scroll",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Windows64"
+      ],
+      "required": true,
+      "action": "scroll"
+    },
+    {
+      "id": "android-rotation",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Android"
+      ],
+      "required": true,
+      "action": "rotation"
+    },
+    {
+      "id": "android-ime",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Android"
+      ],
+      "required": true,
+      "action": "keyboard"
+    },
+    {
+      "id": "android-ime-rotation",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Android"
+      ],
+      "required": true,
+      "action": "keyboard-rotation"
+    },
+    {
+      "id": "android-background",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Android"
+      ],
+      "required": true,
+      "action": "background"
+    },
+    {
+      "id": "android-safe-area",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Android"
+      ],
+      "required": true,
+      "action": "safe-area"
+    },
+    {
+      "id": "android-short-scroll",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Android"
+      ],
+      "required": true,
+      "action": "scroll"
+    },
+    {
+      "id": "android-inflight-rotation",
+      "kind": "ui",
+      "taskId": "D2.Step5",
+      "platforms": [
+        "Android"
+      ],
+      "required": true,
+      "action": "inflight-rotation"
+    }
+  ],
+  "excluded": [
+    {
+      "reason": "First-phase Android runs on the selected LDPlayer translation environment.",
+      "status": "NotRun",
+      "id": "physical-arm"
+    },
+    {
+      "reason": "Outside first-phase platform scope.",
+      "status": "NotRun",
+      "id": "ios"
+    }
+  ]
+}
