@@ -6,11 +6,24 @@ function Get-FrameworkMatrix {
 function Require-FrameworkFact($Condition,[string]$Code,[string]$Message) {
     if(-not $Condition){throw [IO.InvalidDataException]::new($Code+': '+$Message)}
 }
+function Test-FrameworkInteger($Value) { $Value -is [byte] -or $Value -is [int] -or $Value -is [long] -or $Value -is [uint32] -or $Value -is [uint64] }
+function Assert-FrameworkScalars($Value,[string]$Path='evidence') {
+    if($Value -is [System.Collections.IDictionary]){
+        foreach($key in $Value.Keys){
+            $item=$Value[$key];$at=$Path+'.'+$key
+            if($key -cin @('executed','terminal','ready','restartRequired','Succeeded','succeeded','authenticated','clean','active','interactable','focused','keyboardVisible','paused','automatic','finalD1ArchivesApproved','development','completed')){Require-FrameworkFact ($item -is [bool]) 'E_SCALAR' "$at must be a JSON boolean."}
+            if($null -ne $item -and $key -cin @('processId','observedProcessId','sequence','frame','firstSequence','lastSequence','Epoch','epoch','requests','request','requestId','connectionEpoch','serverEpoch','metadataCount','resourceAttempts','stableFrames','pointerBits','bytes','expectedBytes','serial','count','installCount','caret','selectionAnchor','selectionFocus')){Require-FrameworkFact (Test-FrameworkInteger $item) 'E_SCALAR' "$at must be an integer."}
+            if($null -ne $item -and $key -cin @('x','y','width','height','left','right','top','bottom','realtime')){Require-FrameworkFact ($item -is [ValueType] -and $item -isnot [bool] -and [double]::IsFinite([double]$item)) 'E_SCALAR' "$at must be a finite number."}
+            Assert-FrameworkScalars $item $at
+        }
+    }elseif($Value -is [System.Collections.IList]){for($i=0;$i -lt $Value.Count;$i++){Assert-FrameworkScalars $Value[$i] ($Path+'['+$i+']')}}
+}
 function Assert-FrameworkHashMap($Expected,$Actual,[string]$Label) {
     Require-FrameworkFact ($Expected -is [System.Collections.IDictionary] -and $Expected.Count -gt 0 -and $Actual -is [System.Collections.IDictionary] -and $Expected.Count -eq $Actual.Count) 'E_HASH' "$Label inventory is missing or incomplete."
     foreach($key in $Expected.Keys){Require-FrameworkFact ($Expected[$key] -cmatch '^[a-f0-9]{64}$' -and $Actual[$key] -ceq $Expected[$key]) 'E_HASH' "$Label changed: $key"}
 }
 function Assert-FrameworkContext($Evidence) {
+    Assert-FrameworkScalars $Evidence
     Require-FrameworkFact ($Evidence.runId -cmatch '^[A-Za-z0-9_-]{1,40}$') 'E_RUN_ID' 'Unsafe or missing run identity.'
     Require-FrameworkFact ($Evidence.platform -in @('Windows64','Android')) 'E_PLATFORM' 'Explicit native platform is required.'
     Require-FrameworkFact ($Evidence.platform -ne 'Android' -or -not [string]::IsNullOrWhiteSpace($Evidence.deviceId)) 'E_DEVICE' 'Explicit selected device is required.'
@@ -33,8 +46,30 @@ function Assert-FrameworkContext($Evidence) {
     }
 }
 function Get-FrameworkEvents($Attempt,[string]$Kind) { @($Attempt.events | Where-Object kind -CEQ $Kind) }
+function Assert-FrameworkThrow($Case,$Evidence) {
+    Assert-FrameworkScalars $Case
+    Require-FrameworkFact ($Case.attempts.Count -eq 2 -and $Case.candidate -cne $Case.knownGood -and $Case.fault.kind -ceq 'ThrowOnStart') 'E_THROW' 'A distinct throw candidate and next-process recovery are required.'
+    $first=$Case.attempts[0];$next=$Case.attempts[1]
+    Require-FrameworkFact ($first.processId -ne $next.processId -and $first.attemptId -cne $next.attemptId) 'E_THROW_RECOVERY' 'Throw recovery requires a complete new native process/attempt.'
+    $results=@(Get-FrameworkEvents $first 'launch.result');Require-FrameworkFact ($results.Count -eq 1) 'E_THROW_RESULT' 'Actual throwing launch result is required.'
+    $result=$results[0].data;$selection=$result.selection
+    Require-FrameworkFact ($selection.ReleaseId -ceq $Case.candidate -and $selection.Epoch -gt 0 -and $selection.ManifestSha256 -ceq $Evidence.releases[$Case.candidate].manifestSha256 -and $result.ready -eq $false -and $result.restartRequired -eq $true -and $result.state.KnownGood -ceq $Case.knownGood -and $Case.candidate -cin $result.state.BadReleaseIds) 'E_THROW_SELECTION' 'Throw must quarantine the selected candidate without promotion.'
+    $contract=Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Tests/Fixtures/Delivery/throw-provenance.json') -Raw|ConvertFrom-Json -AsHashtable
+    $markers=@(Get-FrameworkEvents $first 'hot.log'|Where-Object {$_.data.code -ceq $contract.markerCode -and $_.data.message -ceq $contract.markerMessage})
+    $views=@(Get-FrameworkEvents $first 'hot.log'|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'})
+    Require-FrameworkFact ($markers.Count -eq 1 -and $views.Count -eq 1 -and $views[0].sequence -lt $markers[0].sequence -and $markers[0].sequence -lt $results[0].sequence) 'E_THROW_MARKER' 'Actual Delivery marker after the real View and before failure is required.'
+    $exact='^'+[regex]::Escape($contract.exceptionLine)+'\r?\n'
+    $failures=@($result.failures|Where-Object {$_.ReleaseId -ceq $selection.ReleaseId -and $_.Epoch -eq $selection.Epoch -and $_.phase -ceq 'Hotfix' -and $_.Code -ceq 'HotfixInitializationFailed' -and $_.error -cmatch $exact -and $_.error -cmatch ('(?m)^\s*at '+[regex]::Escape($contract.origin)+'\s*\(')})
+    Require-FrameworkFact ($failures.Count -eq 1 -and @(Get-FrameworkEvents $first 'release.phase'|Where-Object {$_.data.phase -in @('LoginReady','Ready')}).Count -eq 0) 'E_THROW_CAUSE' 'Exact Delivery exception/cause/epoch is required; no Ready is permitted.'
+    Require-FrameworkFact ($result.resourceAttempts -eq 1 -and $result.metadataCount -eq $Evidence.metadataNames.Count -and @($result.hotAssemblies).Count -eq 2) 'E_THROW_LOAD' 'Throw must follow one actual resource/metadata/hot assembly load.'
+    $inventory=$first.slotInventory
+    Require-FrameworkFact ($inventory.releaseId -ceq $selection.ReleaseId -and $inventory.root -ceq $selection.Root -and $inventory.manifestSha256 -ceq $selection.ManifestSha256 -and $inventory.dllSha256 -ceq $Evidence.releases[$Case.candidate].dllSha256) 'E_THROW_BYTES' 'Throwing DLL/root must bind to its candidate manifest.'
+    Assert-FrameworkPreservation $Case $Evidence
+    Assert-FrameworkReady $next $Evidence $Case.knownGood
+}
 function Test-FrameworkObjectId($Value) { ($Value -is [int] -or $Value -is [long]) -and $Value -ne 0 -and $Value -ge [int]::MinValue -and $Value -le [int]::MaxValue }
 function Assert-FrameworkFault($Case,$Evidence,$Definition) {
+    Assert-FrameworkScalars $Case
     Require-FrameworkFact ($Case.attempts.Count -in @(1,2) -and $Case.candidate -cne $Case.knownGood -and $Case.fault.kind -ceq $Definition.id -and $Case.fault.candidate -ceq $Case.candidate -and $Case.fault.manifestSha256 -cmatch '^[a-f0-9]{64}$' -and $Case.fault.payloadSha256 -cmatch '^[a-f0-9]{64}$' -and @($Case.fault.inputPaths).Count -gt 0) 'E_FAULT_INPUT' 'Exact fault recipe and input bytes are required.'
     Assert-FrameworkPreservation $Case $Evidence
     $first=$Case.attempts[0];$last=$Case.attempts[-1];$results=@(Get-FrameworkEvents $first 'launch.result')
@@ -68,6 +103,7 @@ function Assert-FrameworkPreservation($Case,$Evidence) {
     }
 }
 function Assert-FrameworkKill($Case,$Evidence,$Definition) {
+    Assert-FrameworkScalars $Case
     Require-FrameworkFact ($Case.attempts.Count -eq 2) 'E_RECOVERY' 'A killed attempt and a full new recovery process are required.'
     $first=$Case.attempts[0];$next=$Case.attempts[1];$checkpoint=$first.checkpoint;$kill=$Case.kill
     Require-FrameworkFact ($first.processId -ne $next.processId -and $first.attemptId -cne $next.attemptId) 'E_RECOVERY' 'Recovery must use a distinct native PID and attempt.'
@@ -93,6 +129,7 @@ function Assert-FrameworkInside($Bounds,$SafeArea,[string]$Name) {
     Require-FrameworkFact ($null -ne $Bounds -and $SafeArea.width -gt 0 -and $SafeArea.height -gt 0 -and $Bounds.right -gt $Bounds.left -and $Bounds.top -gt $Bounds.bottom -and $Bounds.left -ge $SafeArea.x-1 -and $Bounds.right -le $SafeArea.x+$SafeArea.width+1 -and $Bounds.bottom -ge $SafeArea.y-1 -and $Bounds.top -le $SafeArea.y+$SafeArea.height+1) 'E_SAFE_AREA' "$Name lies outside the observed native safe area."
 }
 function Assert-FrameworkUi($Case,$Definition) {
+    Assert-FrameworkScalars $Case
     Require-FrameworkFact ($Case.attempts.Count -eq 1) 'E_UI_ATTEMPT' 'One continuous process must contain this UI action.'
     $operator=$Case.operator
     Require-FrameworkFact (-not [string]::IsNullOrWhiteSpace($operator.name) -and -not [string]::IsNullOrWhiteSpace($operator.environment) -and $operator.action -ceq $Definition.action -and -not [string]::IsNullOrWhiteSpace($operator.utc)) 'E_OPERATOR' 'Manual native action requires operator, UTC, environment and exact action.'
@@ -110,7 +147,9 @@ function Assert-FrameworkUi($Case,$Definition) {
     Require-FrameworkFact ($settling.Count -gt 0 -and $last.data.frame-$settling[-1].data.frame -eq 2) 'E_UI_STABILITY' 'Stable native geometry is not supported by two frames.'
     $dimensionStart=$settling[0].data.frame
     foreach($sample in $samples){if($sample.data.frame -lt $last.data.frame -and ($sample.data.snapshot.width -ne $snapshot.width -or $sample.data.snapshot.height -ne $snapshot.height)){$dimensionStart=$null};if($null -eq $dimensionStart -and $sample.data.snapshot.width -eq $snapshot.width -and $sample.data.snapshot.height -eq $snapshot.height){$dimensionStart=$sample.data.frame}}
-    Require-FrameworkFact ($null -ne $dimensionStart -and $last.data.frame-$dimensionStart -le 2) 'E_UI_CONVERGENCE' 'Final layout did not settle within two stable-size frames.'
+    if($Definition.action -in @('resize','window-drag','rotation','keyboard-rotation','inflight-rotation')){
+        Require-FrameworkFact ($null -ne $dimensionStart -and $last.data.frame-$dimensionStart -le 2) 'E_UI_CONVERGENCE' 'Final layout did not settle within two stable-size frames.'
+    }
     Require-FrameworkFact ($snapshot.layout.Width -eq $snapshot.width -and $snapshot.layout.Height -eq $snapshot.height) 'E_UI_LAYOUT' 'Layout uses stale native dimensions.'
     foreach($scroll in $snapshot.scrolls){Assert-FrameworkInside $scroll.bounds $snapshot.safeArea 'Interactive viewport'}
     $buttons=@($snapshot.buttons|Where-Object active -eq $true)
@@ -150,6 +189,7 @@ function Assert-FrameworkUi($Case,$Definition) {
     }
 }
 function Assert-FrameworkAttempt($Attempt,$Evidence,[string]$CaseId) {
+    Assert-FrameworkScalars $Attempt
     Require-FrameworkFact ($CaseId -cmatch '^[A-Za-z0-9_-]{1,40}$' -and $Attempt.caseId -ceq $CaseId) 'E_CASE_ID' 'Logical case identity differs.'
     Require-FrameworkFact ($Attempt.attemptId -cmatch '^[a-f0-9]{32}$') 'E_ATTEMPT' 'Native-generated attempt identity is missing.'
     Require-FrameworkFact ($Attempt.processId -is [ValueType] -and $Attempt.processId -gt 0 -and $Attempt.processId -eq $Attempt.observedProcessId) 'E_PID' 'Native PID differs from the owned OS process.'
@@ -177,6 +217,7 @@ function Assert-FrameworkAttempt($Attempt,$Evidence,[string]$CaseId) {
     Require-FrameworkFact (@(Get-FrameworkEvents $Attempt 'host.failure').Count -eq 0) 'E_HOST' 'Native acceptance host failed.'
 }
 function Assert-FrameworkReady($Attempt,$Evidence,[string]$Version) {
+    Assert-FrameworkScalars $Attempt
     $launches=@(Get-FrameworkEvents $Attempt 'launch.result')
     Require-FrameworkFact ($launches.Count -eq 1) 'E_READY' 'One actual launch result is required.'
     $launch=$launches[0].data;$selection=$launch.selection
@@ -210,6 +251,8 @@ function Assert-FrameworkReady($Attempt,$Evidence,[string]$Version) {
 function Get-FrameworkAcceptance([System.Collections.IDictionary]$Evidence) {
     $matrix=Get-FrameworkMatrix
     $errors=[Collections.Generic.List[string]]::new()
+    # This preparation branch cannot certify native acceptance until collector integration and independent review close.
+    if($Evidence.evidenceKind -ceq 'Native'){$errors.Add('E_PREPARATION_GATE: Native acceptance execution/collector qualification remains pending.')}
     if($Evidence.platform -notin $matrix.platforms){$errors.Add('E_PLATFORM: Explicit native platform is required.')}
     if($Evidence.platform -eq 'Android' -and [string]::IsNullOrWhiteSpace($Evidence.deviceId)){$errors.Add('E_DEVICE: Explicit selected Android device is required.')}
     try{Assert-FrameworkContext $Evidence}catch{$errors.Add($_.Exception.Message)}
@@ -245,10 +288,16 @@ function Get-FrameworkAcceptance([System.Collections.IDictionary]$Evidence) {
                         $attempt=$case.attempts[0];Assert-FrameworkReady $attempt $Evidence 'v2';Assert-FrameworkPreservation $case $Evidence
                         $requests=@(Get-FrameworkEvents $attempt 'session.request');$sessionResults=@(Get-FrameworkEvents $attempt 'session.result')
                         Require-FrameworkFact ($requests.Count -eq 1 -and $sessionResults.Count -eq 1 -and $sessionResults[0].data.request -eq $requests[0].data.request -and $sessionResults[0].data.Succeeded -eq $false -and $sessionResults[0].data.error -ceq $definition.outcome) 'E_SESSION' 'Actual Tok rejection/disconnect must bind to one native request.'
+                        $viewLog=@(Get-FrameworkEvents $attempt 'hot.log'|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'})
+                        $viewData=$viewLog[0].data.message|ConvertFrom-Json -AsHashtable
+                        Require-FrameworkFact ($viewData.mode -ceq 'TokDevelopment' -and $case.server.kind -ceq 'TokDemo' -and (Test-FrameworkInteger $case.server.processId) -and $case.server.processId -gt 0 -and $case.server.binarySha256 -cmatch '^[a-f0-9]{64}$') 'E_REAL_TOK' 'Actual Tok development View and owned server binary identity are required.'
+                        $states=@(Get-FrameworkEvents $attempt 'session.state'|Where-Object {$_.data.requests -eq 1 -and $_.data.connectionEpoch -gt 0})
+                        Require-FrameworkFact (@($states|Where-Object {$_.data.state -ceq 'Authenticating' -and $_.data.requestId -gt 0}).Count -eq 1 -and $states[-1].data.state -ceq 'Disconnected') 'E_SESSION_STATE' 'Real transport authentication and terminal disconnect observations are required.'
+                        if($definition.outcome -ceq 'Rejected'){Require-FrameworkFact ($sessionResults[0].data.ServerErrorCode -eq 3) 'E_SERVER_REJECTION' 'Tok rejection must carry the real rejected server code.'}
                         $launch=@(Get-FrameworkEvents $attempt 'launch.result')[0].data
                         Require-FrameworkFact ($launch.state.KnownGood -cnotin $launch.state.BadReleaseIds -and @(Get-FrameworkEvents $attempt 'release.phase'|Where-Object {$_.data.phase -ceq 'RestartRequired'}).Count -eq 0 -and @($case.server.evidencePaths).Count -gt 0) 'E_SESSION_HEALTH' 'Server failure must not classify the locally-ready patch as bad.'
                     }
-                    'throw' {throw [IO.InvalidDataException]::new('E_PENDING_THROW_FIXTURE: Final delivery ThrowOnStart overlay/provenance and exact failure contract remain pending; legacy F8 entry is not a substitute.')}
+                    'throw' {Assert-FrameworkThrow $case $Evidence}
                     default {throw [IO.InvalidDataException]::new('E_UNSUPPORTED_CASE: '+$definition.kind)}
                 }
                 $item.status=if($Evidence.evidenceKind -ceq 'SyntheticUnit'){'UnitPass'}else{'Pass'}

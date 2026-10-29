@@ -26,7 +26,7 @@ $result=Get-FrameworkAcceptance $evidence
 if($inputError){$result.errors=@($inputError)+@($result.errors);$result.passed=$false;$result.criteriaAccepted=$false;$result.status='Fail'}
 $result.playerArchive=[IO.Path]::GetFullPath($PlayerArchive);$result.buildResult=$BuildResult;$result.evidenceFile=$EvidenceFile
 $result.execution=@{mode='EvidenceOnly';nativeProcessesStarted=0;unityProcessesStarted=0;deviceCommands=0;serverProcessesStarted=0}
-$result.pending=@('Final corrected D1 producer/archive approval','Controller release for actual D2 execution','Actual native fault/UI/session matrix','Delivery ThrowOnStart fixture and exact failure contract','Independent D2 review')
+$result.pending=@('Final D1 native archive approval','Controller release and actual platform adapter qualification','Actual native fault/UI/session matrix','Delivery ThrowOnStart Unity compilation and native execution','Independent D2 review')
 Write-FrameworkJsonNew (Join-Path $output 'framework-result.json') $result
 Write-FrameworkJsonNew (Join-Path $output 'task-evidence-map.json') @($result.cases|Select-Object taskId,caseId,status,evidence,errors)
 Write-Host "FRAMEWORK_EVIDENCE $output"

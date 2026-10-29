@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "kind": "D2 Tests-only Delivery ThrowOnStart",
+  "baseProducerCommit": "f730e5387aac722c891ab195bdfb2bd0a62709fe",
+  "sharedSourceCommit": "93faaa14b6a7a30d8518ed8a10b2411330b1d8b8",
+  "markerCode": "CLIENT_DELIVERY_THROW",
+  "markerMessage": "after login first frame; before ReportReady",
+  "exceptionLine": "System.InvalidOperationException: D2 Delivery ThrowOnStart",
+  "origin": "Client.Game.DeliveryVersion.Run",
+  "entryHook": "Entry.InitializeAsync: UIFirstFrame.WaitAsync -> DeliveryVersion.Run -> ReportReady",
+  "unityCompilation": "NotRun",
+  "files": [
+    {
+      "path": "V2/Assets/Scripts/Game/DeliveryVersion.cs",
+      "sha256": "08095abf5385b37577277af35f5877c4ecba9bb529643219dcbccff012fe6bf0"
+    },
+    {
+      "path": "V2/Assets/Scripts/Game/Protocol/Delivery/Added.cs",
+      "sha256": "ea429a6c9a9f36d2318092b89b08488e02ed34a86b5951fb6a9187e3b0e55a37"
+    },
+    {
+      "path": "ThrowOnStart/Assets/Scripts/Game/DeliveryVersion.cs",
+      "sha256": "50a575af103c0a85b0875f8c101c66b99c9a0f5c7424a050f2fe9e9e7b6968a8"
+    },
+    {
+      "path": "ThrowOnStart/Assets/Scripts/Game/Protocol/Delivery/Added.cs",
+      "sha256": "ea429a6c9a9f36d2318092b89b08488e02ed34a86b5951fb6a9187e3b0e55a37"
+    }
+  ]
+}
