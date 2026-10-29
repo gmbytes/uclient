@@ -6,10 +6,12 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Client.Contracts;
+using Client.Bootstrap;
 using Client.Framework.Network;
 using Client.Framework.Release;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Client.Tests.EditMode
 {
@@ -22,6 +24,29 @@ namespace Client.Tests.EditMode
         private static Type Required(string name) { var type=Type.GetType("Client.Framework.Release."+name+", Client.Framework");Assert.That(type,Is.Not.Null,"D1 native observation boundary missing: "+name);return type; }
         private static object Options(bool allowed,string json)
         {try{return Required("NativeAcceptanceOptions").GetMethod("Parse").Invoke(null,new object[]{allowed,json});}catch(TargetInvocationException e){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e.InnerException).Throw();throw;}}
+        private static void RuntimeIdentity(PlayerIdentity player,RuntimePlatform platform,string actualId,string unityVersion="2022.3.25f1",int pointerBytes=8)
+        {
+            var method=typeof(NativeClientHost).GetMethod("RequireRuntimeIdentity",BindingFlags.Static|BindingFlags.NonPublic);
+            Assert.That(method,Is.Not.Null,"Native identity must validate real platform/version/width before selection.");
+            try{method.Invoke(null,new object[]{player,"com.sgame.client.acceptance",platform,actualId,unityVersion,pointerBytes});}
+            catch(TargetInvocationException error){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();}
+        }
+        private static PlayerIdentity Identity(string platform,string architecture,string version="2022.3.25f1")=>new PlayerIdentity("identity-test",platform,architecture,version,"1",new string('a',64),"metadata-test");
+        [TestCase(null),TestCase("standalone-value-is-not-an-android-package")]
+        public void WindowsNativeIdentityDoesNotRequireAndroidPackageIdentifier(string actualId)
+        {Assert.DoesNotThrow(()=>RuntimeIdentity(Identity("StandaloneWindows64","x64"),RuntimePlatform.WindowsPlayer,actualId));}
+        [TestCase("com.sgame.client.acceptance",true),TestCase("com.sgame.unrelated",false),TestCase("",false)]
+        public void AndroidNativeIdentityRequiresExactOsPackage(string actualId,bool valid)
+        {
+            TestDelegate validate=()=>RuntimeIdentity(Identity("Android","arm64"),RuntimePlatform.Android,actualId);
+            if(valid)Assert.DoesNotThrow(validate);else Assert.Throws<InvalidDataException>(validate);
+        }
+        [TestCase("platform"),TestCase("version"),TestCase("width"),TestCase("architecture"),TestCase("unsupported")]
+        public void NativeRuntimeIdentityRejectsWrongFacts(string fault)
+        {
+            var player=Identity(fault=="platform"?"Android":"StandaloneWindows64",fault=="architecture"?"arm64":"x64",fault=="version"?"different-unity":"2022.3.25f1");
+            Assert.Throws<InvalidDataException>(()=>RuntimeIdentity(player,fault=="unsupported"?RuntimePlatform.LinuxPlayer:RuntimePlatform.WindowsPlayer,"",pointerBytes:fault=="width"?4:8));
+        }
         [TestCase("pausePoint","rename.before"),TestCase("lowSpace",true),TestCase("invalidCredential",true)]
         public void ProductionProfileCannotEnableAcceptanceControls(string property,object value)
         {
