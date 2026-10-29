@@ -28,6 +28,13 @@ function Assert-HotUpdateEvidence($r) {
     }
     if($v1.resourceVersion-eq$v2.resourceVersion -or $v1.manifestHash-eq$v2.manifestHash){throw 'V2 actual resource/release did not change.'}
     if($bad.ready -or -not$bad.restartRequired -or -not$bad.sameProcessReloadRejected -or $bad.releaseId-ne'throw' -or $bad.state.KnownGood-ne'v2' -or $bad.state.BadReleaseIds-notcontains'throw'){throw 'ThrowOnStart did not quarantine without same-process reload.'}
+    if($bad.markers-cnotcontains'F8_THROW after actual UI Ready request' -or $bad.markers-contains'F8_ENTRY_RETURN'){throw 'ThrowOnStart must execute its intended throwing branch without successful entry return.'}
+    $entryFailures=@($bad['failures']|Where-Object{
+        $_.releaseId-ceq$bad.releaseId -and $_.epoch-eq$bad.epoch -and $_.phase-ceq'Hotfix' -and $_.code-ceq'HotfixInitializationFailed' -and
+        $_.error-cmatch'\ASystem\.InvalidOperationException: F8 ThrowOnStart(?:\r?\n|\z)' -and
+        $_.error-cmatch'(?m)^\s+at Client\.Game\.HotUpdateProof\.VersionBranch\.AfterReady\s*\('
+    })
+    if($entryFailures.Count-eq0){throw 'ThrowOnStart expected entry exception/cause is missing from the bound failure evidence.'}
     if($fallback.state.BadReleaseIds-notcontains'throw' -or $fallback.manifestHash-cne$v2.manifestHash -or $offline.manifestHash-cne$v2.manifestHash){throw 'Next-process known-good fallback differs.'}
     if(@($offline.network).Count-ne1 -or @($offline.network|Where-Object{$_.success -or $_.path-ne'channel.json' -or ($_.bytesKnown -and $_.bytes-ne0)}).Count){throw 'Endpoint-unavailable case must fail the actual initial channel request.'}
     # Destination length is only a completion-file observation. Unknown length is not zero-byte evidence.
