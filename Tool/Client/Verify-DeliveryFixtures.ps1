@@ -10,8 +10,18 @@ $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $fixture=Join-Path $project 'Tests/Fixtures/Delivery'
 $CommRoot=[IO.Path]::GetFullPath($CommRoot)
 $OutputDirectory=[IO.Path]::GetFullPath($OutputDirectory)
-if(-not$OutputDirectory.StartsWith((Join-Path $project 'Builds')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Evidence must remain under the owned client Builds directory.'}
-New-Item -ItemType Directory -Path $OutputDirectory -Force|Out-Null
+function Within([string]$Path,[string]$Root){$Path.Equals($Root,[StringComparison]::OrdinalIgnoreCase)-or$Path.StartsWith($Root.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)}
+$repositories=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+[void]$repositories.Add($project)
+for($parent=$OutputDirectory;$parent;$parent=[IO.Path]::GetDirectoryName($parent)){
+    if((Test-Path -LiteralPath $parent)-and((Get-Item -LiteralPath $parent -Force).Attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){throw 'E_OUTPUT_REPARSE: evidence path traverses a reparse point.'}
+    foreach($marker in @('archive.json','pending.json','release.json','channel.json','channel.json.pending')){if(Test-Path -LiteralPath (Join-Path $parent $marker) -PathType Leaf){throw 'E_OUTPUT_ARTIFACT: evidence cannot modify an archive or published release.'}}
+    if(Test-Path -LiteralPath (Join-Path $parent '.git')){[void]$repositories.Add($parent)}
+}
+foreach($repository in $repositories){foreach($tree in @('Assets','Packages','ProjectSettings','Tool','Tests','docs','.git')){if(Within $OutputDirectory (Join-Path $repository $tree)){throw 'E_OUTPUT_SOURCE: evidence cannot be written into source trees.'}}}
+if(Within $OutputDirectory $CommRoot){throw 'E_OUTPUT_SOURCE: shared protocol/tool repository is read-only.'}
+if(Test-Path -LiteralPath $OutputDirectory){throw 'E_OUTPUT_EXISTS: choose a fresh evidence directory; prior evidence cannot be overwritten.'}
+New-Item -ItemType Directory -Path $OutputDirectory|Out-Null
 $result=[ordered]@{passed=$false;code='E_UNEXPECTED';sources=@();generated=@();commands=@();commRoot=$CommRoot}
 function Fail([string]$Code,[string]$Message){$error=[IO.InvalidDataException]::new($Message);$error.Data['Code']=$Code;throw $error}
 function Hash([string]$Path){(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()}

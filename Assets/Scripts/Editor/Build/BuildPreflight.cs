@@ -12,6 +12,7 @@ namespace Client.Editor.Build
 {
     public static class BuildPreflight
     {
+        public static void ValidateSigningKeyLocation(BuildRequest request)=>SigningKeyLocation.Require(request);
         public static BuildTarget Target(BuildPlatform platform)
         {
             switch (platform)

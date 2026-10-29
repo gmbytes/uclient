@@ -31,6 +31,7 @@ namespace Client.Editor.Build
         }
         internal static BuildInputs Prepare(BuildRequest request,BuildResult result)
         {
+            BuildPreflight.ValidateSigningKeyLocation(request);
             if(string.IsNullOrWhiteSpace(request.SigningKeyPath)||!File.Exists(request.SigningKeyPath))throw new BuildFailedException("An external signing key file is required.");
             if(string.IsNullOrWhiteSpace(request.LinkerPolicyPath)||!File.Exists(request.LinkerPolicyPath))throw new BuildFailedException("Verified linker-policy evidence is required.");
             RelativePathPolicy.RequireIdentifier(request.ReleaseId);

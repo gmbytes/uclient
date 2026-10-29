@@ -27,12 +27,16 @@ namespace Client.Framework.Release
         private string preparingRelease, preparingManifest;
         private readonly Dictionary<string,long> expectedDownloads=new Dictionary<string,long>(StringComparer.OrdinalIgnoreCase);
         public string DirectoryPath => directory;
+        public string AttemptId { get; }
         public NativeEvidence(string directory, NativeAcceptanceOptions options)
         {
             this.options = options ?? throw new ArgumentNullException(nameof(options));
             this.directory = ReleaseFileSystem.Root(directory);
             if (!options.Enabled) return;
-            ReleaseFileSystem.NoReparse(Path.Combine(this.directory,"events.jsonl")); ReleaseFileSystem.NoReparse(Path.Combine(this.directory,"checkpoint.json")); ReleaseFileSystem.NoReparse(Path.Combine(this.directory,"continue"));
+            AttemptId=Guid.NewGuid().ToString("N");RelativePathPolicy.RequireIdentifier(AttemptId);
+            this.directory=ReleaseFileSystem.Child(this.directory,AttemptId);
+            foreach(string name in new[]{"events.jsonl","checkpoint.json","continue","screen.png","complete.json"})ReleaseFileSystem.NoReparse(Path.Combine(this.directory,name));
+            if(Directory.Exists(this.directory)||File.Exists(this.directory))throw new IOException("Native attempt evidence already exists.");
             Directory.CreateDirectory(this.directory);
             events = new FileStream(Path.Combine(this.directory,"events.jsonl"),FileMode.CreateNew,FileAccess.Write,FileShare.Read,4096,FileOptions.WriteThrough);
             Record("process.start",new { utc=DateTime.UtcNow });
@@ -43,7 +47,7 @@ namespace Client.Framework.Release
             lock(sync)
             {
                 if(events==null)return;
-                var value = new JObject { ["runId"]=options.RunId,["caseId"]=options.CaseId,["processId"]=processId,["sequence"]=++sequence,["utc"]=DateTime.UtcNow,["kind"]=kind,["data"]=data==null?null:JToken.FromObject(data) };
+                var value = new JObject { ["runId"]=options.RunId,["caseId"]=options.CaseId,["attemptId"]=AttemptId,["processId"]=processId,["sequence"]=++sequence,["utc"]=DateTime.UtcNow,["kind"]=kind,["data"]=data==null?null:JToken.FromObject(data) };
                 byte[] bytes=Encoding.UTF8.GetBytes(value.ToString(Formatting.None)+"\n");
                 if(bytes.Length>256*1024 || events.Length+bytes.Length>32*1024*1024)throw new IOException("Native evidence budget exceeded.");
                 events.Write(bytes,0,bytes.Length);events.Flush(true);
@@ -69,8 +73,8 @@ namespace Client.Framework.Release
         {
             Record(point,data);
             if(!options.Enabled || options.PausePoint!=point || options.StatePurpose!=purpose || Interlocked.CompareExchange(ref paused,1,0)!=0)return;
-            string token=options.RunId+":"+options.CaseId+":"+processId+":"+point+":"+(purpose??"");
-            byte[] bytes=Encoding.UTF8.GetBytes(new JObject { ["runId"]=options.RunId,["caseId"]=options.CaseId,["processId"]=processId,["point"]=point,["purpose"]=purpose,["token"]=token,["data"]=data==null?null:JToken.FromObject(data) }.ToString(Formatting.None));
+            string token=options.RunId+":"+options.CaseId+":"+AttemptId+":"+processId+":"+point+":"+(purpose??"");
+            byte[] bytes=Encoding.UTF8.GetBytes(new JObject { ["runId"]=options.RunId,["caseId"]=options.CaseId,["attemptId"]=AttemptId,["processId"]=processId,["point"]=point,["purpose"]=purpose,["token"]=token,["data"]=data==null?null:JToken.FromObject(data) }.ToString(Formatting.None));
             ReleaseFileSystem.WriteDurable(Path.Combine(directory,"checkpoint.json"),bytes);
             string resume=Path.Combine(directory,"continue");DateTime deadline=DateTime.UtcNow.AddSeconds(90);
             while(DateTime.UtcNow<deadline)

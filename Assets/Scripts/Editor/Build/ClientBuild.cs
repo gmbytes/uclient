@@ -38,6 +38,7 @@ namespace Client.Editor.Build
         }
         public static BuildResult Execute(BuildRequest request)
         {
+            BuildPreflight.ValidateSigningKeyLocation(request);
             using(var owner=ProjectBuildLock.Acquire(Path.GetFullPath(".")))
             {
                 var result=BuildOutput.Create(request);

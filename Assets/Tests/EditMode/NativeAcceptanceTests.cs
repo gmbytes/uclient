@@ -30,6 +30,35 @@ namespace Client.Tests.EditMode
         }
         [Test] public void StatePauseRequiresExactWritePurpose()
         {Assert.Throws<InvalidDataException>(()=>Options(true,new JObject{["runId"]="run",["caseId"]="case",["pausePoint"]="state.replace.after"}.ToString()));}
+        [Test] public void SameLogicalCaseCreatesDistinctNativeAttemptsAndPreservesPriorBytes()
+        {
+            var options=(NativeAcceptanceOptions)Options(true,"{\"runId\":\"run\",\"caseId\":\"recovery\"}");
+            string firstDirectory;
+            using(var first=new NativeEvidence(root,options)){first.Record("first.attempt",new {value=1});firstDirectory=first.DirectoryPath;}
+            byte[] firstBytes=File.ReadAllBytes(Path.Combine(firstDirectory,"events.jsonl"));
+            using(var second=new NativeEvidence(root,options))
+            {
+                second.Record("second.attempt",new {value=2});
+                Assert.That(second.DirectoryPath,Is.Not.EqualTo(firstDirectory));
+                Assert.That(Path.GetFileName(second.DirectoryPath),Does.Match("^[a-f0-9]{32}$"));
+                Assert.That(File.ReadAllBytes(Path.Combine(firstDirectory,"events.jsonl")),Is.EqualTo(firstBytes));
+            }
+        }
+        [Test] public void RepeatedDisabledDefaultEvidenceRemainsNoOp()
+        {
+            var options=NativeAcceptanceOptions.Parse(false,null);
+            using(var first=new NativeEvidence(root,options)){first.Record("ignored",new {value=1});}
+            using(var second=new NativeEvidence(root,options)){second.Record("ignored",new {value=2});}
+            Assert.That(Directory.Exists(root),Is.False);
+        }
+        [TestCase(false),TestCase(true)] public void AttemptEvidenceBudgetIsCheckedBeforeAnyDirectoryCreation(bool unicode)
+        {
+            string prefix=root+Path.DirectorySeparatorChar;int remaining=192-System.Text.Encoding.UTF8.GetByteCount(prefix);
+            string part=unicode?"中"+new string('a',remaining-3):new string('a',remaining);
+            string path=prefix+part;
+            Assert.Throws<PathTooLongException>(()=>new NativeEvidence(path,(NativeAcceptanceOptions)Options(true,"{\"runId\":\"run\",\"caseId\":\"budget\"}")));
+            Assert.That(Directory.Exists(path),Is.False);
+        }
         [Test] public void ActualStateReplacementEmitsPurposeAndDurableProcessCorrelation()
         {
             var options=Options(true,"{\"runId\":\"run\",\"caseId\":\"case\"}");
@@ -38,7 +67,8 @@ namespace Client.Tests.EditMode
                 var state=new ReleaseStateStore(Path.Combine(root,"store"),new ManifestVerifier(),new PlayerIdentity("player","StandaloneWindows64","x64","2022.3.25f1","1",new string('a',64),"metadata"),(IFileFaultInjector)evidence);
                 state.WriteAtomic(new ReleaseState());
                 Assert.That(state.Read().Attempt,Is.EqualTo(0));
-                string[] records;using(var input=new FileStream(Path.Combine(root,"events.jsonl"),FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var reader=new StreamReader(input))records=reader.ReadToEnd().Split('\n');
+                string actualDirectory=(string)evidence.GetType().GetProperty("DirectoryPath").GetValue(evidence);
+                string[] records;using(var input=new FileStream(Path.Combine(actualDirectory,"events.jsonl"),FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var reader=new StreamReader(input))records=reader.ReadToEnd().Split('\n');
                 var before=Array.Find(records,line=>line.Contains("state.replace.before"));var after=Array.Find(records,line=>line.Contains("state.replace.after"));
                 Assert.That(before,Is.Not.Null);Assert.That(after,Is.Not.Null);
                 var parsed=JObject.Parse(after);Assert.That((string)parsed["runId"],Is.EqualTo("run"));Assert.That((string)parsed["caseId"],Is.EqualTo("case"));

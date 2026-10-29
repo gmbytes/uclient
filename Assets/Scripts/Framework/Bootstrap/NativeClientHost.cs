@@ -144,7 +144,7 @@ namespace Client.Bootstrap
             {
                 var image=ScreenCapture.CaptureScreenshotAsTexture();try{File.WriteAllBytes(Path.Combine(evidence.DirectoryPath,"screen.png"),image.EncodeToPNG());}finally{Destroy(image);}
                 evidence.Record("process.finished",new {completed,ready=coordinator?.IsReady??false,restartRequired=coordinator?.RestartRequired??false});
-                File.WriteAllText(Path.Combine(evidence.DirectoryPath,"complete.json"),new JObject{["runId"]=options.RunId,["caseId"]=options.CaseId,["processId"]=System.Diagnostics.Process.GetCurrentProcess().Id,["ready"]=coordinator?.IsReady??false,["restartRequired"]=coordinator?.RestartRequired??false,["releaseRoot"]=releaseRoot}.ToString(Formatting.Indented));
+                File.WriteAllText(Path.Combine(evidence.DirectoryPath,"complete.json"),new JObject{["runId"]=options.RunId,["caseId"]=options.CaseId,["attemptId"]=evidence.AttemptId,["processId"]=System.Diagnostics.Process.GetCurrentProcess().Id,["ready"]=coordinator?.IsReady??false,["restartRequired"]=coordinator?.RestartRequired??false,["releaseRoot"]=releaseRoot}.ToString(Formatting.Indented));
             }
             Application.Quit(coordinator?.IsReady==true?0:1);
         }
