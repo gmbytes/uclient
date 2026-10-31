@@ -191,7 +191,8 @@ function Start-FrameworkReleaseServer($Command,$Context,[string]$OutputDirectory
     $stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync();$clock=[Diagnostics.Stopwatch]::StartNew()
     Write-FrameworkJsonNew (Join-Path $control 'server-start.json') @{processId=$process.Id;startedUtc=$record.startedUtc;intendedExecutable=$Command.file;arguments=@($start.ArgumentList)}
     try{
-        while(-not(Test-Path -LiteralPath (Join-Path $control 'server-ready'))){Require-FrameworkFact (-not $process.HasExited -and $clock.Elapsed.TotalSeconds -lt 15) 'E_SERVER_START' 'Owned server did not publish readiness.';Start-Sleep -Milliseconds 50}
+        # 服务启动前会逐文件校验完整原归档；等待预算包含该检测，不以空闲小 fixture 的耗时代替实际主包。
+        while(-not(Test-Path -LiteralPath (Join-Path $control 'server-ready'))){Require-FrameworkFact (-not $process.HasExited -and $clock.Elapsed.TotalSeconds -lt 60) 'E_SERVER_START' 'Owned server did not publish readiness after original-archive validation.';Start-Sleep -Milliseconds 50}
         Require-FrameworkFact (([IO.File]::ReadAllText((Join-Path $control 'server-ready'))).Trim() -ceq [string]$process.Id) 'E_SERVER_OWNER' 'Server-ready PID differs from the held helper.'
         # 刚启动时 MainModule 可能尚不可见；以服务就绪后的真实模块观察建立所有权记录。
         $process.Refresh();$record.executable=$process.MainModule.FileName
@@ -261,7 +262,7 @@ function Stop-FrameworkReleaseServer($Server) {
     Assert-FrameworkEffectsReleased
     $null=Get-FrameworkWindowsOwnedObservation $Server
     $path=Join-Path $Server.outputDirectory 'server-stop';$stream=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);$stream.Dispose()
-    Require-FrameworkFact ($Server.handle.WaitForExit(15000)) 'E_SERVER_STOP' 'Owned server did not stop through its control file.'
+    Require-FrameworkFact ($Server.handle.WaitForExit(60000)) 'E_SERVER_STOP' 'Owned server did not finish shutdown and original-archive revalidation through its control file.'
     [IO.File]::WriteAllText((Join-Path $Server.outputDirectory 'server.stdout.log'),$Server.stdout.Result);[IO.File]::WriteAllText((Join-Path $Server.outputDirectory 'server.stderr.log'),$Server.stderr.Result)
     Write-FrameworkJsonNew (Join-Path $Server.outputDirectory 'server-terminal.json') @{processId=$Server.handle.Id;terminal=$Server.handle.HasExited;exitCode=$Server.handle.ExitCode;finishedUtc=[DateTime]::UtcNow.ToString('o')}
 }
