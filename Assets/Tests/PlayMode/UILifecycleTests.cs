@@ -153,6 +153,24 @@ namespace Client.Tests
         }
         private static void SetPrivate(object value, string name, object field) => value.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(value, field);
 
+        [UnityTest]
+        public IEnumerator NativeGfWindowInstallsFocusLifecycleAndRestoresEditing()
+        {
+            var opening=Open();yield return Await(opening);var handle=Result(opening);var window=Window(handle);
+            var bridge=window.GetComponent<UIViewBridge>();var focus=window.GetComponent<UIFocusLifecycle>();
+            Assert.That(focus,Is.Not.Null,"Runtime GF OnInit must install the native focus lifecycle.");Assert.That(bridge.Visible,Is.True);
+            if(EventSystem.current==null){var system=new GameObject("FocusEventSystem",typeof(EventSystem),typeof(StandaloneInputModule));system.transform.SetParent(host.transform,false);}
+            var fieldRoot=AdaptiveLayoutTests.Child("ActualInput",Node(window));fieldRoot.sizeDelta=new Vector2(400,100);fieldRoot.gameObject.AddComponent<Image>();
+            var textRoot=AdaptiveLayoutTests.Child("Text",fieldRoot);var text=textRoot.gameObject.AddComponent<Text>();text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var input=fieldRoot.gameObject.AddComponent<InputField>();input.textComponent=text;input.text="retained input";input.Select();input.ActivateInputField();yield return null;
+            input.selectionAnchorPosition=5;input.selectionFocusPosition=1;yield return null;
+            Assert.That(input.isFocused,Is.True);Assert.That(input.IsInteractable(),Is.True);
+            var pause=typeof(UIFocusLifecycle).GetMethod("OnApplicationPause",BindingFlags.Instance|BindingFlags.NonPublic);
+            pause.Invoke(focus,new object[]{true});pause.Invoke(focus,new object[]{false});yield return null;yield return null;input.DeactivateInputField();
+            for(int i=0;i<6;i++)yield return null;
+            Assert.That(input.isFocused,Is.True);Assert.That(input.selectionAnchorPosition,Is.EqualTo(5));Assert.That(input.selectionFocusPosition,Is.EqualTo(1));
+        }
+
         // Removing close cleanup causes both retained callbacks and a non-baseline native listener count.
         [UnityTest]
         public IEnumerator OpenCloseReuseHasOneSubscription()
