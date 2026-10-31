@@ -36,7 +36,8 @@ namespace Client.Tests.EditMode
                     File.WriteAllText(profilePath,new JObject{["schemaVersion"]=1,["keyId"]="scene-restore",["modulus"]=Convert.ToBase64String(data.Modulus),["exponent"]=Convert.ToBase64String(data.Exponent),["endpoint"]="http://127.0.0.1:18765/",["acceptance"]=false,["packageId"]="com.sgame.client.acceptance",["sessionHost"]="127.0.0.1",["sessionPort"]=7000}.ToString());
                 }
                 File.WriteAllText(policyPath,"{}");
-                var result=ClientBuild.Execute(new BuildRequest(BuildKind.Player,BuildPlatform.Windows64,Path.Combine(root,"Output"),null,profilePath,keyPath,policyPath,"v1",null));
+                var platform=EditorUserBuildSettings.activeBuildTarget==BuildTarget.Android?BuildPlatform.Android:BuildPlatform.Windows64;
+                var result=ClientBuild.Execute(new BuildRequest(BuildKind.Player,platform,Path.Combine(root,"Output"),null,profilePath,keyPath,policyPath,"v1",null));
                 Assert.That(result.Status,Is.EqualTo(BuildStatus.Failed));
                 Assert.That(result.Errors.Single(),Does.Contain("Invalid linker policy evidence.").And.Not.Contain("Invalid SceneManagerSetup"),"Scene restoration must preserve the original pipeline failure.");
                 Assert.That(EditorSceneManager.GetSceneManagerSetup(),Is.Empty);
