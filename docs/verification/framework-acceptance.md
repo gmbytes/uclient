@@ -28,6 +28,10 @@ Supported variants are healthy `None`, bad release signature, bad payload hash, 
 
 Actual inputs for both current final Players were generated at `Builds/Tests/D2/ActualFaultInputs-20261031T164954876Z/catalog.json`, with nine unique release IDs per platform. Both missing-Bundle inputs selected `Resources/client/profiles.dat`. The 18 receipts bind source/archive hashes and confirm original source unchanged; they are input provenance, not native acceptance. Healthy input derivation preserves the original resource bytes and displayed template version. ThrowOnStart requires its separately compiled overlay and resource marker rather than relabeling a healthy DLL.
 
+`catalog-verification.json` independently verifies all18 published inputs using the archived public key: each channel signature/pin is valid, only the intended bad-signature release has an invalid release signature, only the four intended missing/tampered payload variants have one inconsistent file, and all original59/48 metadata images remain byte-identical.
+
+Throw overlays were compiled through the canonical `E:/sgame/client` project, explicitly using the D2 worktree's verified overlay directory. The first invocation's missing local overlay directory failed before compilation and restored source; that attempt remains preserved. The corrected run `E:/sgame/client/Builds/Tests/D2/ThrowPatches-20261031T165840961Z` built both patches successfully, rechecked original archives unchanged and restored all source. Windows output is `E:/sgame/Builds/D2Throw/Build_20261031T165859964Z_659ddd1f2aad` (release `throw06fbe36ef29e4466987dcb24019e9720`); Android output is `Build_20261031T170009458Z_fc9a392cbdca` (release `throw0cc2d0e7306546b7bea83ed72cb149f3`). Physical verification confirms each Game DLL differs from healthy V2, each Protocol DLL is exactly the original V2 image, and original59/48 metadata images are unchanged. The builder's strict fixed-reference/AOT compatibility checks passed. Actual native Throw/recovery execution remains NotRun for these candidates.
+
 ## Invocation
 
 ```powershell
