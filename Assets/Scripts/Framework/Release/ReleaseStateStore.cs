@@ -11,6 +11,7 @@ namespace Client.Framework.Release
 {
     public sealed class ReleaseState
     {
+        // K/P 是已验证可用版本，C 是待试启动版本；Attempt 在进入候选代码之前持久化。
         public string KnownGood { get; set; }
         public string PreviousGood { get; set; }
         public string Candidate { get; set; }
@@ -40,6 +41,7 @@ namespace Client.Framework.Release
             lock (sync)
             {
                 var errors = new List<Exception>();
+                // JSON 可解析还不够：被引用 slot 的签名、身份和全部文件也必须有效。
                 foreach (string name in new[] { "state.json", "state.json.bak" })
                 {
                     try
@@ -86,6 +88,7 @@ namespace Client.Framework.Release
                 Directory.CreateDirectory(Root);
                 faults.Hit("state.write.before");
                 token.ThrowIfCancellationRequested();
+                // 先落盘临时文件，再原子替换主状态；备份不是绕过资源完整性校验的捷径。
                 ReleaseFileSystem.WriteDurable(temp, bytes);
                 faults.Hit("state.write.after");
                 faults.Hit("state.replace.before");

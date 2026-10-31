@@ -2,7 +2,7 @@
 
 客户端采用 Unity IL2CPP、官方 GF/UGF 基线与 HybridCLR。自研运行时代码使用 C#，PowerShell 负责开发和构建编排。首期只有框架、默认本地模拟登录和显式 Tok 开发登录入口。
 
-本文记录已提交的稳定运行时能力。原生 Player 的包内信任、身份、发布源和服务组合由 F8/D1 接通并验证；平台与任务完成范围见[实施进度](implementation-progress.md)。已有 API、Editor 测试和历史原生特性证明各有范围，最终交付仍须对应实际主包证据。
+本文记录已提交的稳定运行时能力。F8 已在 Windows Release IL2CPP 与雷电 ARM64 APK 中接通包内信任、身份、发布源和服务组合，验证同主包更新、坏版下进程回退与更新端点不可达启动。D1 的正式构建管线与最终基线仍在实施；平台与任务完成范围见[实施进度](implementation-progress.md)。
 
 ## 目录与程序集
 
@@ -26,7 +26,9 @@ Proof/Test 程序集有独立条件与入口。其本地加载接口不作为正
 - `GameRoot.prefab` 保持未激活，选定完整资源目录后才创建和激活其中的 Resource/UI。
 - `UIUpdate.prefab` 是包内更新、错误、重试和退出界面，不能依赖待加载的热更资源。
 
-`Client.Bootstrap.ClientBootstrap.ConfigureLaunch` 绑定 `ReleaseCoordinator`、`ResourceSlotBootstrap` 和源上下文工厂；`LaunchAsync(token)` 执行启动。源工厂通过 `IClientContext` 提供实际 Resources/UI/Session/Log/Lifetime。当前主工程已实现这些接线 API；正式原生组合调用者及构建配置由 F8/D1 交付，不把接口声明视为已经接通的产品启动。
+`Client.Bootstrap.ClientBootstrap.ConfigureLaunchAsync` 绑定 `ReleaseCoordinator`、`ResourceSlotBootstrap` 和异步源上下文工厂；`LaunchAsync(token)` 执行启动。配置只允许在启动前完成一次。原有同步 `ConfigureLaunch` 通过完成任务适配到同一路径。源工厂在实际资源初始化成功后执行，通过 `IClientContext` 提供 Resources/UI/Session/Log/Lifetime，并受现有本地就绪期限和取消令牌约束。
+
+`NativeClientComposition.ComposeAsync` 从选中 GF Package 加载 UI 定义目录，再创建 UI 根和 UIService，使目录、布局与窗口来自同一资源图。返回的可释放上下文拥有 UI 服务、目录句柄、UI 根和可释放的宿主会话；组合失败会尝试全部清理并保留原始及清理错误。取消时迟到返回的上下文仍会释放，迟到失败保留到诊断记录。F8 已实际走通这条组合路径，D1 继续交付正式包内配置和统一构建入口。
 
 `NativeLaunchConfiguration` 保存包内可信的 `PlayerIdentity`、入口类型名、期望就绪 ViewID 和本地就绪期限。默认入口是 `Client.Game.Entry`，默认 ViewID 是 `UILogin`。下载清单只能与包内身份比较，不能提供本地可信身份或替换信任公钥。
 
@@ -41,11 +43,13 @@ flowchart TD
     Local --> Select
     Select --> Trial[持久化候选试启动]
     Trial --> Resource[初始化GF Package资源根]
-    Resource --> Load[补充AOT元数据并加载热DLL]
+    Resource --> Compose[异步加载目录并组合本地服务]
+    Compose --> Load[补充AOT元数据并加载热DLL]
     Load --> Entry[本地信封自检与热入口]
     Entry --> Frame[实际登录首帧与入口成功返回]
     Frame --> Commit[原子提交known-good]
     Resource --> Restart[失败后要求完整重启]
+    Compose --> Restart
     Load --> Restart
     Entry --> Restart
     Frame --> Restart
@@ -60,6 +64,8 @@ flowchart TD
 每个 release 是不可变完整快照，包含原生 GF Package、热 DLL、匹配原 Player 的元数据和签名配置。GF 原生版本表是资源资产索引；不引入 Addressables 或第二套资产目录。
 
 `ReleaseStore.PrepareAsync` 只接受已经验签和兼容验证的 `VerifiedRelease`。复用旧文件前重新校验再复制，缺少的文件下载到暂存目录；长度与整文件 SHA-256 通过后同卷改名。空间预算覆盖完整物化、临时文件和64MiB余量。稳定版本不被原地改写。
+
+暂存目录使用完整清单 SHA-256 的52字符大写 Base32（无 padding），保留全部256位，不改变 releaseId、slot 或文件名。客户端对实际规范化本地路径采用最多240个 UTF-8 字节（不含 NUL）的支持策略；物化前检查状态、暂存、目标、流与下载路径，并覆盖真实临时文件和 GF `.download` 后缀。超限时拒绝当前操作并保留可用版本。这是本客户端策略，不能据此声称所有 Android 文件系统都有同一限制；实际截断诊断与修复证据见[热更新验证](verification/hotupdate.md)。
 
 `ReleaseStateStore` 保存 KnownGood、PreviousGood、Candidate、Attempt 和 BadReleaseIds。写入使用同目录临时文件、持久刷新及替换/备份；读取只接受结构及全部版本引用都有效的主文件或备份，不靠扫描 `.partial` 目录选择版本。签名文档与状态文档均有大小边界。
 
@@ -114,7 +120,7 @@ UI定义、Prefab和Layout必须来自一致的GF资源图并保持对象匹配�
 
 正式 `HotfixAssemblyLoader.LoadOnce` 只接受 `PreparedRelease` 和原生身份。它先占用进程一次尝试，再重新校验实际文件和程序集身份/依赖，补充原始AOT元数据，按 `Client.Game.Protocol` → `Client.Game` 加载并创建配置的入口。每只元数据加载返回码必须成功；失败也不释放一次尝试门禁。
 
-`PlayerBaselineArchive.Stage/Finalize/Open` 管理原始平台基线。生成需达到有界固定点，最终Player的post-strip字节必须与包内元数据逐文件一致；完成归档需要实际原生产物与 `archive.json`，不是 Library 路径或 `pending.json`。Stage产生归档身份与待完成归档；F8/D1需将其PlayerBuildId/metadataSetId作为构建拥有的包内数据写入最终Player，并保证身份读取代码、信任pin与profile先于固定点冻结。
+`PlayerBaselineArchive.Stage/Finalize/Open` 管理原始平台基线。生成需达到有界固定点，最终Player的post-strip字节必须与包内元数据逐文件一致；完成归档需要实际原生产物与 `archive.json`，不是 Library 路径或 `pending.json`。Stage产生归档身份与待完成归档；PlayerBuildId/metadataSetId作为构建拥有的包内数据写入最终Player，身份读取代码、信任pin与profile先于固定点冻结。F8 两平台技术基线已验证这些约束，D1 的最终基线仍须独立生成和归档。
 
 兼容检查使用原始归档及官方MissingMetadataChecker，并严格比较七个固定编译引用：Contracts、Framework、Envelope、HybridCLR.Runtime、Google.Protobuf、Unsafe、netstandard编译reference。编译reference、签名的纯forwarder facade与实际AOT实现是不同材料；facade不作为AOT元数据加载。补丁不能重新生成并替换原Player元数据。
 

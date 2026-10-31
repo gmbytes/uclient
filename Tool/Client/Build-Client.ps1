@@ -12,7 +12,7 @@ param(
     [string]$HotfixOverlay,
     [string]$UnityEditor,
     [string]$ProtocSource,
-    [string]$HybridClrSource='E:/sgame/client/Builds/dependencies/assembled-libil2cpp'
+    [string]$HybridClrSource
 )
 . "$PSScriptRoot/Unity-Common.ps1"
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -32,12 +32,7 @@ if($PlayerArchive){$PlayerArchive=Full $PlayerArchive;NoReparse $PlayerArchive;i
 if($HotfixOverlay){$HotfixOverlay=Full $HotfixOverlay;NoReparse $HotfixOverlay}
 if(-not$ReleaseId){$ReleaseId=if($Kind-eq'Player'){'v1'}else{'v2'}}
 $editor=Resolve-UnityEditor $UnityEditor
-$env:SGAME_COMM_ROOT=if($env:SGAME_COMM_ROOT){$env:SGAME_COMM_ROOT}else{'E:/sgame/comm'}
-$env:SGAME_HYBRIDCLR_SOURCE=Full $HybridClrSource
-$env:ANDROID_SDK_ROOT='E:/sgame/.tools/unity-android-2022.3.25f1/sdk'
-$env:ANDROID_NDK_ROOT='E:/sgame/.tools/unity-android-2022.3.25f1/ndk/android-ndk-r23b'
-$env:JAVA_HOME='E:/sgame/.tools/unity-android-2022.3.25f1/jdk11'
-$env:SDK_TEST_BASE_URL='file:///E:/sgame/client/Builds/tools/sdk-metadata/'
+Set-ClientBuildEnvironment -ProjectRoot $project -UnityEditor $editor -HybridClrSource $HybridClrSource
 $protoc=Join-Path $project 'Builds/tools/protoc/36.2/bin/protoc.exe';NoReparse $protoc
 $expected=(Get-Content (Join-Path $project 'Tests/Fixtures/Delivery/provenance.json') -Raw|ConvertFrom-Json).protocSha256
 if(-not(Test-Path -LiteralPath $protoc)){if([string]::IsNullOrWhiteSpace($ProtocSource)){throw "Pinned protoc is missing. Run '$env:SGAME_COMM_ROOT/tools/Dependencies/Restore-Dependencies.ps1 -ClientRoot $project' or supply an explicit pinned -ProtocSource."};if((Get-FileHash -LiteralPath $ProtocSource -Algorithm SHA256).Hash.ToLowerInvariant()-cne$expected){throw 'Pinned protoc source bytes differ.'};New-Item -ItemType Directory -Force (Split-Path -Parent $protoc)|Out-Null;Copy-Item -LiteralPath $ProtocSource -Destination $protoc}
@@ -45,6 +40,7 @@ if((Get-FileHash -LiteralPath $protoc -Algorithm SHA256).Hash.ToLowerInvariant()
 if(-not$LinkerPolicy){& "$PSScriptRoot/Build-LinkerPolicy.ps1" -UnityEditor $editor;if($LASTEXITCODE-ne0){throw 'Linker policy producer failed.'};$LinkerPolicy=Join-Path $project 'Builds/LinkerPolicy/policy.json'}else{$LinkerPolicy=Full $LinkerPolicy}
 $invocation=Join-Path $project ('Builds/BuildInvocations/'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8));New-Item -ItemType Directory -Path $invocation|Out-Null
 $requestFile=Join-Path $invocation 'request.json';$receipt=Join-Path $invocation 'receipt.json'
+Write-RunJson (Join-Path $invocation 'toolchain.json') ([ordered]@{commRoot=$env:SGAME_COMM_ROOT;hybridClrSource=$env:SGAME_HYBRIDCLR_SOURCE;androidSdkRoot=$env:ANDROID_SDK_ROOT;androidNdkRoot=$env:ANDROID_NDK_ROOT;javaHome=$env:JAVA_HOME;sdkMetadataBaseUrl=$env:SDK_TEST_BASE_URL})
 Write-RunJson $requestFile ([ordered]@{Kind=$Kind;Platform=$Platform;OutputRoot=$OutputRoot;PlayerArchive=$PlayerArchive;PublicProfilePath=$PublicProfile;SigningKeyPath=$SigningKey;LinkerPolicyPath=$LinkerPolicy;ReleaseId=$ReleaseId;HotfixOverlay=$HotfixOverlay})
 $arguments=@('-batchmode','-nographics','-quit','-projectPath',$project,'-buildTarget',$(if($Platform-eq'Android'){'Android'}else{'Win64'}),'-executeMethod','Client.Editor.Build.ClientBuild.Run','-clientBuildRequest',$requestFile,'-clientBuildReceipt',$receipt,'-logFile',(Join-Path $invocation 'Editor.log'))
 $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$editor;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;foreach($argument in $arguments){$start.ArgumentList.Add($argument)}

@@ -41,6 +41,7 @@ namespace Client.Editor.Build
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080, 1920);
             scaler.matchWidthOrHeight = 0.5f;
+            Client.Editor.UI.AdaptiveUIAssetBuilder.EnsureStartupBackground(updateRoot);
             var labelRoot = new GameObject("StatusLabel", typeof(RectTransform), typeof(Text));
             labelRoot.transform.SetParent(updateRoot.transform, false);
             var label = labelRoot.GetComponent<Text>();

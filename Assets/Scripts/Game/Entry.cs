@@ -60,6 +60,7 @@ namespace Client.Game
                 ((UIViewHandle)opened).Lifetime.ThrowIfCancellationRequested();
                 if(!ReferenceEquals(view,opened))throw new OperationCanceledException(launchToken);
                 DeliveryVersion.Run(context.Log);
+                // 这里只请求“本地页面可用”，不代表服务器认证成功；宿主仍需等待本入口成功返回才晋升版本。
                 context.ReportReady();
             }
             catch

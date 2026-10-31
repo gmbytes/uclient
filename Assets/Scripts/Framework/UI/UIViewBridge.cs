@@ -41,6 +41,7 @@ namespace Client.Framework.UI
         /// <summary>Shared runtime/preview ordering: local safe content, layout, then keyboard baseline.</summary>
         public void Apply(ScreenLayoutSnapshot snapshot)
         {
+            // 窗口挂在全屏 Windows 层，本地安全区仅应用一次；键盘偏移必须基于布局后的几何。
             AppliedSnapshot = null;
             if (snapshot == null) return;
             if (m_LocalSafeArea != null) m_LocalSafeArea.Apply(snapshot.ClampedSafeArea, new Vector2(snapshot.Width, snapshot.Height));

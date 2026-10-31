@@ -97,6 +97,7 @@ namespace Client.Framework.UI
             var form = opened.UIForm;
             if (!pending.Contains(request) || disposed || request.Completion.Task.IsCanceled)
             {
+                // 原生加载可能晚于取消完成；只回收该请求的窗口，不能让旧回调接管新窗口。
                 // A queued success may refer to an object already closed and reused by GF.
                 if (form != null && form.SerialId == request.SerialId && ui.HasUIForm(request.SerialId)) ui.CloseUIForm(request.SerialId);
                 Remove(request); return;

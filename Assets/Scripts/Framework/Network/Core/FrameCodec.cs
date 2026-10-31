@@ -5,6 +5,7 @@ using System.IO;
 
 namespace Client.Framework.Network
 {
+    /// <summary>固定 Tok 信封的传输边界：四字节网络序长度不含前缀，正文在分配前限制为 1 MiB。</summary>
     public static class FrameCodec
     {
         public const int MaxBodyLength = 1048576;

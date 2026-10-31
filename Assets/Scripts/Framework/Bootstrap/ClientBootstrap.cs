@@ -157,6 +157,12 @@ namespace Client.Bootstrap
             if (coordinator == null || !coordinator.IsReady) return;
             if (m_UpdateUI != null) m_UpdateUI.gameObject.SetActive(false);
         }
+        internal void ShowNativeSetupFailure()
+        {
+            // 原生组合尚未建立时没有可重试的协调器，只展示通用错误与退出操作。
+            if (destroyed || m_UpdateUI == null) return;
+            m_UpdateUI.ShowFailure("Startup setup failed. Please exit.", false);
+        }
         private void OnReleaseChanged(ReleaseDiagnostics value)
         {
             if (destroyed || m_UpdateUI == null) return;

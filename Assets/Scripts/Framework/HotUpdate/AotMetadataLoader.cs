@@ -8,6 +8,7 @@ using UnityEngine;
 
 namespace Client.Framework.HotUpdate
 {
+    /// <summary>只封装与当前 Player 身份匹配的原始 post-strip AOT 字节，热更 DLL 不属于此集合。</summary>
     public sealed class ArchivedMetadataSet
     {
         private readonly KeyValuePair<string, byte[]>[] files;
@@ -30,6 +31,7 @@ namespace Client.Framework.HotUpdate
     {
         public void Load(ArchivedMetadataSet set)
         {
+            // 补充元数据必须先于热程序集加载；类型转发 facade 与编译引用由加载计划另行校验。
             if (set == null) throw new ArgumentNullException(nameof(set));
             string platform = Application.platform == RuntimePlatform.Android ? "Android" : Application.platform == RuntimePlatform.WindowsPlayer ? "StandaloneWindows64" : null;
             if (platform == null || platform != set.Player.Platform) throw new InvalidOperationException("Metadata platform must match the running Player.");

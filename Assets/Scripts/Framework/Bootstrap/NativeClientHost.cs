@@ -81,6 +81,8 @@ namespace Client.Bootstrap
             catch(Exception error)
             {
                 Debug.LogException(error);evidence?.Record("host.failure",new {error=Bounded(error.ToString())});completed=true;
+                // 此时 Bootstrap 可能仍被禁用，不能依赖它的 Start/启动任务来切换失败界面。
+                (host??GetComponent<ClientBootstrap>())?.ShowNativeSetupFailure();
                 if(options?.AutoExit==true)StartCoroutine(FinishAcceptance());
             }
         }

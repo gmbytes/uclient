@@ -25,6 +25,10 @@ namespace Client.Framework.Release
         public VerifiedRelease Release { get; }
         internal PreparedRelease(string root, VerifiedRelease release) { Root = root; Release = release; }
     }
+    /// <summary>
+    /// 将已验签的发布物物化为完整、独立的 slot。只下载变化文件不等于维护增量资源目录。
+    /// 旧文件先校验再复制；全部文件验证完成并同卷改名后，才发布 Candidate。
+    /// </summary>
     public sealed class ReleaseStore
     {
         public static string PersistentRoot => Path.Combine(UnityEngine.Application.persistentDataPath, "Releases");
