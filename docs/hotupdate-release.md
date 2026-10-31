@@ -1,6 +1,6 @@
 # 主包、补丁与回退操作说明
 
-本文说明已实现的发布边界与客户端恢复行为。F8 的 Windows Release IL2CPP 和雷电 ARM64 APK 技术闭环已经通过；D1 正式构建入口、最终归档以及 D2/D3 综合验收仍在推进。实际状态见[实施进度](implementation-progress.md)。
+本文说明已实现的发布边界与客户端恢复行为。F8 的 Windows Release IL2CPP 和雷电 ARM64 APK 技术闭环已经通过；D1 正式构建入口与当前两平台最终归档已通过验收，见[D1验收记录](verification/d1-build-acceptance.md)；D2/D3 综合验收仍在推进。实际状态见[实施进度](implementation-progress.md)。
 
 ## 先选择交付类型
 

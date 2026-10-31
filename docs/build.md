@@ -135,14 +135,18 @@ D1验收使用隔离fixture覆盖层，普通构建不需要它：V1为`-HotfixO
 
 ## 已保留的阶段性产物
 
-修复GF回调与退出顺序后，当前候选产物来自`7665bf9`，根目录仍为`E:/sgame/Builds/D1Final`：
+当前D1已通过验收。正式Windows PlayerBuildId为`a019389c3f5342b1be60c06c1c2090a5`，Player为`E:/sgame/Builds/D1WindowsLocalhost/Build_20261031T171435889Z_defa7e9a89b6`，V2为同根下`Build_20261031T171843848Z_757a3924da59`；Android继续使用下面31a7基线。两平台正式同包V1/V2均已实际Ready、零未预期原生异常、原包未变。完整逐项证据见[D1验收记录](verification/d1-build-acceptance.md)。
+
+Windows公开原生配置为`http://localhost:18765/`，Android为`http://127.0.0.1:18765/`。本机服务仍显式监听127.0.0.1；localhost已经实际请求验证。前者解决当前系统代理例外下的IP端点502，未修改全局代理设置。原生配置变化使用新Player，不能通过修改旧包数据或运行参数替代正式构建。
+
+此前修复GF回调与退出顺序的阶段性产物来自`7665bf9`，根目录为`E:/sgame/Builds/D1Final`：
 
 | 平台 | PlayerBuildId | 主包输出 | V2补丁输出 |
 | --- | --- | --- | --- |
 | Windows64 | d967517226c743b3802903992546d632 | Build_20261031T152638077Z_3bb638b9dc9b | Build_20261031T153446532Z_71ae39cceab1 |
 | Android | 31a7aaaf1c0f45a49d82eed7eb0047da | Build_20261031T153023251Z_38d2234aecce | Build_20261031T153558742Z_93c876f70c40 |
 
-四次构建成功且源码恢复一致。Android同APK V1/V2已完成零原生异常、原元数据与完整slot校验；Windows在线更新当前受系统代理502影响，尚不能标记D1完成。具体进度与原始运行目录见[实施进度](implementation-progress.md)。以下较早产物仅保留历史证据，不替代当前源码验收：
+四次构建成功且源码恢复一致。Android同APK V1/V2完成原元数据与完整slot校验；该旧Windows IP端点产物保留其502失败记录，正式验收使用新的a019基线。以下较早产物仅保留历史证据，不替代当前源码验收：
 
 | 平台 | PlayerBuildId | 主包输出 | V2补丁输出 |
 | --- | --- | --- | --- |
