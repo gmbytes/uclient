@@ -48,6 +48,8 @@ namespace Client.Framework.Release
         private ResourceSlotBootstrap resources;
         private bool irreversible, resourceInitialized, assemblyAttempted, compositionAttempted;
         private IHotfixEntry entry;
+        private bool entryInitializationInProgress;
+        private Exception pendingReadyViewFailure;
 #if UNITY_EDITOR
         // Editor fixtures replace only the unavailable native load boundary. Players compile the direct F6 call below.
         private Func<PreparedRelease, PlayerIdentity, IHotfixEntry> editorEntryLoader = null;
@@ -384,10 +386,18 @@ namespace Client.Framework.Release
             {
                 context.Lifetime.ThrowIfCancellationRequested();
                 entry = hotfixEntry;
-                await AwaitWithCancellation(hotfixEntry.InitializeAsync(context, context.Lifetime), context.Lifetime);
+                lock (sync) { entryInitializationInProgress = true; }
+                try { await AwaitWithCancellation(hotfixEntry.InitializeAsync(context, context.Lifetime), context.Lifetime); }
+                finally { lock (sync) { entryInitializationInProgress = false; } }
                 lock (sync)
                 {
                     RequireCurrent(selection); context.Lifetime.ThrowIfCancellationRequested();
+                    if (pendingReadyViewFailure != null)
+                    {
+                        var closed = pendingReadyViewFailure;
+                        FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, closed);
+                        ready.TrySetException(closed); throw closed;
+                    }
                     context.Gate.EntrySucceeded(); SetPhase(ReleasePhase.LoginReady); TryCommitReady(selection, context);
                 }
                 await AwaitWithCancellation(ready.Task, context.Lifetime);
@@ -437,6 +447,12 @@ namespace Client.Framework.Release
         {
             if (IsReady || RestartRequired || disposed) return;
             var original = new InvalidOperationException("The expected ready view closed before commit.");
+            lock (sync)
+            {
+                // 入口异常的同步清理也会关闭 View；先等待入口结果，避免取消它并遮蔽真正异常。
+                // Gate 已失效，期间无法晋升；入口若正常返回，仍按关闭错误失败。
+                if (entryInitializationInProgress) { pendingReadyViewFailure = original; return; }
+            }
             try { FailCurrentWithEvidence(ReleaseErrorCode.LocalReadinessFailed, original); ready.TrySetException(original); }
             catch (Exception error) { ready.TrySetException(error); }
         }

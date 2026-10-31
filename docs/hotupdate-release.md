@@ -1,5 +1,7 @@
 # 主包、补丁与回退操作说明
 
+> 当前状态：695dee2 修复了热入口异常被清理关闭遮蔽的问题（完整413/142回归通过）。该改动涉及固定层，本文原Native通过记录保留历史身份；D1需按修后新Player重新验收，D2旧21项不能混入新基线。
+
 本文说明已实现的发布边界与客户端恢复行为。F8 的 Windows Release IL2CPP 和雷电 ARM64 APK 技术闭环已经通过；D1 正式构建入口与当前两平台最终归档已通过验收，见[D1验收记录](verification/d1-build-acceptance.md)；D2/D3 综合验收仍在推进。实际状态见[实施进度](implementation-progress.md)。
 
 ## 先选择交付类型

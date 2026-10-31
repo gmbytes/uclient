@@ -202,6 +202,32 @@ namespace Client.Tests
                 var state=launch.State.Read();Assert.That(state.KnownGood,Is.EqualTo("K"));Assert.That(state.Candidate,Is.Null);Assert.That(state.BadReleaseIds,Is.EqualTo(new[]{"C"}));view.Close();
             }
         }
+        [UnityTest] public IEnumerator EntryCleanupCloseThenThrowRetainsOriginalFailure()
+        {
+            using(var launch=new F7LaunchFixture())
+            {
+                var context=BindCoordinator(launch,out var selection);typeof(ReleaseCoordinator).GetMethod("SetPhase",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(launch.Coordinator,new object[]{ReleasePhase.Hotfix,null,null});
+                var original=new InvalidOperationException("F7 original failure before cleanup close");
+                var task=RunEntry(launch,selection,context,new DelegateEntry(async ctx=>{var view=await Present(ctx);view.Close();throw original;}));
+                yield return Terminal(task);
+                Assert.That(task.IsFaulted,Is.True,task.Exception?.ToString());
+                Assert.That(launch.Coordinator.Diagnostics.Failures.Any(f=>ReferenceEquals(f.Exception,original)&&f.Code==ReleaseErrorCode.HotfixInitializationFailed.ToString()&&f.Phase==ReleasePhase.Hotfix&&f.ReleaseId==selection.ReleaseId&&f.Epoch==selection.Epoch),Is.True,"Cleanup's View closure must not replace the actual entry exception.");
+                Assert.That(launch.Coordinator.IsReady,Is.False);Assert.That(launch.Coordinator.RestartRequired,Is.True);
+                Assert.That(launch.State.Read().KnownGood,Is.EqualTo("K"));Assert.That(launch.State.Read().BadReleaseIds,Does.Contain("C"));
+            }
+        }
+        [UnityTest] public IEnumerator EntryCloseThenReturnStillFailsLocalReadiness()
+        {
+            using(var launch=new F7LaunchFixture())
+            {
+                var context=BindCoordinator(launch,out var selection);typeof(ReleaseCoordinator).GetMethod("SetPhase",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(launch.Coordinator,new object[]{ReleasePhase.Hotfix,null,null});
+                var task=RunEntry(launch,selection,context,new DelegateEntry(async ctx=>{var view=await Present(ctx);view.Close();}));
+                yield return Terminal(task);Assert.That(task.IsFaulted,Is.True,task.Exception?.ToString());
+                Assert.That(launch.Coordinator.Diagnostics.Failures.Any(f=>f.Code==ReleaseErrorCode.LocalReadinessFailed.ToString()),Is.True);
+                Assert.That(launch.Coordinator.IsReady,Is.False);Assert.That(launch.Coordinator.RestartRequired,Is.True);
+                Assert.That(launch.State.Read().KnownGood,Is.EqualTo("K"));
+            }
+        }
         // Shutdown cancellation is unfinished trial recovery, not a local release defect or authentication failure.
         [UnityTest] public IEnumerator ShutdownAfterEligibleReadyPreservesUnfinishedTrial()
         {
