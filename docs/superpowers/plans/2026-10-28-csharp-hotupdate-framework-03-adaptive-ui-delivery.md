@@ -109,6 +109,8 @@
 
 ### Task D1：统一Player/补丁构建与不可变基线归档
 
+**状态：实施中。** 构建契约/互斥/恢复已验证；ac44f88全量413/140通过。最终两平台修后原生包与补丁复验通过前，本Task保持未完成。证据见[实施进度](../../implementation-progress.md)。
+
 **Files:**
 - Create: `Editor/Build/ClientBuild.cs`、`BuildRequest.cs`、`BuildResult.cs`、`PlayerBuilder.cs`、`PatchBuilder.cs`、`ResourcePackageBuilder.cs`、`BuildPreflight.cs`。
 - Create: `Tool/Client/Build-Client.ps1`、`Tool/Client/Serve-TestReleases.ps1`、`Tests/EditMode/BuildContractTests.cs`、`docs/build.md`。
@@ -119,8 +121,8 @@
 - `Build-Client.ps1 -Kind Player|Patch -Platform Android|Windows64 -OutputRoot <path> [-PlayerArchive <path>]`；Patch必须显式选PlayerArchive。
 - `BuildResult`含Status/OutputDirectory/ResultFile/PlayerBuildId/ReleaseId/Errors/EvidenceFiles，所有入口使用返回的实际子目录；输出为新建 `Build_<UTC时间>_<短随机ID>`，结果不从根目录猜测。
 
-- [ ] **Step 1:** 写`AllEntriesReturnSameResolvedOutput`、`PatchRequiresArchivedBaseline`、`HotfixAssembliesExcludedFromAot`、`SecondBuildForSameProjectIsRejected`、`FailureRestoresSourceSettings`、`UIEditSceneExcludedFromPlayer`、`InvalidUIBindingsBlockBuild`，运行D1 EditMode确认红灯。
-- [ ] **Step 2:** 实现项目级互斥、预检、目标平台固定编译、全新输出和source snapshot/finally恢复；已有Unity进程不强杀。必要生成物写忽略staging并成对处理meta，不改原Prefab/材质/资源GUID。
+- [x] **Step 1:** 写`AllEntriesReturnSameResolvedOutput`、`PatchRequiresArchivedBaseline`、`HotfixAssembliesExcludedFromAot`、`SecondBuildForSameProjectIsRejected`、`FailureRestoresSourceSettings`、`UIEditSceneExcludedFromPlayer`、`InvalidUIBindingsBlockBuild`，运行D1 EditMode确认红灯。
+- [x] **Step 2:** 实现项目级互斥、预检、目标平台固定编译、全新输出和source snapshot/finally恢复；已有Unity进程不强杀。必要生成物写忽略staging并成对处理meta，不改原Prefab/材质/资源GUID。
 - [ ] **Step 3:** Player路径：N1协议→热DLL编译→HybridCLR生成与裁剪预检→完整资源包/包内基线→Player构建→最终post-strip比对→归档原生hash/元数据/锁/配置。F8是技术证明基线，本Task生成覆盖最终UI与协议接口的正式框架基线。
 - [ ] **Step 4:** Patch路径：读取原Player归档→编译目标热DLL→AOT兼容检查→原生Package完整资源快照→文件hash→签名发布清单→生成指向该清单hash的签名渠道文件。不能运行GenerateAll后替换原元数据，不能修改主包；失败不生成可用渠道指针。只输出本地产物，外部发布另按实际授权执行。签名测试服务器只监听显式开发地址。
 - [ ] **Step 5:** 运行 `./Tool/Client/Test-Client.ps1 -Task D1 -Mode EditMode`；通过Editor/CLI各构建一次小fixture对比BuildResult语义；Android/Windows各生成最终Player和v2补丁。提交 `feat(build): 统一主包与兼容补丁交付`。
