@@ -192,3 +192,20 @@ The current matrix dataset is `Builds/Tests/D2/AndroidMatrix-20261031T181741396Z
 Four required cases passed their individual evaluator assertions: baseline-offline(PID4124), update-v2(PID4542), restart-v2(PID4911), offline-v2(PID5292). Each has a separate native-generated attempt, original event file, terminal process receipt, actual selected slot inventory and screenshot. The first native state was empty; source-contained V1 reached readiness offline. The same installation then downloaded/executed V2, restarted into V2, and opened V2 with the owned update endpoint unavailable. Installation count remained1 and no reset occurred between cases. Raw per-case partial evaluations and `four-ready-case-proof.json` retain these results.
 
 This is4 of31 Android required cases, not complete native acceptance. The aggregate result intentionally remains Fail because the native final gate/full platform context and the other required cases are incomplete. No scope flag or four-case success converts them to Pass. The owned server80368 stopped with exit0, the owned18765 reverse was removed, and all four app processes were observed terminal. Continue the same dataset and installation for candidate faults/strong kills/session/UI; do not rerun the initial-clean script against this dataset.
+## Formal Android preparation-rejection cases
+
+The same dataset/install continued at `stages/preparation-faults-20261031T182916091Z`. Each case first selected the original signed V1 input in a new setup process, reached actual V1 readiness, captured the complete K/P slots, then offered its distinct signed candidate. No reset/reinstall occurred. Seven cases passed original strict `Assert-FrameworkAttempt`/`Assert-FrameworkFault` criteria and were independently replayed from captured event/process/slot/fault/preservation files:
+
+| Case | PID | Candidate |
+| --- | --- | --- |
+| bad-signature | 5994 | q57deca5953374c5cbe384205862cd3d9 |
+| bad-hash | 6667 | q8376d2f8bcb746c0a6f209d47d5a7d2c |
+| wrong-player-build | 7336 | q6b2bf17471e8415c8cf1ec3c89bfd6db |
+| wrong-architecture | 7984 | q31762fccaa8d4c1aae0f63a0bfa43d23 |
+| missing-dll | 8654 | q6b6400be8b244941a66dff26858fb497 |
+| missing-bundle | 9397 | q7e634517cd804a03ad4f97bb39cd3939 |
+| tampered-version-table | 10131 | q02c3bcc4d1774bae9ba87a56cad1947a |
+
+Each first-process result retained the intended preparation failure, used zero candidate resource roots/metadata/hot code and reached known-good V1 readiness. Complete K/P payload hashes and native references were unchanged. Missing payload requests actually returned404. `independent-criterion-replay.json` binds all seven event hashes and generated attempts. `run-progress.json` now tracks11 completed required cases; original4 ready cases remain in the same run.
+
+All fourteen setup/primary native processes ended. Server10028 stopped with exit0, the owned18765 mapping was removed, and the installed APK remained97121e79... with installation count1. `cleanup-verification.json` and raw process queries retain the terminal state. Signed/hash-valid GF semantic rejection is a separate unexecuted case; so are disk budget, cancellation/interruption, six strong kills, Throw, session/UI and Windows cases. Overall acceptance remains incomplete.
