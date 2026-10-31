@@ -261,6 +261,53 @@ function Wait-FrameworkNativeCheckpoint($Owned,[string]$NativeCaseDirectory,[Val
     }while($clock.Elapsed.TotalSeconds -lt $TimeoutSeconds)
     throw [IO.InvalidDataException]::new('E_CHECKPOINT_TIMEOUT: Required native boundary was not observed; no strong-kill proof is produced.')
 }
+function Assert-FrameworkCheckpoint($Checkpoint,$Owned,[string]$AttemptId) {
+    Assert-FrameworkFields $Checkpoint @('runId','caseId','attemptId','processId','point','purpose','token','data')
+    Require-FrameworkFact ($AttemptId -cmatch '^[a-f0-9]{32}$' -and $Checkpoint.attemptId -ceq $AttemptId -and
+        $Checkpoint.runId -ceq $Owned.runId -and $Checkpoint.caseId -ceq $Owned.caseId -and
+        (Test-FrameworkInteger $Checkpoint.processId) -and $Checkpoint.processId -eq $Owned.processId -and
+        $Checkpoint.point -ceq $Owned.acceptance.pausePoint -and $Checkpoint.purpose -ceq $Owned.acceptance.statePurpose) 'E_CHECKPOINT_IDENTITY' 'Native checkpoint differs from the owned process, attempt or requested boundary.'
+    $token="$($Owned.runId):$($Owned.caseId):${AttemptId}:$($Owned.processId):$($Owned.acceptance.pausePoint):$($Owned.acceptance.statePurpose)"
+    Require-FrameworkFact ($Checkpoint.token -ceq $token) 'E_CHECKPOINT_TOKEN' 'Native checkpoint token differs from the original request.'
+    if($Checkpoint.point -ceq 'download.partial'){
+        Require-FrameworkFact ($Checkpoint.data -is [Collections.IDictionary] -and (Test-FrameworkInteger $Checkpoint.data.bytes) -and
+            (Test-FrameworkInteger $Checkpoint.data.expectedBytes) -and $Checkpoint.data.bytes -gt 0 -and $Checkpoint.data.bytes -lt $Checkpoint.data.expectedBytes) 'E_PARTIAL_TRANSFER' 'Strong kill requires a positive incomplete authenticated transfer.'
+    }
+}
+function Wait-FrameworkAndroidCheckpoint($Tool,$Owned,$Context,[string]$OutputDirectory,[ValidateRange(1,60)][int]$TimeoutSeconds=60) {
+    Assert-FrameworkEffectsReleased
+    Require-FrameworkFact ($Context.platform -ceq 'Android' -and $Owned.deviceId -ceq $Context.deviceId -and
+        $Owned.applicationId -ceq $Context.profilePackageId -and $Owned.playerBuildId -ceq $Context.playerBuildId -and
+        $Owned.runId -ceq $Context.runId -and $Owned.runId -cmatch '^[A-Za-z0-9_-]{1,40}$' -and
+        $Owned.caseId -cmatch '^[A-Za-z0-9_-]{1,40}$' -and $Owned.acceptance.pausePoint -cin @('download.partial','rename.before','state.replace.before','state.replace.after','trial.persisted','hotentry.executing')) 'E_ANDROID_CHECKPOINT' 'Checkpoint wait must bind the selected installed package and original bounded request.'
+    $output=New-FrameworkOutputDirectory $OutputDirectory
+    $remote='/sdcard/Android/data/'+$Context.profilePackageId+'/files/Acceptance/'+$Owned.runId+'/'+$Owned.caseId
+    $clock=[Diagnostics.Stopwatch]::StartNew();$iteration=0
+    do{
+        $poll=Join-Path $output ('poll-'+(++$iteration));[IO.Directory]::CreateDirectory($poll)|Out-Null
+        $observed=Get-FrameworkAndroidObservation $Tool $Owned.deviceId $Owned.applicationId (Join-Path $poll 'process')
+        Assert-FrameworkAndroidProcess $Owned $observed
+        $listing=Invoke-FrameworkAdb $Tool $Owned.deviceId @('shell','ls','-1',$remote) (Join-Path $poll 'attempts')
+        if($listing.exitCode -eq 0){
+            $names=(Read-FrameworkUtf8 (Join-Path $listing.outputDirectory 'stdout.bin') 4096).Split("`n",[StringSplitOptions]::RemoveEmptyEntries)
+            foreach($name in $names){
+                $attempt=$name.Trim();Require-FrameworkFact ($attempt -cmatch '^[a-f0-9]{32}$') 'E_ANDROID_CHECKPOINT_PATH' 'Unexpected native attempt directory.'
+                $capture=Invoke-FrameworkAdb $Tool $Owned.deviceId @('shell','cat',($remote+'/'+$attempt+'/checkpoint.json')) (Join-Path $poll ('checkpoint-'+$attempt))
+                if($capture.exitCode -ne 0){continue}
+                $source=Join-Path $capture.outputDirectory 'stdout.bin'
+                $checkpoint=ConvertFrom-FrameworkJson (Read-FrameworkUtf8 $source 256KB) -ObjectOnly
+                Assert-FrameworkCheckpoint $checkpoint $Owned $attempt
+                # 原始设备字节单独保存；只把已核对的 native attempt 绑定到持有的进程记录。
+                $copy=Join-Path $output 'native-checkpoint.json';[IO.File]::Copy($source,$copy,$false)
+                $Owned.attemptId=$attempt
+                Write-FrameworkJsonNew (Join-Path $output 'checkpoint-binding.json') @{runId=$Owned.runId;caseId=$Owned.caseId;attemptId=$attempt;processId=$Owned.processId;startTicks=$Owned.startTicks;bootId=$Owned.bootId;sourceCommand=$capture;checkpoint=@{path='native-checkpoint.json';sha256=(Get-FrameworkFileHash $copy)}}
+                return $checkpoint
+            }
+        }
+        Start-Sleep -Milliseconds 100
+    }while($clock.Elapsed.TotalSeconds -lt $TimeoutSeconds)
+    throw [IO.InvalidDataException]::new('E_CHECKPOINT_TIMEOUT: No owned Android checkpoint was observed; no kill proof is produced.')
+}
 function Invoke-FrameworkReceiptCommand($Command,[string]$OutputDirectory,[ValidateRange(1,300)][int]$TimeoutSeconds=120) {
     Assert-FrameworkEffectsReleased
     Assert-FrameworkNoReparse $Command.file
