@@ -58,6 +58,20 @@ function Read-FrameworkUtf8([string]$Path,[long]$MaximumBytes=32MB) {
     Require-FrameworkFact ((Get-Item -LiteralPath $Path -ErrorAction Stop).Length -le $MaximumBytes) 'E_JSON_SIZE' 'Evidence exceeds its byte budget.'
     try{return [Text.UTF8Encoding]::new($false,$true).GetString([IO.File]::ReadAllBytes($Path))}catch{throw [IO.InvalidDataException]::new('E_UTF8: Evidence is not valid UTF8.', $_.Exception)}
 }
+function Copy-FrameworkLiveEventSnapshot([string]$Source,[string]$Destination) {
+    Assert-FrameworkNoReparse $Source;Assert-FrameworkNoReparse $Destination
+    # 原生日志以 FileShare.Read 持续写入；读取端须允许现有写句柄，不能用 ReadAllBytes 的共享模式。
+    $reader=[IO.FileStream]::new($Source,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+    try{
+        $remaining=$reader.Length;Require-FrameworkFact ($remaining -le 32MB) 'E_EVENTS_SIZE' 'Live event snapshot exceeds its byte budget.'
+        $writer=[IO.FileStream]::new($Destination,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
+        try{
+            $buffer=[byte[]]::new(64KB)
+            while($remaining -gt 0){$read=$reader.Read($buffer,0,[int][Math]::Min($buffer.Length,$remaining));if($read -le 0){throw [IO.IOException]::new('Native event stream shrank during snapshot capture.')};$writer.Write($buffer,0,$read);$remaining-=$read}
+            $writer.Flush($true)
+        }finally{$writer.Dispose()}
+    }finally{$reader.Dispose()}
+}
 function Read-FrameworkJson([string]$Path) {
     ConvertFrom-FrameworkJson (Read-FrameworkUtf8 $Path)
 }

@@ -606,3 +606,53 @@ function Complete-FrameworkAndroidAttempt($Tool,$Owned,$Completion,$Context,[str
     $record=@{runId=$Owned.runId;caseId=$Owned.caseId;processId=$Owned.processId;attemptId=$Owned.attemptId;terminal=$true;strongKill=$false;action='am force-stop after native completion';deviceId=$Owned.deviceId;startTicks=$Owned.startTicks;bootId=$Owned.bootId;finishedUtc=$after.finishedUtc;completionKind=$terminal.kind;completionSequence=$terminal.sequence;commands=@($stop,$after)}
     Write-FrameworkJsonNew (Join-Path $output 'process-complete.json') $record;return $record
 }
+function Get-FrameworkWindowsCompletion($Events,$Owned,[string]$AttemptId) {
+    $terminal=Get-FrameworkNativeCompletion $Events $Owned $AttemptId
+    if($null -eq $terminal){return $null}
+    if($terminal.kind -ceq 'host.failure' -or $terminal.data.ready -eq $false){return $terminal}
+    Assert-FrameworkScalars $Events
+    $views=@($Events|Where-Object {$_.kind -ceq 'hot.log' -and $_.data.code -ceq 'CLIENT_VIEW'})
+    if($views.Count -ne 1){return $null}
+    $view=ConvertFrom-FrameworkJson $views[0].data.message -ObjectOnly
+    $stable=@($Events|Where-Object {$_.kind -ceq 'ui.stable' -and $_.data.stableFrames -eq 2 -and $_.data.snapshot.view -eq $view.view -and (Test-FrameworkObjectId $_.data.snapshot.input.id)})
+    # Ready 只承诺本地启动；采集器须等真实登录 View 的两帧稳定证据后再清理进程。
+    if($stable.Count -eq 0){return $null}
+    return $terminal
+}
+function Wait-FrameworkWindowsCompletion($Owned,[string]$NativeCaseDirectory,[string]$OutputDirectory,[ValidateRange(1,300)][int]$TimeoutSeconds=120) {
+    Assert-FrameworkEffectsReleased
+    $output=New-FrameworkOutputDirectory $OutputDirectory
+    Assert-FrameworkNoReparse $NativeCaseDirectory
+    $clock=[Diagnostics.Stopwatch]::StartNew();$poll=0
+    while($clock.Elapsed.TotalSeconds -lt $TimeoutSeconds){
+        Require-FrameworkFact (-not $Owned.handle.HasExited) 'E_WINDOWS_EARLY_EXIT' 'Owned Player exited before native completion/stable UI could be observed.'
+        foreach($directory in @(Get-ChildItem -LiteralPath $NativeCaseDirectory -Directory -ErrorAction SilentlyContinue)){
+            Require-FrameworkFact ($directory.Name -cmatch '^[a-f0-9]{32}$') 'E_WINDOWS_ATTEMPT_PATH' 'Unexpected native attempt directory.'
+            $path=Join-Path $directory.FullName 'events.jsonl';if(-not(Test-Path -LiteralPath $path)){continue}
+            $copy=Join-Path $output ('snapshot-'+(++$poll)+'-'+$directory.Name+'.jsonl')
+            Copy-FrameworkLiveEventSnapshot $path $copy
+            # 快照可能停在一条记录或 UTF8 字符中间；只重试活进程快照，原始文件和完整记录仍严格校验。
+            try{$events=Read-FrameworkEvents $copy}catch [IO.InvalidDataException]{if($_.Exception.Message -like 'E_EVENTS_TRUNCATED*' -or $_.Exception.Message -like 'E_UTF8*'){continue};throw}
+            if($events[0].processId -ne $Owned.record.processId){continue}
+            $terminal=Get-FrameworkWindowsCompletion $events $Owned.record $directory.Name
+            if($null -eq $terminal){continue}
+            $Owned.record.attemptId=$directory.Name
+            $result=@{scope='ObservedWindowsCompletion';runId=$Owned.record.runId;caseId=$Owned.record.caseId;processId=$Owned.record.processId;attemptId=$directory.Name;event=$terminal;events=@{path=$copy;sha256=(Get-FrameworkFileHash $copy)}}
+            Write-FrameworkJsonNew (Join-Path $output 'completion.json') $result;return $result
+        }
+        Start-Sleep -Milliseconds 50
+    }
+    throw [IO.InvalidDataException]::new('E_WINDOWS_COMPLETION_TIMEOUT: Native completion/stable UI was not observed; no cleanup or restart was performed.')
+}
+function Complete-FrameworkWindowsAttempt($Owned,$Completion,[string]$OutputDirectory) {
+    Assert-FrameworkEffectsReleased
+    Require-FrameworkFact ($Completion.scope -ceq 'ObservedWindowsCompletion' -and $Completion.runId -ceq $Owned.record.runId -and $Completion.caseId -ceq $Owned.record.caseId -and $Completion.processId -eq $Owned.record.processId -and $Completion.attemptId -ceq $Owned.record.attemptId -and (Get-FrameworkFileHash $Completion.events.path) -ceq $Completion.events.sha256) 'E_WINDOWS_COMPLETE_OWNER' 'Normal cleanup requires this exact owned native completion capture.'
+    $terminal=Get-FrameworkWindowsCompletion (Read-FrameworkEvents $Completion.events.path) $Owned.record $Completion.attemptId
+    Require-FrameworkFact ($null -ne $terminal) 'E_WINDOWS_COMPLETE_RESULT' 'Original native result/stable UI is missing.'
+    $actual=Get-FrameworkWindowsOwnedObservation $Owned
+    $output=New-FrameworkOutputDirectory $OutputDirectory
+    # 这是已完成启动后的测试清理；不产生强杀检查点证明，也不在观察超时时自动终止。
+    $Owned.handle.Kill();$Owned.handle.WaitForExit()
+    $record=$Owned.record.Clone();$record.terminal=$Owned.handle.HasExited;$record.strongKill=$false;$record.action='TerminateProcess after native completion';$record.exitCode=$Owned.handle.ExitCode;$record.finishedUtc=[DateTime]::UtcNow.ToString('o');$record.completionSequence=$terminal.sequence
+    Write-FrameworkJsonNew (Join-Path $output 'process-complete.json') $record;return $record
+}
