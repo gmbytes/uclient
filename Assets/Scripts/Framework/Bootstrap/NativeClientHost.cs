@@ -148,7 +148,12 @@ namespace Client.Bootstrap
         {if(value==null)return null;var corners=new Vector3[4];value.GetWorldCorners(corners);var points=corners.Select(p=>RectTransformUtility.WorldToScreenPoint(null,p)).ToArray();return new {left=points.Min(p=>p.x),right=points.Max(p=>p.x),bottom=points.Min(p=>p.y),top=points.Max(p=>p.y)};}
         private void OnApplicationPause(bool paused)=>evidence?.Record("application.pause",new {paused,frame=Time.frameCount});
         private void OnApplicationFocus(bool focused)=>evidence?.Record("application.focus",new {focused,frame=Time.frameCount});
-        private IEnumerator EnableRotationAfterInitialPortrait(){yield return null;yield return null;Screen.orientation=ScreenOrientation.AutoRotation;evidence?.Record("orientation.policy",new {initial="Portrait",automatic=true});}
+        private IEnumerator EnableRotationAfterInitialPortrait()
+        {
+            yield return null;yield return null;Screen.orientation=ScreenOrientation.AutoRotation;
+            // 验收记录实际运行时方向权限，不能用编辑器的打包设置替代设备观测。
+            evidence?.Record("orientation.policy",new {initial="Portrait",automatic=true,portrait=Screen.autorotateToPortrait,upsideDown=Screen.autorotateToPortraitUpsideDown,landscapeLeft=Screen.autorotateToLandscapeLeft,landscapeRight=Screen.autorotateToLandscapeRight});
+        }
         private IEnumerator FinishAcceptance()
         {
             yield return new WaitForEndOfFrame();
