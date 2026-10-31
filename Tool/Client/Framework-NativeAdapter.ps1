@@ -1,8 +1,58 @@
 #requires -Version 7.0
-# Definitions for the later owned native runner. Every effect entry point is blocked during preparation.
+# Native effects remain closed except inside an archive-bound qualification scope.
 . "$PSScriptRoot/Framework-TransferPolicy.ps1"
+function Invoke-FrameworkNativeQualification {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][ValidateSet('Windows64','Android')][string]$Platform,
+        [Parameter(Mandatory)][string]$RunId,[Parameter(Mandatory)][string]$PlayerArchive,
+        [Parameter(Mandatory)][string]$BuildResult,[Parameter(Mandatory)][string]$RuntimePlayerRoot,
+        [Parameter(Mandatory)][string]$OutputDirectory,[Parameter(Mandatory)][scriptblock]$Body,
+        [string]$DeviceId)
+    $prior=Get-Variable FrameworkNativeQualification -Scope Script -ErrorAction SilentlyContinue
+    Require-FrameworkFact (-not $prior -or -not $prior.Value.active) 'E_QUALIFICATION_NESTED' 'An active native qualification owner cannot be replaced.'
+    Require-FrameworkFact ($RunId -cmatch '^[A-Za-z0-9_-]{1,40}$' -and ($Platform -cne 'Android' -or $DeviceId -cmatch '^[A-Za-z0-9_.:-]+$')) 'E_QUALIFICATION_IDENTITY' 'A bounded run and explicit Android device are required.'
+    $archive=Read-FrameworkArchive $PlayerArchive $BuildResult $Platform
+    $nativeRoot=[IO.Path]::GetFullPath($RuntimePlayerRoot)
+    $before=@{};foreach($item in (Get-FrameworkInventory $nativeRoot).GetEnumerator()){$before[$item.Key]=$item.Value.sha256}
+    Assert-FrameworkHashMap $archive.archiveNative $before 'Qualification runnable native package'
+    $output=New-FrameworkOutputDirectory $OutputDirectory
+    $context=@{scope='QualificationOnly';nativeAcceptance=$false;platform=$Platform;runId=$RunId;deviceId=$DeviceId;
+        playerBuildId=$archive.playerBuildId;profilePackageId=$archive.profilePackageId;updateEndpoint=$archive.updateEndpoint;
+        archiveNative=$archive.archiveNative;runtimePlayerRoot=$nativeRoot;nativeBinaryEvidence=$archive.nativeBinaryEvidence}
+    $binding=@{platform=$Platform;runId=$RunId;deviceId=$DeviceId;playerBuildId=$archive.playerBuildId;runtimePlayerRoot=$nativeRoot}
+    $script:FrameworkNativeQualification=@{active=$true;ownerProcessId=$PID;context=$context;binding=$binding;
+        archivePath=(Join-Path ([IO.Path]::GetFullPath($PlayerArchive)) 'archive.json');archiveSha256=$archive.archiveSha256}
+    $bodyError=$null;$mutation=$null;$value=$null;$after=@{};$unchanged=$false
+    try{$value=& $Body $context}catch{$bodyError=$_}
+    finally{
+        # 资格检测只开放当前调用栈；正常返回、异常和校验失败均先关门，再保存结果。
+        $script:FrameworkNativeQualification.active=$false
+        $script:FrameworkNativeQualification=$null
+        try{
+            foreach($item in (Get-FrameworkInventory $nativeRoot).GetEnumerator()){$after[$item.Key]=$item.Value.sha256}
+            Assert-FrameworkHashMap $before $after 'Qualification native package after execution'
+            $original=Read-FrameworkArchive $PlayerArchive $BuildResult $Platform
+            Require-FrameworkFact ($original.archiveSha256 -ceq $archive.archiveSha256 -and $original.buildResultSha256 -ceq $archive.buildResultSha256) 'E_QUALIFICATION_ARCHIVE_CHANGED' 'Original build identity changed during qualification.'
+            $unchanged=$true
+        }catch{$mutation=$_}
+        $result=@{schemaVersion=1;scope='QualificationOnly';nativeAcceptance=$false;platform=$Platform;runId=$RunId;
+            playerBuildId=$archive.playerBuildId;archiveSha256=$archive.archiveSha256;buildResultSha256=$archive.buildResultSha256;
+            nativeBefore=$before;nativeAfter=$after;nativeUnchanged=$unchanged;succeeded=($null -eq $bodyError -and $unchanged);
+            error=$(if($bodyError){$bodyError.Exception.ToString()}else{$null});mutationError=$(if($mutation){$mutation.Exception.ToString()}else{$null});
+            output=$value;finishedUtc=[DateTime]::UtcNow.ToString('o')}
+        Write-FrameworkJsonNew (Join-Path $output 'qualification-result.json') $result
+    }
+    if($bodyError){throw $bodyError}
+    if(-not $unchanged){throw [IO.InvalidDataException]::new('E_QUALIFICATION_NATIVE_CHANGED: Native or original archive bytes changed; see preserved qualification receipt.')}
+    return $result
+}
 function Assert-FrameworkEffectsReleased {
-    throw [IO.InvalidDataException]::new('E_PREPARATION_GATE: Final D1 archives, controller execution release and independent adapter qualification are still required. No native effect is permitted by this preparation build.')
+    $variable=Get-Variable FrameworkNativeQualification -Scope Script -ErrorAction SilentlyContinue
+    $lease=if($variable){$variable.Value}else{$null}
+    $valid=$null -ne $lease -and $lease.active -eq $true -and $lease.ownerProcessId -eq $PID
+    if($valid){foreach($field in @('platform','runId','deviceId','playerBuildId','runtimePlayerRoot')){if($lease.context[$field] -cne $lease.binding[$field]){$valid=$false;break}}}
+    if($valid){$valid=(Get-FrameworkFileHash $lease.archivePath) -ceq $lease.archiveSha256}
+    Require-FrameworkFact $valid 'E_PREPARATION_GATE' 'Native effects require the current owned archive-bound qualification scope; preparation and acceptance remain closed.'
 }
 function Assert-FrameworkOwnedProcess($Expected,$Observed) {
     foreach($field in @('processId','startedUtc','executable','executableSha256','runId','caseId','playerBuildId')){
