@@ -53,7 +53,58 @@ function Assert-FrameworkEffectsReleased {
     $valid=$null -ne $lease -and $lease.active -eq $true -and $lease.ownerProcessId -eq $PID
     if($valid){foreach($field in @('platform','runId','deviceId','playerBuildId','runtimePlayerRoot')){if($lease.context[$field] -cne $lease.binding[$field]){$valid=$false;break}}}
     if($valid){$valid=(Get-FrameworkFileHash $lease.archivePath) -ceq $lease.archiveSha256}
+    if($valid -and $lease.executionGatePath){$valid=(Get-FrameworkFileHash $lease.executionGatePath) -ceq $lease.executionGateSha256}
     Require-FrameworkFact $valid 'E_PREPARATION_GATE' 'Native effects require the current owned archive-bound qualification scope; preparation and acceptance remain closed.'
+}
+function Read-FrameworkExecutionGate([string]$Path,$Archive,[string]$Platform) {
+    $gate=Read-FrameworkJson $Path
+    Assert-FrameworkFields $gate @('status','finalD1ArchivesApproved','platform','playerBuildId','archiveSha256','producerCommit','d1Evidence')
+    Require-FrameworkFact ($gate.status -ceq 'Released' -and $gate.finalD1ArchivesApproved -is [bool] -and $gate.finalD1ArchivesApproved -eq $true -and $gate.platform -ceq $Platform -and $gate.playerBuildId -ceq $Archive.playerBuildId -and $gate.archiveSha256 -ceq $Archive.archiveSha256 -and $gate.producerCommit -cmatch '^[a-f0-9]{40}$' -and $gate.d1Evidence -is [Collections.IList] -and $gate.d1Evidence.Count -eq 2) 'E_NATIVE_EXECUTION_GATE' 'Current original archive and explicit D1 approval with both raw runs are required.'
+    $versions=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$attempts=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach($proof in $gate.d1Evidence){
+        Assert-FrameworkFields $proof @('version','path','sha256')
+        Require-FrameworkFact ($proof.version -cin @('v1','v2') -and $versions.Add($proof.version) -and (Get-FrameworkFileHash $proof.path) -ceq $proof.sha256) 'E_D1_PROOF' 'D1 proof is missing, duplicated or changed.'
+        $events=Read-FrameworkEvents $proof.path;$first=$events[0]
+        $owner=@{runId=$first.runId;caseId=$first.caseId;processId=$first.processId}
+        Require-FrameworkFact ($attempts.Add($first.attemptId)) 'E_D1_ATTEMPT' 'D1 versions must come from separate native attempts.'
+        $terminal=Get-FrameworkNativeCompletion $events $owner $first.attemptId
+        $identities=@($events|Where-Object kind -ceq 'native.identity');$runtimes=@($events|Where-Object kind -ceq 'native.runtime')
+        Require-FrameworkFact ($identities.Count -eq 1 -and $runtimes.Count -eq 1) 'E_D1_IDENTITY' 'Original native identity/runtime records are required.'
+        foreach($field in @('playerBuildId','platform','architecture','unityVersion','contractVersion','envelopeSha256','aotMetadataSetId')){Require-FrameworkFact ($identities[0].data.player[$field] -ceq $Archive.identity[$field]) 'E_D1_IDENTITY' 'D1 run belongs to a different original Player.'}
+        $runtimePlatform=if($Platform -ceq 'Windows64'){'WindowsPlayer'}else{'Android'}
+        Require-FrameworkFact ($runtimes[0].data.platform -ceq $runtimePlatform -and $runtimes[0].data.pointerBits -eq 64 -and $runtimes[0].data.unityVersion -ceq $Archive.identity.unityVersion -and $runtimes[0].data.profilePackageId -ceq $Archive.profilePackageId) 'E_D1_RUNTIME' 'D1 platform, word size, Unity version or native package differs.'
+        if($Platform -ceq 'Android'){Require-FrameworkFact ($runtimes[0].data.applicationId -ceq $Archive.profilePackageId) 'E_D1_ANDROID' 'D1 actual OS package differs.'}
+        Require-FrameworkFact ($terminal.kind -ceq 'launch.result' -and $terminal.data.ready -eq $true -and $terminal.data.restartRequired -eq $false -and $terminal.data.selection.ReleaseId -ceq $proof.version -and $terminal.data.resourceAttempts -eq 1 -and $terminal.data.metadataCount -eq $Archive.metadataNames.Count -and @($terminal.data.failures).Count -eq 0 -and @($events|Where-Object kind -ceq 'native.error').Count -eq 0) 'E_D1_READY' 'Original D1 run did not reach clean actual readiness.'
+        Require-FrameworkFact (@($terminal.data.hotAssemblies).Count -eq 2 -and $terminal.data.hotAssemblies -ccontains 'Client.Game.Protocol' -and $terminal.data.hotAssemblies -ccontains 'Client.Game') 'E_D1_ASSEMBLIES' 'D1 actual hot assembly set differs.'
+        $metadata=@($events|Where-Object kind -ceq 'metadata');Require-FrameworkFact ($metadata.Count -eq $Archive.metadataNames.Count) 'E_D1_METADATA' 'Original D1 metadata count differs.'
+        foreach($name in $Archive.metadataNames){Require-FrameworkFact (@($metadata|Where-Object {$_.data.message -ceq ("F6_METADATA "+$Archive.playerBuildId+" "+$name+" OK") -and $_.data.selection.ReleaseId -ceq $proof.version}).Count -eq 1) 'E_D1_METADATA' 'Original D1 metadata image did not load exactly once.'}
+        $logs=@($events|Where-Object kind -ceq 'hot.log')
+        Require-FrameworkFact (@($logs|Where-Object {$_.data.code -ceq 'CLIENT_CODE_VERSION' -and $_.data.message -ceq $proof.version}).Count -eq 1) 'E_D1_CODE' 'D1 actual code version did not execute.'
+        $views=@($logs|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'});Require-FrameworkFact ($views.Count -eq 1) 'E_D1_VIEW' 'D1 actual View marker is missing.'
+        $view=ConvertFrom-FrameworkJson $views[0].data.message -ObjectOnly
+        Require-FrameworkFact ($view.version -ceq ('Framework '+$proof.version) -and (Test-FrameworkObjectId $view.view) -and (Test-FrameworkObjectId $view.presenter)) 'E_D1_RESOURCE' 'D1 actual resource version or View identity differs.'
+        if($proof.version -ceq 'v2'){Require-FrameworkFact (@($logs|Where-Object {$_.data.code -ceq 'CLIENT_PARSER_EXECUTED' -and $_.data.message -ceq 'AddedMessage list,map,unknown-fields,uint64,hot-generics,empty-registry'}).Count -eq 1) 'E_D1_PARSER' 'Original D1 added Parser did not execute.'}
+    }
+    return $gate
+}
+function Invoke-FrameworkNativeExecution {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][ValidateSet('Windows64','Android')][string]$Platform,[Parameter(Mandatory)][string]$RunId,
+        [Parameter(Mandatory)][string]$PlayerArchive,[Parameter(Mandatory)][string]$BuildResult,[Parameter(Mandatory)][string]$RuntimePlayerRoot,
+        [Parameter(Mandatory)][string]$ExecutionGate,[Parameter(Mandatory)][string]$OutputDirectory,[Parameter(Mandatory)][scriptblock]$Body,[string]$DeviceId)
+    $executionArchive=Read-FrameworkArchive $PlayerArchive $BuildResult $Platform
+    $executionApproval=Read-FrameworkExecutionGate $ExecutionGate $executionArchive $Platform
+    $executionApprovalHash=Get-FrameworkFileHash $ExecutionGate;$executionAction=$Body
+    $result=Invoke-FrameworkNativeQualification -Platform $Platform -RunId $RunId -PlayerArchive $PlayerArchive -BuildResult $BuildResult -RuntimePlayerRoot $RuntimePlayerRoot -OutputDirectory $OutputDirectory -DeviceId $DeviceId -Body {
+        param($context)
+        $context.scope='NativeExecution';$context.executionGate=$executionApproval
+        $lease=(Get-Variable FrameworkNativeQualification -Scope Script).Value;$lease.executionGatePath=$ExecutionGate;$lease.executionGateSha256=$executionApprovalHash
+        # 开放实际采集的能力不等于验收通过；最终结果仍由完整矩阵和原始文件判定。
+        & $executionAction $context
+    }
+    $result.scope='NativeExecution';$result.executionGate=@{path=[IO.Path]::GetFullPath($ExecutionGate);sha256=$executionApprovalHash}
+    Write-FrameworkJsonNew (Join-Path $OutputDirectory 'execution-result.json') $result
+    return $result
 }
 function Assert-FrameworkOwnedProcess($Expected,$Observed) {
     foreach($field in @('processId','startedUtc','executable','executableSha256','runId','caseId','playerBuildId')){

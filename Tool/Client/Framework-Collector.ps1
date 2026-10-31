@@ -108,9 +108,12 @@ function Bind-FrameworkCollectionPlan($Plan,$Archive,[string]$BuildReceipt,[stri
     return $bound
 }
 function Invoke-FrameworkCollection {
-    param($Plan,[switch]$Execute,[scriptblock]$UnitAdapter)
+    param($Plan,[switch]$Execute,[scriptblock]$UnitAdapter,[scriptblock]$NativeAdapter)
     Require-FrameworkFact ($Plan.schemaVersion -eq 1) 'E_PLAN' 'Unsupported collection plan.'
-    if($Execute){throw [IO.InvalidDataException]::new('E_PREPARATION_GATE: Native tool/device/server/kill execution is not released or qualified in this preparation checkpoint.')}
+    if($Execute){
+        Require-FrameworkFact ($null -ne $NativeAdapter -and $null -eq $UnitAdapter) 'E_PREPARATION_GATE' 'Actual execution requires a released native adapter, never the unit adapter.'
+        return Invoke-FrameworkNativeCollection -Plan $Plan -NativeAdapter $NativeAdapter
+    }
     if($UnitAdapter){
         # The same ordered protocol can be exercised without native effects. Its output never counts as an executed native case.
         $result=@{schemaVersion=1;evidenceKind='SyntheticUnit';nativeAcceptance=$false;cases=@()}
@@ -140,4 +143,53 @@ function Invoke-FrameworkCollection {
         return $result
     }
     return $Plan
+}
+function Invoke-FrameworkNativeCollection {
+    param($Plan,[Parameter(Mandatory)][scriptblock]$NativeAdapter)
+    Assert-FrameworkEffectsReleased
+    $lease=(Get-Variable FrameworkNativeQualification -Scope Script).Value;$context=$lease.context
+    Require-FrameworkFact ($context.scope -ceq 'NativeExecution' -and $lease.executionGatePath -and
+        $Plan.schemaVersion -eq 1 -and $Plan.runId -ceq $context.runId -and $Plan.platform -ceq $context.platform -and
+        $Plan.binding.playerBuildId -ceq $context.playerBuildId -and $Plan.binding.archiveSha256 -ceq $lease.archiveSha256 -and
+        [IO.Path]::GetFullPath($Plan.binding.runtimePlayerRoot) -ceq $lease.binding.runtimePlayerRoot -and $Plan.cases.Count -gt 0) 'E_NATIVE_COLLECTION_BINDING' 'Native collection requires the current released original archive, run and platform.'
+    $result=@{schemaVersion=1;evidenceKind='NativeCollection';nativeAcceptance=$false;runId=$Plan.runId;platform=$Plan.platform;playerBuildId=$context.playerBuildId;cases=@()}
+    foreach($case in $Plan.cases){
+        $record=@{id=$case.id;taskId=$case.taskId;status='NotRun';executed=$false;attempts=@();error=$null};$owned=$null;$terminal=$null
+        try{
+            $record.preparation=& $NativeAdapter 'Prepare' $case $case.attempts[0] $null
+            foreach($attempt in $case.attempts){
+                $owned=& $NativeAdapter 'Start' $case $attempt $null;$terminal=$null
+                Require-FrameworkFact ((Test-FrameworkInteger $owned.processId) -and $owned.processId -gt 0 -and $owned.runId -ceq $Plan.runId -and $owned.caseId -ceq $case.id) 'E_NATIVE_COLLECTION_OWNER' 'Adapter did not bind an actual owned process to this logical case.'
+                foreach($prior in $record.attempts){Require-FrameworkFact ($prior.processId -ne $owned.processId) 'E_NATIVE_COLLECTION_RESTART' 'Recovery must use a complete new native PID.'}
+                if($case.kind -ceq 'strong-kill' -and $attempt.role -ceq 'primary'){
+                    $checkpoint=& $NativeAdapter 'WaitCheckpoint' $case $attempt $owned
+                    $options=ConvertFrom-FrameworkJson $attempt.command.acceptanceJson -ObjectOnly
+                    Assert-FrameworkCheckpoint $checkpoint @{runId=$Plan.runId;caseId=$case.id;processId=$owned.processId;acceptance=$options} $checkpoint.attemptId
+                    $record.kill=& $NativeAdapter 'KillOwned' $case $attempt $owned
+                }elseif($case.kind -ceq 'ui'){$record.operator=& $NativeAdapter 'ExerciseUi' $case $attempt $owned}
+                elseif($case.kind -ceq 'session'){$record.server=& $NativeAdapter 'ExerciseSession' $case $attempt $owned}
+                $terminal=& $NativeAdapter 'WaitTerminal' $case $attempt $owned
+                Require-FrameworkFact ($terminal.terminal -is [bool] -and $terminal.terminal -eq $true -and $terminal.processId -eq $owned.processId) 'E_NATIVE_COLLECTION_TERMINAL' 'Actual owned process is not terminal.'
+                $capture=& $NativeAdapter 'Collect' $case $attempt $owned
+                Require-FrameworkFact ($capture.evidenceKind -ceq 'Native' -and $capture.schemaAccepted -eq $true -and $capture.receipt.path -is [string] -and $capture.receipt.sha256 -cmatch '^[a-f0-9]{64}$' -and (Get-FrameworkFileHash $capture.receipt.path) -ceq $capture.receipt.sha256) 'E_NATIVE_COLLECTION_CAPTURE' 'Original file-bound native capture receipt is required.'
+                $descriptor=Read-FrameworkJson $capture.receipt.path;$directory=Split-Path -Parent $capture.receipt.path
+                Require-FrameworkFact ($descriptor.evidenceKind -ceq 'Native' -and $descriptor.schemaAccepted -eq $true -and $descriptor.processId -eq $owned.processId -and $descriptor.attemptId -cmatch '^[a-f0-9]{32}$') 'E_NATIVE_COLLECTION_CAPTURE' 'Capture descriptor is synthetic, rejected or belongs to another process.'
+                $events=Read-FrameworkEvents (Resolve-FrameworkReference $directory $descriptor.events)
+                $process=Read-FrameworkReference $directory $descriptor.process -Json
+                Assert-FrameworkAttemptEnvelope @{caseId=$case.id;attemptId=$descriptor.attemptId;processId=$owned.processId;observedProcessId=$owned.processId;process=$process;events=$events} @{runId=$Plan.runId;playerBuildId=$context.playerBuildId} $case.id
+                foreach($prior in $record.attempts){Require-FrameworkFact ($prior.attemptId -cne $descriptor.attemptId) 'E_NATIVE_COLLECTION_RESTART' 'Native-generated recovery attempt was reused.'}
+                $record.attempts+=@{role=$attempt.role;processId=$owned.processId;attemptId=$descriptor.attemptId;capture=$capture;terminal=$terminal}
+                $owned=$null
+            }
+            # 这里只表示原始证据已采集；每个故障/界面断言和完整矩阵仍由判定器决定。
+            $record.executed=$true;$record.status='Collected'
+        }catch{
+            $record.error=$_.Exception.ToString();$record.status='Fail'
+            if($owned -and -not ($terminal -and $terminal.terminal -eq $true)){
+                try{$record.cleanup=& $NativeAdapter 'CleanupOwned' $case $attempt $owned}catch{$record.cleanupError=$_.Exception.ToString()}
+            }
+        }
+        $result.cases+=$record
+    }
+    return $result
 }
