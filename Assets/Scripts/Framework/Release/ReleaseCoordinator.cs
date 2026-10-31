@@ -20,6 +20,10 @@ namespace Client.Framework.Release
         internal LaunchSelection(PreparedRelease prepared, long epoch, CancellationToken token) { Prepared = prepared; Epoch = epoch; Token = token; }
     }
 
+    /// <summary>
+    /// 协调一次原生启动。准备阶段可重试；资源初始化或程序集加载开始后，失败必须通过新进程恢复。
+    /// 版本晋升同时要求真实首帧、当前上下文的 Ready 请求，以及热入口成功返回。
+    /// </summary>
     public sealed class ReleaseCoordinator : IDisposable
     {
         private static long nextEpoch;
@@ -396,6 +400,7 @@ namespace Client.Framework.Release
 
         private void RequestReady(LaunchSelection selection, LaunchReadinessContext context)
         {
+            // 回调必须携带创建时的 selection/context，不能把迟到的旧请求归到当前启动代次。
             if (Thread.CurrentThread.ManagedThreadId != threadId) return;
             lock (sync)
             {

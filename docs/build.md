@@ -1,6 +1,6 @@
 # 主包与补丁构建
 
-CLI、实际Editor菜单和双平台V1/V2原生链路已有D1证据。完整D2矩阵与D3干净checkout复现仍需各自验收。
+统一构建入口与实际Editor菜单已有D1证据；最终固定目录原生验收正在进行。完整D2矩阵与D3干净checkout复现仍需各自验收。
 
 ## 准备输入
 
@@ -26,6 +26,10 @@ $env:JAVA_HOME = 'E:/sgame/.tools/unity-android-2022.3.25f1/jdk11'
 ```
 
 关闭同工程的其他Unity进程；菜单构建使用已导入稳定的Editor。保存或关闭脏场景。输出必须为新目录，不能指向Assets/Packages/ProjectSettings/Tool/Tests/docs或原始归档内部。
+
+## 固定编译目录
+
+每个Player与其后续Patch使用同一个固定绝对工程目录。本项目当前固定为`E:/sgame/client`。Unity编译产物包含源文件路径，迁移工程目录可能改变固定DLL的完整hash；这种情况应建立新Player归档。干净checkout应先在自己的固定目录生成Player，再从该目录制作补丁。
 
 ## 独立公开配置与签名密钥
 
@@ -129,7 +133,7 @@ D1验收使用隔离fixture覆盖层，普通构建不需要它：V1为`-HotfixO
 
 坏版下进程回退与渠道回滚的区别见[热更新发布说明](hotupdate-release.md)。完整故障/UI矩阵由D2单独验收。
 
-## 当前实际产物
+## 已保留的阶段性产物
 
 | 平台 | PlayerBuildId | 主包输出 | V2补丁输出 |
 | --- | --- | --- | --- |

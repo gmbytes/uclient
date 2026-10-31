@@ -19,6 +19,35 @@ namespace Client.Tests.EditMode
     [Category("D1")]
     public sealed class BuildEntryIntegrationTests
     {
+        [Test] public void GeneratedStartupHasOneStatusAndAnOpaqueFullFrameBackdrop()
+        {
+            var scenes=EditorSceneManager.GetSceneManagerSetup();
+            try
+            {
+                using(BuildSourceTransaction.Begin(new[]{"Assets/Prefabs/App/GameFramework.prefab","Assets/Prefabs/App/GameRoot.prefab","Assets/Prefabs/App/UIUpdate.prefab","Assets/Scenes/Bootstrap.unity","ProjectSettings/PackageManagerSettings.asset","ProjectSettings/SceneTemplateSettings.json"}))
+                {
+                    try
+                    {
+                        ProjectSetup.CreateBootstrap();
+                        var root=GameObject.Find("UIUpdate");
+                        var labels=root.GetComponentsInChildren<UnityEngine.UI.Text>(true).Where(label=>label.name=="StatusLabel").ToArray();
+                        Assert.That(labels.Length,Is.EqualTo(1),"The generated scene must not contain duplicate status labels.");
+                        var backdrop=root.GetComponentsInChildren<UnityEngine.UI.Image>(true).FirstOrDefault(image=>
+                            image.transform.parent==root.transform && image.color.a==1 && !image.raycastTarget &&
+                            image.rectTransform.anchorMin==Vector2.zero && image.rectTransform.anchorMax==Vector2.one &&
+                            image.rectTransform.offsetMin==Vector2.zero && image.rectTransform.offsetMax==Vector2.zero);
+                        Assert.That(backdrop,Is.Not.Null,"The camera-free native startup must cover the complete frame before drawing changing status text.");
+                        Assert.That(backdrop.transform.GetSiblingIndex(),Is.Zero);
+                    }
+                    finally{EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);}
+                }
+            }
+            finally
+            {
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport|ImportAssetOptions.ForceUpdate);
+                if(scenes.Length==0)EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);else EditorSceneManager.RestoreSceneManagerSetup(scenes);
+            }
+        }
         [Test] public void EmptyInitialScenePreservesBuildFailureAndRestoresCleanScene()
         {
             var originalScenes=EditorSceneManager.GetSceneManagerSetup();

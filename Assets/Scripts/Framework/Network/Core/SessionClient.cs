@@ -63,6 +63,7 @@ namespace Client.Framework.Network
             ulong requestId;
             try { requestId = ids.Next(); }
             catch (InvalidOperationException) { result.TrySetResult(Failure(LoginError.ProtocolError)); return; }
+            // 连接、取消和回包都捕获本次 Attempt，迟到结果不能完成后续登录请求。
             var attempt = new Attempt(++epoch, requestId, result);
             current = attempt; identity = null;
             attempt.FrameHandler = bytes => Receive(attempt, bytes);

@@ -38,6 +38,7 @@ namespace Client.Framework.HotUpdate
 #endif
         private static void BeginAttempt()
         {
+            // 即使中途失败也不清除此标记：程序集无法可靠卸载，本进程不能再尝试另一组热代码。
             if (Interlocked.Exchange(ref attempted, 1) != 0)
                 throw new InvalidOperationException("A hotfix load was already attempted in this process; restart is required.");
         }

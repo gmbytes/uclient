@@ -159,6 +159,7 @@ namespace Client.Bootstrap
         }
         internal void ShowNativeSetupFailure()
         {
+            // 原生组合尚未建立时没有可重试的协调器，只展示通用错误与退出操作。
             if (destroyed || m_UpdateUI == null) return;
             m_UpdateUI.ShowFailure("Startup setup failed. Please exit.", false);
         }
