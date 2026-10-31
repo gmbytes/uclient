@@ -36,7 +36,8 @@ namespace Client.Framework.Release
             destination = Path.GetFullPath(destination);
             ReleaseFileSystem.RequireDownloadPath(destination);
             string uri = baseUri + string.Join("/", relativePath.Split('/').Select(Uri.EscapeDataString));
-            var completion = new TaskCompletionSource<bool>();
+            // GF 在遍历模块时派发下载事件；启动续体会创建 UI 模块，必须排回 Unity 主线程后再执行。
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int id = downloads.AddDownload(destination, uri, this);
             pending.Add(id, completion);
             using (token.Register(() => context.Post(_ =>
@@ -66,10 +67,11 @@ namespace Client.Framework.Release
             if (disposed) return;
             if (SynchronizationContext.Current != context) throw new InvalidOperationException("UGF download must be disposed on the Unity main thread.");
             disposed = true;
-            events.Unsubscribe(DownloadSuccessEventArgs.EventId, OnSuccess);
-            events.Unsubscribe(DownloadFailureEventArgs.EventId, OnFailure);
+            // Unity 不保证宿主与 GF BaseComponent 的销毁顺序；GF Shutdown 可能已清空事件池。
+            if (events != null && events.Check(DownloadSuccessEventArgs.EventId, OnSuccess)) events.Unsubscribe(DownloadSuccessEventArgs.EventId, OnSuccess);
+            if (events != null && events.Check(DownloadFailureEventArgs.EventId, OnFailure)) events.Unsubscribe(DownloadFailureEventArgs.EventId, OnFailure);
             var cancelled = pending.ToArray(); pending.Clear();
-            foreach (var item in cancelled) { downloads.RemoveDownload(item.Key); item.Value.TrySetCanceled(); }
+            foreach (var item in cancelled) { if (downloads != null) downloads.RemoveDownload(item.Key); item.Value.TrySetCanceled(); }
         }
     }
 }

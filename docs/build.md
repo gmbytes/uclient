@@ -135,6 +135,15 @@ D1验收使用隔离fixture覆盖层，普通构建不需要它：V1为`-HotfixO
 
 ## 已保留的阶段性产物
 
+修复GF回调与退出顺序后，当前候选产物来自`7665bf9`，根目录仍为`E:/sgame/Builds/D1Final`：
+
+| 平台 | PlayerBuildId | 主包输出 | V2补丁输出 |
+| --- | --- | --- | --- |
+| Windows64 | d967517226c743b3802903992546d632 | Build_20261031T152638077Z_3bb638b9dc9b | Build_20261031T153446532Z_71ae39cceab1 |
+| Android | 31a7aaaf1c0f45a49d82eed7eb0047da | Build_20261031T153023251Z_38d2234aecce | Build_20261031T153558742Z_93c876f70c40 |
+
+四次构建成功且源码恢复一致。Android同APK V1/V2已完成零原生异常、原元数据与完整slot校验；Windows在线更新当前受系统代理502影响，尚不能标记D1完成。具体进度与原始运行目录见[实施进度](implementation-progress.md)。以下较早产物仅保留历史证据，不替代当前源码验收：
+
 | 平台 | PlayerBuildId | 主包输出 | V2补丁输出 |
 | --- | --- | --- | --- |
 | Windows64 | 02014a45a75b4bfd8befc56ff30ddbd1 | Build_20261029T194327321Z_980e5b83b8ff | Build_20261029T194927754Z_2cd84002d268 |

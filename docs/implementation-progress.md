@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+正式完成 **18/21 Task（约86%）**。已完成项同时在子计划中勾选步骤；本表保留提交与检测证据。D1/D2/D3仍未完成，不能据阶段性成功提前勾选。每个Task通过全部验收后，同步更新本表、总计划和对应子计划。
+
 | Task | 状态 | 证据/下一项 |
 | --- | --- | --- |
 | N0 | 已验证并通过独立审查 | 24/24输入用例；client c5f5a79、comm467e131 |
@@ -24,9 +26,19 @@
 | U3 | 已验证并通过独立审查 | 27a0b7f/430a170；合规层级16+10项及合并回归通过 |
 | U4 | 已验证并通过独立审查 | 8212d63/43093f8；工具/预览/满屏背景与局部安全区，合并回归通过 |
 | U5 | 已验证并通过独立审查 | c752806/b55dbc1/639f447；完整310/95，主工程9项Edit及16项真实图形集成通过 |
-| D1 | Windows V1/V2已实测，Android待验证 | 修后28fd6f7源审通过；Windows同主包V1/V2 Ready、新Parser执行、7引用/59原metadata相等且native未变；Android/真实菜单及完整恢复门禁仍待 |
-| D2 | 待实施 | 最终两平台故障、进程、UI与设备矩阵尚未执行 |
+| D1 | 实施中，Windows在线复验待完成 | ac44f88修复后413/413 Edit与140/140图形Play通过；7665bf9两平台Player/Patch全部构建成功且源码恢复；Android同APK V1/V2零异常/48元数据/54文件校验通过，Windows在线更新受系统代理502影响仍待 |
+| D2 | 工具准备已验证，实际矩阵未完成 | 240项工具测试通过；最终两平台故障、强杀、UI/输入法及会话矩阵仍待执行 |
 | D3 | 文档准备 | 已提供运行时架构、迁移台账与iOS后续清单；干净checkout复现和最终交付审计未完成 |
+
+## 2026-10-31 当前修复与检测
+
+当前候选主包与补丁已从`7665bf9`在固定工程路径生成，四次构建均Succeeded、源文件恢复一致、原始Archive前后逐文件一致。Windows PlayerBuildId为`d967517226c743b3802903992546d632`，Android为`31a7aaaf1c0f45a49d82eed7eb0047da`。Android修后同APK V1 PID1982、V2 PID2228均Ready、零原生异常、48份元数据全部OK、单资源根/两个热程序集；V2实际执行新增AddedMessage Parser并展示Framework v2。两版物理slot各54文件及原始清单/签名全部匹配，安装APK SHA256始终为`97121e793f56041f0086ec877728b9ef03a8c105af46d4571d601eead1f6d758`。原始证据在`Builds/Tests/D1/CanonicalFinal-20261031T152623672Z`、`AndroidRuntime-d1a-20261031T154442369-v1`、`AndroidRuntime-d1a-20261031T154609102-v2`及`CallbackAndroidV1Slot-20261031`、`CallbackAndroidV2Slot-20261031`。APK保留数据安装一次，旧包已验证归属并备份；测试拥有的进程、服务与18765映射已释放。Android仍为雷电ARM64/Houdini功能验收，真实ARM/iOS未测。
+
+Windows修后V1已Ready且零原生异常，但在线检查被系统代理返回502；原始PreparationFailed记录保留，不能据此算在线更新通过。D1 Step3/4构建流程已完成，Step5和整个D1保持未完成。新增参考图登录页、多屏美术改造单独跟踪，当前优先继续原21项框架Goal。
+
+最终候选源码`9a96dc1`的Windows和雷电Android同主包V1/V2均达到Ready，执行新增Parser和Framework v2；Windows59份、Android48份元数据加载OK。Android V1/V2各54个落盘文件与签名清单一致，APK未变。实际Editor菜单Patch成功且源码恢复通过；这些事实保留为阶段性证据。
+
+完成审计进一步发现启动期间GF集合遍历异常，以及一次退出取消订阅异常，因此D1未标完成。`ac44f88`将下载完成续体排回Unity主线程，并使清理兼容GF事件池已关闭的销毁顺序。三个新增行为用例均先失败再通过，定向6/6；完整Edit413/413、图形Play140/140，均零失败/跳过、进程退出0、源码前后hash一致。原始证据为`Builds/Tests/Integration/D1/20261031T151510924Z-PlayMode`（RED）、`20261031T151835282Z-PlayMode`（RED）、`20261031T151933345Z-PlayMode`（GREEN）及`20261031T152026345Z-EditMode`、`20261031T152230628Z-PlayMode`（全量）。必要的代码注释已提交；修后两平台原生基线与同包热更须重新验证。
 
 ## N0 验证
 
