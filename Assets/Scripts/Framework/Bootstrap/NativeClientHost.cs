@@ -166,7 +166,12 @@ namespace Client.Bootstrap
         {if(Application.platform==RuntimePlatform.Android){using(var unity=new AndroidJavaClass("com.unity3d.player.UnityPlayer"))using(var activity=unity.GetStatic<AndroidJavaObject>("currentActivity"))using(var intent=activity.Call<AndroidJavaObject>("getIntent"))return intent.Call<string>("getStringExtra",name);}string[] args=Environment.GetCommandLineArgs();int i=Array.IndexOf(args,"-"+name);return i>=0&&i+1<args.Length?args[i+1]:null;}
         private static string Bounded(string value)=>value==null?null:value.Length<=16384?value:value.Substring(0,16384)+" [truncated]";
         private void OnDestroy()
-        {Application.logMessageReceived-=OnLog;if(observing&&events!=null)foreach(int id in DownloadEvents)events.Unsubscribe(id,OnDownload);launch?.Cancel();launch?.Dispose();observedTransport?.Dispose();coordinator?.Dispose();evidence?.Dispose();}
+        {
+            Application.logMessageReceived-=OnLog;
+            // GF 可能先于本宿主销毁，只移除仍由本观察器持有的订阅。
+            if(observing&&events!=null)foreach(int id in DownloadEvents)if(events.Check(id,OnDownload))events.Unsubscribe(id,OnDownload);
+            observing=false;launch?.Cancel();launch?.Dispose();observedTransport?.Dispose();coordinator?.Dispose();evidence?.Dispose();
+        }
     }
 
     internal sealed class NativeObservedSession : ISessionClient, IDisposable

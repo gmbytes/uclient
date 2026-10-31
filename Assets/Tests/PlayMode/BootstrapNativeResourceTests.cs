@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Client.Framework.Release;
 using Client.Framework.Resource;
+using GameFramework;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -46,6 +47,55 @@ namespace Client.Tests
         }
         private static IEnumerator Terminal(Task task)
         {float deadline=Time.realtimeSinceStartup+10;while(!task.IsCompleted&&Time.realtimeSinceStartup<deadline)yield return null;Assert.That(task.IsCompleted,Is.True,"Actual native Package initialization timed out.");}
+        [UnityTest] public IEnumerator DownloadCompletionDoesNotRegisterModulesInsideFrameworkUpdate()
+        {
+            var downloads=host.AddComponent<DownloadComponent>();yield return null;
+            var select=launch.Coordinator.PrepareLaunchAsync(CancellationToken.None);yield return Terminal(select);
+            launch.Coordinator.BeginTrial(select.Result);
+            var events=host.GetComponent<EventComponent>();
+            using(var transport=new GfDownloadTransport(downloads,events,"http://127.0.0.1:9"))
+            {
+                var task=ActivateAfterDownload(transport,select.Result);
+                var infos=downloads.GetAllDownloadInfos();Assert.That(infos.Length,Is.EqualTo(1));
+                // Deliver the actual UGF event through its queued manager update, without an HTTP server.
+                var success=ReferencePool.Acquire<DownloadSuccessEventArgs>();
+                typeof(DownloadSuccessEventArgs).GetProperty("SerialId").SetValue(success,infos[0].SerialId);
+                typeof(DownloadSuccessEventArgs).GetProperty("UserData").SetValue(success,transport);
+                events.Fire(this,success);
+                Assert.DoesNotThrow(()=>GameFrameworkEntry.Update(0,0),"Lazy UI module registration must happen after the GF module enumeration returns.");
+                yield return Terminal(task);
+                Assert.That(task.IsCompletedSuccessfully,Is.True,task.Exception?.ToString());
+                Assert.That(resources.Initialization.IsCompletedSuccessfully,Is.True);
+                LogAssert.NoUnexpectedReceived();
+            }
+        }
+        private async Task ActivateAfterDownload(GfDownloadTransport transport,LaunchSelection selection)
+        {
+            await transport.DownloadAsync("release.json",Path.Combine(launch.Root,"callback-probe.json"),CancellationToken.None);
+            await launch.Coordinator.ActivateResourcesAsync(selection,resources,CancellationToken.None);
+        }
+        [UnityTest] public IEnumerator TransportDisposalSurvivesFrameworkShutdownBeforeHostDestruction()
+        {
+            var downloads=host.AddComponent<DownloadComponent>();yield return null;
+            var transport=new GfDownloadTransport(downloads,host.GetComponent<EventComponent>(),"http://127.0.0.1:9");
+            GameFrameworkEntry.Shutdown();
+            Assert.DoesNotThrow(()=>transport.Dispose(),"Unity can destroy BaseComponent before the native launch host.");
+            Assert.DoesNotThrow(()=>transport.Dispose());
+        }
+        [UnityTest] public IEnumerator NativeObservationDisposalSurvivesFrameworkShutdown()
+        {
+            var native=host.AddComponent(Type.GetType("Client.Bootstrap.NativeClientHost, Client.Bootstrap"));
+            ((Behaviour)native).enabled=false;
+            var type=native.GetType();var events=host.GetComponent<EventComponent>();
+            type.GetField("events",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(native,events);
+            type.GetField("observing",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(native,true);
+            var handler=(EventHandler<GameFramework.Event.GameEventArgs>)Delegate.CreateDelegate(typeof(EventHandler<GameFramework.Event.GameEventArgs>),native,type.GetMethod("OnDownload",BindingFlags.Instance|BindingFlags.NonPublic));
+            foreach(int id in new[]{DownloadStartEventArgs.EventId,DownloadUpdateEventArgs.EventId,DownloadSuccessEventArgs.EventId,DownloadFailureEventArgs.EventId})events.Subscribe(id,handler);
+            GameFrameworkEntry.Shutdown();
+            try{Assert.DoesNotThrow(()=>type.GetMethod("OnDestroy",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(native,null));}
+            finally{type.GetField("observing",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(native,false);}
+            yield break;
+        }
         // Real GF InitResources callback must complete before the coordinator records resource success.
         [UnityTest] public IEnumerator ActualPackageInitializationUsesPersistedTrialAndOneRoot()
         {
