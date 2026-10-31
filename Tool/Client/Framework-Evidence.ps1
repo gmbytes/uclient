@@ -266,10 +266,13 @@ function Assert-FrameworkUi($Case,$Definition) {
         if($action -in @('resize','window-drag','rotation','keyboard-rotation','inflight-rotation','keyboard','background')){Require-FrameworkFact ($first.input.focused -eq $true -and (Test-FrameworkObjectId $first.selected) -and $first.input.length -gt 0) 'E_UI_FOCUS' 'Continuity must start with actual focused nonempty input, not an already-unfocused empty form.'}
         foreach($sample in @($samples)+@($stable)){
             $current=$sample.data.snapshot
-            Require-FrameworkFact ($current.view -eq $first.view -and $current.input.id -eq $first.input.id -and $current.input.textSha256 -ceq $first.input.textSha256 -and $current.input.length -eq $first.input.length -and $current.input.caret -eq $first.input.caret -and $current.input.selectionAnchor -eq $first.input.selectionAnchor -and $current.input.selectionFocus -eq $first.input.selectionFocus) 'E_UI_CONTINUITY' 'View, input, text or caret changed during the native action.'
+            Require-FrameworkFact ($current.view -eq $first.view -and $current.input.id -eq $first.input.id -and $current.input.textSha256 -ceq $first.input.textSha256 -and $current.input.length -eq $first.input.length) 'E_UI_CONTINUITY' 'View, input or text changed during the native action.'
+            # 后台平台可临时停用键盘并清空非编辑态选区；实际恢复编辑的样本及最终稳定帧必须回到原选区。
+            if($action -ne 'background' -or $current.input.focused -eq $true){Require-FrameworkFact ($current.input.caret -eq $first.input.caret -and $current.input.selectionAnchor -eq $first.input.selectionAnchor -and $current.input.selectionFocus -eq $first.input.selectionFocus) 'E_UI_CONTINUITY' 'Active editing caret or selection changed during the native action.'}
             if($action -ne 'background'){Require-FrameworkFact ($current.selected -eq $first.selected -and $current.input.focused -eq $first.input.focused) 'E_UI_FOCUS' 'Focus changed during the native action.'}
         }
         Require-FrameworkFact ($snapshot.selected -eq $first.selected -and $snapshot.input.focused -eq $first.input.focused) 'E_UI_FOCUS' 'Original focus did not survive or restore after the native action.'
+        Require-FrameworkFact ($snapshot.input.caret -eq $first.input.caret -and $snapshot.input.selectionAnchor -eq $first.input.selectionAnchor -and $snapshot.input.selectionFocus -eq $first.input.selectionFocus) 'E_UI_CONTINUITY' 'Original final caret or selection did not restore after the native action.'
         Require-FrameworkFact (@(Get-FrameworkEvents $attempt 'hot.log'|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'}).Count -eq 1) 'E_PRESENTER' 'Presenter was recreated or not observed.'
     }
     if($action -in @('rotation','keyboard-rotation','inflight-rotation')){
