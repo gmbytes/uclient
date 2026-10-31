@@ -361,14 +361,25 @@ function Invoke-FrameworkAdb($Tool,[string]$DeviceId,[string[]]$Arguments,[strin
     # stdout stays binary so APK/native captures and screenshots are never decoded and re-encoded.
     return Invoke-FrameworkReceiptCommand $command $OutputFile
 }
-function Get-FrameworkAndroidObservation($Tool,[string]$DeviceId,[string]$ApplicationId,[string]$OutputDirectory) {
+function ConvertFrom-FrameworkAndroidPid([string]$Text,[int]$ExitCode) {
+    $value=$Text.Trim()
+    Require-FrameworkFact ($ExitCode -in @(0,1)) 'E_ANDROID_PID' 'Selected package PID query failed.'
+    if([string]::IsNullOrWhiteSpace($value)){return $null}
+    $nativeProcessId=0L
+    Require-FrameworkFact ($ExitCode -eq 0 -and $value -cmatch '^[1-9][0-9]*$' -and [long]::TryParse($value,[ref]$nativeProcessId)) 'E_ANDROID_PID' 'Exactly one actual package PID is required.'
+    return $nativeProcessId
+}
+function Get-FrameworkAndroidObservation($Tool,[string]$DeviceId,[string]$ApplicationId,[string]$OutputDirectory,[switch]$AllowAbsent) {
     Assert-FrameworkEffectsReleased
     Require-FrameworkFact ($ApplicationId -cmatch '^[A-Za-z0-9]+(\.[A-Za-z0-9]+)+$') 'E_ANDROID_PACKAGE' 'Exact baked application ID is required.'
     $output=New-FrameworkOutputDirectory $OutputDirectory
     $pidResult=Invoke-FrameworkAdb $Tool $DeviceId @('shell','pidof',$ApplicationId) (Join-Path $output 'pid')
-    Require-FrameworkFact ($pidResult.exitCode -eq 0) 'E_ANDROID_PID' 'Selected package has no running process.'
-    $pidText=(Read-FrameworkUtf8 (Join-Path $pidResult.outputDirectory 'stdout.bin') 256).Trim()
-    Require-FrameworkFact ($pidText -cmatch '^[1-9][0-9]*$') 'E_ANDROID_PID' 'Exactly one owned package PID is required.'
+    $pidText=ConvertFrom-FrameworkAndroidPid (Read-FrameworkUtf8 (Join-Path $pidResult.outputDirectory 'stdout.bin') 256) $pidResult.exitCode
+    if($null -eq $pidText){
+        Write-FrameworkJsonNew (Join-Path $output 'process-absent.json') @{deviceId=$DeviceId;applicationId=$ApplicationId;present=$false;query=$pidResult}
+        Require-FrameworkFact $AllowAbsent.IsPresent 'E_ANDROID_PID' 'Selected package has no running process.'
+        return $null
+    }
     $stat=Invoke-FrameworkAdb $Tool $DeviceId @('shell','cat',('/proc/'+$pidText+'/stat')) (Join-Path $output 'stat')
     $boot=Invoke-FrameworkAdb $Tool $DeviceId @('shell','cat','/proc/sys/kernel/random/boot_id') (Join-Path $output 'boot')
     $commandLine=Invoke-FrameworkAdb $Tool $DeviceId @('shell','cat',('/proc/'+$pidText+'/cmdline')) (Join-Path $output 'cmdline')
@@ -388,8 +399,12 @@ function Start-FrameworkAndroidAttempt($Tool,$Command,$Context,[string]$OutputDi
     $output=New-FrameworkOutputDirectory $OutputDirectory
     $launch=Invoke-FrameworkReceiptCommand $Command (Join-Path $output 'launch')
     Require-FrameworkFact ($launch.exitCode -eq 0) 'E_ANDROID_LAUNCH' 'Actual Android intent command failed.'
-    $observed=Get-FrameworkAndroidObservation $Tool $Context.deviceId $Context.profilePackageId (Join-Path $output 'process')
+    # am start 返回时 Zygote 可能尚未公布 PID；只观察同一次启动，不重复发送启动指令。
+    $observed=$null;$clock=[Diagnostics.Stopwatch]::StartNew();$iteration=0
+    do{$observed=Get-FrameworkAndroidObservation $Tool $Context.deviceId $Context.profilePackageId (Join-Path $output ('process-'+(++$iteration))) -AllowAbsent;if($null -ne $observed){break};Start-Sleep -Milliseconds 100}while($clock.Elapsed.TotalSeconds -lt 15)
+    Require-FrameworkFact ($null -ne $observed) 'E_ANDROID_START_TIMEOUT' 'Original Android intent has no observed process; no second launch was sent.'
     $observed.runId=$options.runId;$observed.caseId=$options.caseId;$observed.playerBuildId=$Context.playerBuildId;$observed.acceptance=$options;$observed.installReceiptSha256=$Context.installReceiptSha256;$observed.launch=$launch
+    $observed.startedUtc=$launch.startedUtc;$observed.startObservationKind='LaunchHelperBeforeNativeStart'
     Write-FrameworkJsonNew (Join-Path $output 'process-start.json') $observed
     return $observed
 }
@@ -442,4 +457,61 @@ function Stop-FrameworkAndroidAttempt($Tool,$Owned,$Checkpoint,[string]$OutputDi
     $record=@{runId=$Owned.runId;caseId=$Owned.caseId;processId=$Owned.processId;attemptId=$Owned.attemptId;point=$Checkpoint.point;utc=$utc;action='am force-stop';terminal=$true;deviceId=$Owned.deviceId;startTicks=$Owned.startTicks;bootId=$Owned.bootId;commands=@($stop,$after)}
     Write-FrameworkJsonNew (Join-Path $OutputDirectory 'kill.json') $record
     return $record
+}
+function Get-FrameworkNativeCompletion($Events,$Owned,[string]$AttemptId) {
+    Require-FrameworkFact ($AttemptId -cmatch '^[a-f0-9]{32}$' -and @($Events).Count -gt 0 -and $Events[0].kind -ceq 'process.start') 'E_COMPLETION_START' 'A native-generated attempt and original process-start record are required.'
+    $sequence=0
+    foreach($event in $Events){
+        Require-FrameworkFact ($event.runId -ceq $Owned.runId -and $event.caseId -ceq $Owned.caseId -and $event.processId -eq $Owned.processId -and $event.attemptId -ceq $AttemptId -and $event.sequence -eq (++$sequence)) 'E_COMPLETION_IDENTITY' 'Completion stream is stale, mixed, missing or reordered.'
+    }
+    $terminal=@($Events|Where-Object {$_.kind -cin @('launch.result','host.failure')})
+    Require-FrameworkFact ($terminal.Count -le 1) 'E_COMPLETION_DUPLICATE' 'Native startup produced multiple terminal results.'
+    if($terminal.Count -eq 0){return $null}
+    if($terminal[0].kind -ceq 'launch.result'){
+        Require-FrameworkFact ($terminal[0].data.ready -is [bool] -and $terminal[0].data.restartRequired -is [bool]) 'E_COMPLETION_FLAGS' 'Native readiness/restart flags must be actual booleans.'
+    }else{Require-FrameworkFact ($terminal[0].data.error -is [string] -and $terminal[0].data.error.Length -gt 0) 'E_COMPLETION_FAILURE' 'Original host failure detail is required.'}
+    return $terminal[0]
+}
+function Wait-FrameworkAndroidCompletion($Tool,$Owned,$Context,[string]$OutputDirectory,[ValidateRange(1,150)][int]$TimeoutSeconds=150) {
+    Assert-FrameworkEffectsReleased
+    Require-FrameworkFact ($Context.platform -ceq 'Android' -and $Owned.deviceId -ceq $Context.deviceId -and $Owned.applicationId -ceq $Context.profilePackageId -and $Owned.playerBuildId -ceq $Context.playerBuildId -and $Owned.runId -ceq $Context.runId -and $Owned.runId -cmatch '^[A-Za-z0-9_-]{1,40}$' -and $Owned.caseId -cmatch '^[A-Za-z0-9_-]{1,40}$') 'E_ANDROID_COMPLETION' 'Wait must bind the selected original task-owned application.'
+    $output=New-FrameworkOutputDirectory $OutputDirectory
+    $remote='/sdcard/Android/data/'+$Context.profilePackageId+'/files/Acceptance/'+$Owned.runId+'/'+$Owned.caseId
+    $clock=[Diagnostics.Stopwatch]::StartNew();$iteration=0
+    do{
+        $poll=Join-Path $output ('poll-'+(++$iteration));[IO.Directory]::CreateDirectory($poll)|Out-Null
+        $observed=Get-FrameworkAndroidObservation $Tool $Owned.deviceId $Owned.applicationId (Join-Path $poll 'process');Assert-FrameworkAndroidProcess $Owned $observed
+        $listing=Invoke-FrameworkAdb $Tool $Owned.deviceId @('shell','ls','-1',$remote) (Join-Path $poll 'attempts')
+        if($listing.exitCode -eq 0){foreach($name in (Read-FrameworkUtf8 (Join-Path $listing.outputDirectory 'stdout.bin') 4096).Split("`n",[StringSplitOptions]::RemoveEmptyEntries)){
+            $attempt=$name.Trim();Require-FrameworkFact ($attempt -cmatch '^[a-f0-9]{32}$') 'E_COMPLETION_PATH' 'Unexpected native attempt directory.'
+            $capture=Invoke-FrameworkAdb $Tool $Owned.deviceId @('shell','cat',($remote+'/'+$attempt+'/events.jsonl')) (Join-Path $poll ('events-'+$attempt))
+            if($capture.exitCode -ne 0){continue}
+            $source=Join-Path $capture.outputDirectory 'stdout.bin'
+            try{$events=Read-FrameworkEvents $source}catch [IO.InvalidDataException]{if($_.Exception.Message -like 'E_EVENTS_TRUNCATED*'){continue};throw}
+            # 同一逻辑用例保留之前的进程；只绑定当前实际 PID 的原生 attempt。
+            if($events[0].processId -ne $Owned.processId){continue}
+            $terminal=Get-FrameworkNativeCompletion $events $Owned $attempt
+            if($null -ne $terminal){
+                $copy=Join-Path $output 'events.jsonl';[IO.File]::Copy($source,$copy,$false);$Owned.attemptId=$attempt
+                $result=@{scope='ObservedNativeCompletion';runId=$Owned.runId;caseId=$Owned.caseId;processId=$Owned.processId;attemptId=$attempt;event=$terminal;events=@{path=$copy;sha256=(Get-FrameworkFileHash $copy)};captureCommand=$capture}
+                Write-FrameworkJsonNew (Join-Path $output 'completion.json') $result;return $result
+            }
+        }}
+        Start-Sleep -Milliseconds 100
+    }while($clock.Elapsed.TotalSeconds -lt $TimeoutSeconds)
+    throw [IO.InvalidDataException]::new('E_COMPLETION_TIMEOUT: Native startup result is not observed; this wait does not terminate or restart the application.')
+}
+function Complete-FrameworkAndroidAttempt($Tool,$Owned,$Completion,$Context,[string]$OutputDirectory) {
+    Assert-FrameworkEffectsReleased
+    Require-FrameworkFact ($Context.platform -ceq 'Android' -and $Owned.deviceId -ceq $Context.deviceId -and $Owned.applicationId -ceq $Context.profilePackageId -and $Owned.playerBuildId -ceq $Context.playerBuildId -and $Owned.installReceiptSha256 -ceq $Context.installReceiptSha256 -and $Completion.scope -ceq 'ObservedNativeCompletion' -and $Completion.runId -ceq $Owned.runId -and $Completion.caseId -ceq $Owned.caseId -and $Completion.processId -eq $Owned.processId -and $Completion.attemptId -ceq $Owned.attemptId) 'E_ANDROID_COMPLETE_OWNER' 'Normal completion must bind the installed task-owned process and captured native attempt.'
+    Require-FrameworkFact ((Get-FrameworkFileHash $Completion.events.path) -ceq $Completion.events.sha256) 'E_ANDROID_COMPLETE_BYTES' 'Captured completion bytes changed.'
+    $terminal=Get-FrameworkNativeCompletion (Read-FrameworkEvents $Completion.events.path) $Owned $Owned.attemptId
+    Require-FrameworkFact ($null -ne $terminal) 'E_ANDROID_COMPLETE_RESULT' 'A native startup result is required before normal process cleanup.'
+    $output=New-FrameworkOutputDirectory $OutputDirectory
+    $actual=Get-FrameworkAndroidObservation $Tool $Owned.deviceId $Owned.applicationId (Join-Path $output 'before-stop');Assert-FrameworkAndroidProcess $Owned $actual
+    $stop=Invoke-FrameworkAdb $Tool $Owned.deviceId @('shell','am','force-stop',$Owned.applicationId) (Join-Path $output 'force-stop')
+    $after=Invoke-FrameworkAdb $Tool $Owned.deviceId @('shell','pidof',$Owned.applicationId) (Join-Path $output 'after-stop')
+    Require-FrameworkFact ($stop.exitCode -eq 0 -and [string]::IsNullOrWhiteSpace((Read-FrameworkUtf8 (Join-Path $after.outputDirectory 'stdout.bin') 256))) 'E_ANDROID_COMPLETE_TERMINAL' 'Original owned Android process is not terminal.'
+    $record=@{runId=$Owned.runId;caseId=$Owned.caseId;processId=$Owned.processId;attemptId=$Owned.attemptId;terminal=$true;strongKill=$false;action='am force-stop after native completion';deviceId=$Owned.deviceId;startTicks=$Owned.startTicks;bootId=$Owned.bootId;finishedUtc=$after.finishedUtc;completionKind=$terminal.kind;completionSequence=$terminal.sequence;commands=@($stop,$after)}
+    Write-FrameworkJsonNew (Join-Path $output 'process-complete.json') $record;return $record
 }
