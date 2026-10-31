@@ -56,18 +56,23 @@ namespace Client.Framework.UI
         IEnumerator Restore(EditingState captured,int owner)
         {
             restoring=true;
-            // Android 恢复后仍可能在当帧停用原输入框；下一帧激活，随后恢复双向选区。
-            yield return null;
-            if(owner!=generation || !Eligible(captured.Field) || !Selected(captured.Field)){restoring=false;yield break;}
-            captured.Field.Select();captured.Field.ActivateInputField();
-            yield return null;
-            if(owner==generation && Eligible(captured.Field) && Selected(captured.Field))
+            // Android 旧键盘可在恢复后的第二帧撤销焦点；短暂观察并重激活，而非假设首次激活已稳定。
+            int stable=0;
+            for(int frame=0;frame<6;frame++)
             {
+                yield return null;
+                if(owner!=generation || !Eligible(captured.Field) || !Selected(captured.Field))break;
+                if(!captured.Field.isFocused)
+                {
+                    captured.Field.Select();captured.Field.ActivateInputField();stable=0;continue;
+                }
+                if(frame<2)continue;
                 int length=captured.Field.text?.Length??0;
                 captured.Field.caretPosition=Mathf.Clamp(captured.Caret,0,length);
                 captured.Field.selectionAnchorPosition=Mathf.Clamp(captured.Anchor,0,length);
                 captured.Field.selectionFocusPosition=Mathf.Clamp(captured.Focus,0,length);
                 recent=new EditingState(captured.Field);
+                if(++stable==2)break;
             }
             restoring=false;
         }
