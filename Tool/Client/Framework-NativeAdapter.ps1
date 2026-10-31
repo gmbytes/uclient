@@ -21,7 +21,8 @@ function Invoke-FrameworkNativeQualification {
         archiveNative=$archive.archiveNative;runtimePlayerRoot=$nativeRoot;nativeBinaryEvidence=$archive.nativeBinaryEvidence}
     $binding=@{platform=$Platform;runId=$RunId;deviceId=$DeviceId;playerBuildId=$archive.playerBuildId;runtimePlayerRoot=$nativeRoot}
     $script:FrameworkNativeQualification=@{active=$true;ownerProcessId=$PID;context=$context;binding=$binding;
-        archivePath=(Join-Path ([IO.Path]::GetFullPath($PlayerArchive)) 'archive.json');archiveSha256=$archive.archiveSha256}
+        archivePath=(Join-Path ([IO.Path]::GetFullPath($PlayerArchive)) 'archive.json');archiveSha256=$archive.archiveSha256;
+        playerArchive=[IO.Path]::GetFullPath($PlayerArchive);buildResult=[IO.Path]::GetFullPath($BuildResult)}
     $bodyError=$null;$mutation=$null;$value=$null;$after=@{};$unchanged=$false
     try{$value=& $Body $context}catch{$bodyError=$_}
     finally{
@@ -124,13 +125,32 @@ function Start-FrameworkReleaseServer($Command,$Context,[string]$OutputDirectory
     $endpoint=[Uri]$Context.updateEndpoint
     Require-FrameworkFact ($endpoint.IsLoopback -and $endpoint.Scheme -ceq 'http' -and $endpoint.Port -ge 1024 -and $Command.fileSha256 -cmatch '^[a-f0-9]{64}$' -and (Get-FrameworkFileHash $Command.file) -ceq $Command.fileSha256 -and (Get-FrameworkFileHash $Command.script) -ceq $Command.scriptSha256) 'E_SERVER_RECEIPT' 'Owned update server tool/script and fixed loopback endpoint must match their receipts.'
     $control=New-FrameworkOutputDirectory $OutputDirectory
+    $lease=(Get-Variable FrameworkNativeQualification -Scope Script).Value
+    $owner=[Diagnostics.Process]::GetCurrentProcess()
+    $ownerRecord=@{processId=$PID;startedUtc=$owner.StartTime.ToUniversalTime().ToString('o');executable=$owner.MainModule.FileName;executableSha256=(Get-FrameworkFileHash $owner.MainModule.FileName);runId=$Context.runId;caseId='update-server-owner';playerBuildId=$Context.playerBuildId}
+    $ownerPath=Join-Path $control 'server-owner.json'
+    Write-FrameworkJsonNew $ownerPath @{schemaVersion=1;scope='QualificationOnly';ownerProcess=$ownerRecord;
+        platform=$Context.platform;runId=$Context.runId;deviceId=$Context.deviceId;playerArchive=$lease.playerArchive;buildResult=$lease.buildResult;
+        runtimePlayerRoot=$lease.binding.runtimePlayerRoot;releaseRoot=[IO.Path]::GetFullPath($Context.releaseRoot);controlRoot=$control;
+        endpoint=$Context.updateEndpoint;script=[IO.Path]::GetFullPath($Command.script);scriptSha256=$Command.scriptSha256}
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$Command.file;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
-    foreach($argument in @('-NoProfile','-File',$Command.script,'-ReleaseRoot',$Context.releaseRoot,'-ControlRoot',$control,'-ListenAddress',$endpoint.Host,'-Port',[string]$endpoint.Port,'-ChunkDelayMilliseconds',[string]$Context.chunkDelayMilliseconds)){$start.ArgumentList.Add($argument)}
-    $process=[Diagnostics.Process]::Start($start);$record=@{processId=$process.Id;startedUtc=$process.StartTime.ToUniversalTime().ToString('o');executable=$process.MainModule.FileName;executableSha256=$Command.fileSha256;binarySha256=$Command.fileSha256;kind='ReleaseServer';runId=$Context.runId;caseId='update-server';playerBuildId=$Context.playerBuildId;scriptSha256=$Command.scriptSha256;releaseRoot=$Context.releaseRoot;controlRoot=$control;endpoint=$Context.updateEndpoint}
+    foreach($argument in @('-NoProfile','-File',$Command.script,'-ReleaseRoot',$Context.releaseRoot,'-ControlRoot',$control,'-ListenAddress',$endpoint.Host,'-Port',[string]$endpoint.Port,'-ChunkDelayMilliseconds',[string]$Context.chunkDelayMilliseconds,'-OwnerReceipt',$ownerPath)){$start.ArgumentList.Add($argument)}
+    $process=[Diagnostics.Process]::Start($start);$record=@{processId=$process.Id;startedUtc=$process.StartTime.ToUniversalTime().ToString('o');executable=$null;executableSha256=$Command.fileSha256;binarySha256=$Command.fileSha256;kind='ReleaseServer';runId=$Context.runId;caseId='update-server';playerBuildId=$Context.playerBuildId;scriptSha256=$Command.scriptSha256;releaseRoot=$Context.releaseRoot;controlRoot=$control;endpoint=$Context.updateEndpoint}
     $stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync();$clock=[Diagnostics.Stopwatch]::StartNew()
-    while(-not(Test-Path -LiteralPath (Join-Path $control 'server-ready'))){Require-FrameworkFact (-not $process.HasExited -and $clock.Elapsed.TotalSeconds -lt 15) 'E_SERVER_START' 'Owned server did not publish readiness.';Start-Sleep -Milliseconds 50}
-    Require-FrameworkFact (([IO.File]::ReadAllText((Join-Path $control 'server-ready'))).Trim() -ceq [string]$process.Id) 'E_SERVER_OWNER' 'Server-ready PID differs from the held helper.'
-    Write-FrameworkJsonNew (Join-Path $control 'server-process.json') $record
+    Write-FrameworkJsonNew (Join-Path $control 'server-start.json') @{processId=$process.Id;startedUtc=$record.startedUtc;intendedExecutable=$Command.file;arguments=@($start.ArgumentList)}
+    try{
+        while(-not(Test-Path -LiteralPath (Join-Path $control 'server-ready'))){Require-FrameworkFact (-not $process.HasExited -and $clock.Elapsed.TotalSeconds -lt 15) 'E_SERVER_START' 'Owned server did not publish readiness.';Start-Sleep -Milliseconds 50}
+        Require-FrameworkFact (([IO.File]::ReadAllText((Join-Path $control 'server-ready'))).Trim() -ceq [string]$process.Id) 'E_SERVER_OWNER' 'Server-ready PID differs from the held helper.'
+        # 刚启动时 MainModule 可能尚不可见；以服务就绪后的真实模块观察建立所有权记录。
+        $process.Refresh();$record.executable=$process.MainModule.FileName
+        Require-FrameworkFact (-not [string]::IsNullOrWhiteSpace($record.executable) -and (Get-FrameworkFileHash $record.executable) -ceq $Command.fileSha256) 'E_SERVER_EXECUTABLE' 'Ready server executable differs from its pinned original tool.'
+        Write-FrameworkJsonNew (Join-Path $control 'server-process.json') $record
+    }catch{
+        if(-not $process.HasExited){[IO.File]::WriteAllText((Join-Path $control 'server-stop'),'startup failed');if(-not $process.WaitForExit(5000)){$process.Kill();$process.WaitForExit()}}
+        [IO.File]::WriteAllText((Join-Path $control 'server.stdout.log'),$stdout.Result);[IO.File]::WriteAllText((Join-Path $control 'server.stderr.log'),$stderr.Result)
+        Write-FrameworkJsonNew (Join-Path $control 'server-start-failure.json') @{processId=$process.Id;terminal=$process.HasExited;exitCode=$process.ExitCode;error=$_.Exception.ToString()}
+        $process.Dispose();throw
+    }
     return @{handle=$process;record=$record;outputDirectory=$control;stdout=$stdout;stderr=$stderr}
 }
 function Select-FrameworkReleaseInput($Server,$Selection) {
