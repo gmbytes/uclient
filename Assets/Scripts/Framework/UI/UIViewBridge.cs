@@ -27,6 +27,14 @@ namespace Client.Framework.UI
         public event Action Closed;
         internal event Action OrderChanged;
         internal ScreenLayoutSnapshot AppliedSnapshot { get; private set; }
+        private UIFocusLifecycle focusLifecycle;
+
+        protected override void OnInit(object userData)
+        {
+            base.OnInit(userData);
+            focusLifecycle=GetComponent<UIFocusLifecycle>();
+            if(focusLifecycle==null)focusLifecycle=gameObject.AddComponent<UIFocusLifecycle>();
+        }
 
         public void Configure(Canvas rootCanvas, CanvasGroup rootCanvasGroup, UIBindings bindings,
             AdaptiveLayout layout = null, KeyboardVisibilityController keyboard = null, Button mask = null, SafeAreaRoot localSafeArea = null)
@@ -61,7 +69,7 @@ namespace Client.Framework.UI
         {
             base.OnClose(isShutdown, userData);
             try { Closed?.Invoke(); }
-            finally { AppliedSnapshot = null; Closed = null; VisibilityChanged = null; OrderChanged = null; }
+            finally { focusLifecycle?.Discard(); AppliedSnapshot = null; Closed = null; VisibilityChanged = null; OrderChanged = null; }
         }
         protected override void OnDepthChanged(int uiGroupDepth, int depthInUIGroup)
         {
@@ -77,6 +85,7 @@ namespace Client.Framework.UI
         protected override void InternalSetVisible(bool visible)
         {
             base.InternalSetVisible(visible);
+            if(!visible)focusLifecycle?.Discard();
             if (m_RootCanvasGroup != null) m_RootCanvasGroup.alpha = visible ? 1 : 0;
             VisibilityChanged?.Invoke(visible);
             OrderChanged?.Invoke();
