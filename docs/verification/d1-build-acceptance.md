@@ -1,10 +1,28 @@
 # D1 统一构建与原生基线验收
 
-> 当前状态：后台恢复实测发现编辑焦点/选区丢失，固定层修复已通过413/149完整回归与Android后台恢复资格检测；D1需以新Player重新验证。此前b46/bae原包证据保持历史身份，D2原24/13项不混入修后基线。
+> 当前状态：后台编辑态修复后的Windows/Android新基线已完成D1复验（413/149完整回归、D1 70/70、原生同主包V1/V2与Throw回退、Android后台恢复资格检测）。当前产物见D1记录；完整D2矩阵和D3仍未完成，旧基线案例不混入新数据集。
 
 状态：已完成。此记录只关闭D1，D2综合故障/UI/会话矩阵及D3干净工程复现仍未完成。
 
-## 2026-11-01 修后正式产物
+## 当前正式产物：后台编辑状态修复
+
+运行时产品代码来源为 `a8619430205e2bcd6e0fc0a34065392a50a82306`；其后的 `3e2f3b9` 只增加GF集成测试与进度记录。完整回归413/149、D1定向70/70均通过。产物根目录为 `E:/sgame/Builds/LateFocusFixed`。
+
+| 平台 | PlayerBuildId | Player目录 | V2目录 | Throw目录 |
+| --- | --- | --- | --- | --- |
+| Windows64 | 0bdb3aa994954531b0432eafa17ede00 | Build_20261031T232609241Z_1255ba548665 | Build_20261031T233002998Z_791e8938c247 | Build_20261031T233113208Z_c2f1049bdb92 |
+| Android | 14a355dc03454f6aab5b13d077e67650 | Build_20261031T230243829Z_23745d0b666b | Build_20261031T232457671Z_1ad310e8265f | Build_20261031T232533222Z_29c05540c8e6 |
+
+- [x] 六次实际构建成功，源码恢复一致，补丁前后原始归档未变；Android先构建主包并完成原生焦点资格检测，再显式复用该原归档出补丁。检查结果位于 `Builds/Tests/D2/LateFocusFixed-20261031T230234042Z` 和 `LateFocusRemaining-20261031T232446423Z`。
+- [x] 两平台全部原归档文件、PE/ELF机器头、7固定编译引用、59/48原始元数据、V1新增类型缺席/V2 Parser存在、普通Player测试/热程序集隔离及Throw协议完全复用V2均通过。证据为后一个目录的 `physical-compatibility.json`。
+- [x] Windows同一主包V1 PID81848、V2 PID70872；Android同一APK V1 PID20371、V2 PID20564。四次全部Ready、单资源根/两个热程序集、原元数据全部OK、新Parser真实执行，零未预期错误/失败，原生文件不变。原始目录依次为 `WindowsRuntime-d1-20261031T233325234-v1`、`WindowsRuntime-d1-20261031T233508224-v2`、`AndroidRuntime-d1a-20261031T234053956-v1`、`AndroidRuntime-d1a-20261031T234233422-v2`，均在主工程 `Builds/Tests/D1` 下，各有严格审计结果。
+- [x] Android原APK SHA256为 `9104b0f1ecb2674e0e947197a18196f1b50b02588ec1ee6e6e8988315fb2e32b`，安装前核对并备份旧测试APK，仅保留数据安装；签名和三个AArch64库验证通过。V1与实际V2槽位各54文件及原始清单/签名一致。
+- [x] Throw探针：Windows49848→15508、Android20793→21054，原始 `HotfixInitializationFailed`/`Hotfix`/`D2 Delivery ThrowOnStart` 保留，坏版隔离，无Ready；新进程从v2恢复，旧坏版记录保留。两平台 `native-fix-probe.json` 只标资格探针，不计完整D2用例。
+- [x] 后台焦点原生资格检测：Android PID19413、同View/Input实例和文本哈希，Home→同Activity恢复后自动恢复焦点/光标/选区，无重新点击。完整记录、原始事件和前后截图位于 `E:/sgame/Builds/FocusLifecycleFixedTests/focus-20261031T231724830Z`。平台临时停用键盘期间允许非编辑态选区重置；所有文本/控件身份、每个实际编辑态样本及最终稳定编辑态仍严格匹配。
+
+D1定向结果为 `Builds/Tests/D1/20261031T233431843Z-774431c3`。当前两平台原生进程与D1本地服务均已结束，拥有的18765反向映射已移除；持有ADB守护进程的测试控制器另行跟踪。D2完整65条平台用例、新数据集总判定、D3及最终独立复核仍未完成。雷电为ARM64转译功能验证环境，真实ARM硬件和iOS保持未验证。
+
+## 历史产物：第一轮后台修复（后续原生测试未通过）
 
 构建来源为 `6a12a454d2f7541a57f0ad3b30c50dc4064ebb0e`，包含固定层修复 `695dee2`。六次Player/V2/Throw构建均成功，源码前后及原始Archive前后清单一致。根目录为 `E:/sgame/Builds/EntryFailureFixed`。
 
