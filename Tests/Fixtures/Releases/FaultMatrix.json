@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "task": "D2",
-  "frozenContractCommit": "7ba8acd1167d4401c7a0357e47354b7d6fb949f9",
+  "frozenContractCommit": "28fd6f727b71e8fe23fb5fc4f0abafd151c2ce02",
   "platforms": [
     "Windows64",
     "Android"
@@ -66,7 +66,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "signature"
+      "failurePattern": "signature",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "bad-hash",
@@ -77,7 +79,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "hash|SHA256"
+      "failurePattern": "hash|SHA256",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "wrong-player-build",
@@ -88,7 +92,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "PlayerBuildId|identity"
+      "failurePattern": "PlayerBuildId|identity|IncompatiblePlayer",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "wrong-architecture",
@@ -99,7 +105,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "architecture|identity"
+      "failurePattern": "architecture|identity|IncompatiblePlayer",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "missing-dll",
@@ -110,7 +118,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "missing|not found|404"
+      "failurePattern": "missing|not found|404",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "missing-bundle",
@@ -121,7 +131,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "missing|not found|404"
+      "failurePattern": "missing|not found|404",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "tampered-version-table",
@@ -132,7 +144,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "hash|SHA256|signature"
+      "failurePattern": "hash|SHA256|signature",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "disk-budget",
@@ -143,7 +157,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "space|budget"
+      "failurePattern": "space|budget",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "download-cancel",
@@ -154,7 +170,10 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "cancel"
+      "failurePattern": "cancel",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "requiresServerHold": true
     },
     {
       "id": "network-interruption",
@@ -165,7 +184,10 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "network|transport|connect|download"
+      "failurePattern": "network|transport|connect|download",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "requiresServerHold": true
     },
     {
       "id": "semantic-version-table",
@@ -176,7 +198,9 @@
         "Android"
       ],
       "required": true,
-      "failurePattern": "GameFramework|Deserialize|version|Package"
+      "failurePattern": "GameFramework|Deserialize|version|Package",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "kill-download-partial",
@@ -187,7 +211,16 @@
         "Android"
       ],
       "required": true,
-      "point": "download.partial"
+      "point": "download.partial",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "allowedRecovery": [
+        "KnownGood"
+      ],
+      "forbidRecoveryPayloadDownloads": true,
+      "recoveryInput": "known-good-channel-or-offline",
+      "requireQuarantine": false,
+      "requiresServerHold": true
     },
     {
       "id": "kill-rename-before",
@@ -198,7 +231,15 @@
         "Android"
       ],
       "required": true,
-      "point": "rename.before"
+      "point": "rename.before",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "allowedRecovery": [
+        "KnownGood"
+      ],
+      "forbidRecoveryPayloadDownloads": true,
+      "recoveryInput": "known-good-channel-or-offline",
+      "requireQuarantine": false
     },
     {
       "id": "kill-state-replace-before",
@@ -210,7 +251,15 @@
       ],
       "required": true,
       "statePurpose": "candidate",
-      "point": "state.replace.before"
+      "point": "state.replace.before",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "allowedRecovery": [
+        "KnownGood"
+      ],
+      "forbidRecoveryPayloadDownloads": true,
+      "recoveryInput": "known-good-channel-or-offline",
+      "requireQuarantine": false
     },
     {
       "id": "kill-state-replace-after",
@@ -222,7 +271,16 @@
       ],
       "required": true,
       "statePurpose": "candidate",
-      "point": "state.replace.after"
+      "point": "state.replace.after",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "allowedRecovery": [
+        "KnownGood",
+        "Candidate"
+      ],
+      "forbidRecoveryPayloadDownloads": true,
+      "recoveryInput": "candidate-channel-or-offline",
+      "requireQuarantine": false
     },
     {
       "id": "kill-trial-persisted",
@@ -233,7 +291,15 @@
         "Android"
       ],
       "required": true,
-      "point": "trial.persisted"
+      "point": "trial.persisted",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "allowedRecovery": [
+        "KnownGood"
+      ],
+      "forbidRecoveryPayloadDownloads": true,
+      "recoveryInput": "known-good-channel-or-offline",
+      "requireQuarantine": true
     },
     {
       "id": "kill-hotentry-executing",
@@ -244,7 +310,15 @@
         "Android"
       ],
       "required": true,
-      "point": "hotentry.executing"
+      "point": "hotentry.executing",
+      "setupRelease": "v1",
+      "candidateTemplate": "v2",
+      "allowedRecovery": [
+        "KnownGood"
+      ],
+      "forbidRecoveryPayloadDownloads": true,
+      "recoveryInput": "known-good-channel-or-offline",
+      "requireQuarantine": true
     },
     {
       "id": "throw-on-start",
@@ -254,7 +328,9 @@
         "Windows64",
         "Android"
       ],
-      "required": true
+      "required": true,
+      "setupRelease": "v1",
+      "candidateTemplate": "v2"
     },
     {
       "id": "tok-rejection",
@@ -265,7 +341,8 @@
         "Android"
       ],
       "required": true,
-      "outcome": "Rejected"
+      "outcome": "Rejected",
+      "setupRelease": "v2"
     },
     {
       "id": "tok-disconnect",
@@ -276,7 +353,8 @@
         "Android"
       ],
       "required": true,
-      "outcome": "Disconnected"
+      "outcome": "Disconnected",
+      "setupRelease": "v2"
     },
     {
       "id": "windows-720x1280",
@@ -288,7 +366,8 @@
       "required": true,
       "height": 1280,
       "action": "resize",
-      "width": 720
+      "width": 720,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-1080x1920",
@@ -300,7 +379,8 @@
       "required": true,
       "height": 1920,
       "action": "resize",
-      "width": 1080
+      "width": 1080,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-1080x2400",
@@ -312,7 +392,8 @@
       "required": true,
       "height": 2400,
       "action": "resize",
-      "width": 1080
+      "width": 1080,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-1536x2048",
@@ -324,7 +405,8 @@
       "required": true,
       "height": 2048,
       "action": "resize",
-      "width": 1536
+      "width": 1536,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-1280x720",
@@ -336,7 +418,8 @@
       "required": true,
       "height": 720,
       "action": "resize",
-      "width": 1280
+      "width": 1280,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-1920x1080",
@@ -348,7 +431,8 @@
       "required": true,
       "height": 1080,
       "action": "resize",
-      "width": 1920
+      "width": 1920,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-2560x1080",
@@ -360,7 +444,8 @@
       "required": true,
       "height": 1080,
       "action": "resize",
-      "width": 2560
+      "width": 2560,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-720x480",
@@ -372,7 +457,8 @@
       "required": true,
       "height": 480,
       "action": "resize",
-      "width": 720
+      "width": 720,
+      "setupRelease": "v2"
     },
     {
       "id": "windows-drag",
@@ -382,7 +468,8 @@
         "Windows64"
       ],
       "required": true,
-      "action": "window-drag"
+      "action": "window-drag",
+      "setupRelease": "v2"
     },
     {
       "id": "windows-short-scroll",
@@ -392,7 +479,8 @@
         "Windows64"
       ],
       "required": true,
-      "action": "scroll"
+      "action": "scroll",
+      "setupRelease": "v2"
     },
     {
       "id": "android-rotation",
@@ -402,7 +490,8 @@
         "Android"
       ],
       "required": true,
-      "action": "rotation"
+      "action": "rotation",
+      "setupRelease": "v2"
     },
     {
       "id": "android-ime",
@@ -412,7 +501,8 @@
         "Android"
       ],
       "required": true,
-      "action": "keyboard"
+      "action": "keyboard",
+      "setupRelease": "v2"
     },
     {
       "id": "android-ime-rotation",
@@ -422,7 +512,8 @@
         "Android"
       ],
       "required": true,
-      "action": "keyboard-rotation"
+      "action": "keyboard-rotation",
+      "setupRelease": "v2"
     },
     {
       "id": "android-background",
@@ -432,7 +523,8 @@
         "Android"
       ],
       "required": true,
-      "action": "background"
+      "action": "background",
+      "setupRelease": "v2"
     },
     {
       "id": "android-safe-area",
@@ -442,7 +534,8 @@
         "Android"
       ],
       "required": true,
-      "action": "safe-area"
+      "action": "safe-area",
+      "setupRelease": "v2"
     },
     {
       "id": "android-short-scroll",
@@ -452,7 +545,8 @@
         "Android"
       ],
       "required": true,
-      "action": "scroll"
+      "action": "scroll",
+      "setupRelease": "v2"
     },
     {
       "id": "android-inflight-rotation",
@@ -462,7 +556,8 @@
         "Android"
       ],
       "required": true,
-      "action": "inflight-rotation"
+      "action": "inflight-rotation",
+      "setupRelease": "v2"
     }
   ],
   "excluded": [

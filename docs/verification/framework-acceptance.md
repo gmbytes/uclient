@@ -2,7 +2,7 @@
 
 This checkpoint prepares file-based evaluation and command construction. It is **not D2 completion** and contains no actual Windows/Android acceptance result. `Verify-Framework.ps1` starts no Unity, Player, server or device command. Missing actual evidence remains `NotRun` and makes the aggregate fail.
 
-The initial source base was `7ba8acd1167d4401c7a0357e47354b7d6fb949f9`. The controller merged independently approved canonical View GameObject correction `f730e5387aac722c891ab195bdfb2bd0a62709fe` into the first preparation checkpoint as `e917c65419dfca159e7a4f011d5122e75df1c66b`. The second preparation continues from that exact base. Final D1 archive approval and explicit controller execution release remain prerequisites.
+The initial source base was `7ba8acd1167d4401c7a0357e47354b7d6fb949f9`. After the first two preparation checkpoints, the controller merged approved producer `28fd6f727b71e8fe23fb5fc4f0abafd151c2ce02` as `7123f0599fe4222593da318e3f8384b5217a99a4`. It includes canonical View GameObject IDs, actual UGUI InputField observations, and platform-specific native identity guards. Third preparation continues from this exact base. Final D1 archive approval and explicit controller execution release remain prerequisites.
 
 ## Invocation
 
@@ -16,6 +16,8 @@ The initial source base was `7ba8acd1167d4401c7a0357e47354b7d6fb949f9`. The cont
 `New-FrameworkLaunchCommand` constructs a literal executable/argument array only. It mirrors the bounded `NativeAcceptanceOptions` controls and budgets all actual native evidence suffixes, including the 32-character native attempt identity, against 240 UTF8 bytes. Its `executed` property is always false. Android's String extra retains shell quoting around the JSON; actual device validation remains pending. It is not an authorization to run those commands.
 
 The independent `E_PREPARATION_GATE` blocks native acceptance even when individual fixture assertions pass. `Invoke-FrameworkCollection -Execute` also fails before any native effect. These barriers must remain until actual collector adapters and independent qualification are complete; neither a bundle flag nor completion of the throw overlay can remove them.
+
+`native.runtime` is the original pre-guard observation. Its RuntimePlatform, Unity version and pointer width must agree with the immutable Player. `native.identity.applicationId` retains the actual Unity value; `profilePackageId` separately binds the archived native public profile. Windows may report an empty or different actual application ID. Android must report exact package equality. Pointer width proves only word size: the archive reader separately checks original AMD64 PE32+ files and ARM64 APK ELF machine headers. Android Java/per-app process and translation evidence remain a separate gate, never inferred from `pointerBits`.
 
 ## Required matrix
 
@@ -47,6 +49,8 @@ The importer accepts schema 1. Top-level fields include `runId`, `platform`, `de
 
 `nativeBefore`/`nativeAfter` reference captured file-to-SHA256 maps matching the original archive. Each `releases.<id>` supplies `manifest`, `dll` and `table` file references. DLL/table hashes must match that manifest. The importer derives preservation requirements from the original manifest file inventory, not a sparse caller-selected subset.
 
+Each release also supplies `protocolDll`. Logical release IDs are not code/resource labels. Readiness binds the exact selected ID, manifest, root and state, then matches an original v1/v2 template using Game DLL, Protocol DLL, native table **and every file in the full inventory**. Unknown or mixed payloads fail. Original code markers are `v1`/`v2`; original resource labels are `Framework v1`/`Framework v2`. A uniquely named complete candidate may therefore execute the original v2 template without being relabeled as release `v2`.
+
 Each case supplies `id`, boolean `executed`, `knownGood`, optional `previousGood`, `candidate`, and `attempts`. Each attempt supplies file references for `events` (the original JSONL), `process` (the owned OS PID, run/case/PlayerBuildId, start/end UTC and terminal state), optional `checkpoint` and `slotInventory`. The importer preserves source paths and event hashes. The native attempt ID comes from the event bytes, not an invented runner ID. Different attempts cannot reuse an event file.
 
 `slotInventory` records the actually selected release/root/manifest/DLL/table and complete original metadata hashes. Additional case documents are file references named `fault`, `preservation`, `operator`, `kill`, `install` and `server` as applicable. Fault, install and server documents retain nonempty `files` arrays of exact raw file references; derived evidence paths are not accepted as a substitute. Manual action records contain operator, UTC, environment, action, screenshots with hashes, and an exact first/last native event sequence interval. This interval keeps startup observations distinct from the action being checked.
@@ -54,6 +58,27 @@ Each case supplies `id`, boolean `executed`, `knownGood`, optional `previousGood
 A `Native` bundle also requires an `executionGate` file reference recording controller release, final D1 archive approval, platform, PlayerBuildId, archive hash and producer commit. It is documentary provenance, not a script permission mechanism. Android additionally requires an `environment` document. `SyntheticUnit` can only produce unit-scoped case results; it cannot emit a native acceptance pass.
 
 Preparation-rejected C must have zero C root/metadata/hot-code attempts. K may initialize once in the same process, or after a complete process restart where cancellation terminated launch. Authenticated semantic table failure requires actual GF error evidence bound to C's manifest, one C resource attempt, no metadata/hot assemblies/Ready/promotion, quarantine, preserved K/P files and new-PID K readiness. Timeout alone fails. Strong-kill records bind the actual owned OS action and PID to the native checkpoint; transfer kills require `0 < bytes < expectedBytes`.
+
+The original K/P references come from actual `state.before`, not caller-selected labels; both pointers and their complete original payload inventories must survive fault/session execution. Semantic GF rejection may be followed by the existing bounded `LocalReadyTimeout`, but an independent original GF error is still mandatory. A timeout message mentioning “GameFramework” is not malformed-table proof.
+
+## Strong-kill recovery and held transfers
+
+| Actual kill boundary | Allowed recovery | Additional proof |
+| --- | --- | --- |
+| `download.partial` | K only | Authenticated changed file; native positive partial bytes; owned server still holding an incomplete body through the kill |
+| `rename.before` | K only | Exact C release/manifest, before any root/metadata initialization |
+| `state.replace.before`, purpose `candidate` | K only | Exact C pending publication, Attempt=0; no C load |
+| `state.replace.after`, purpose `candidate` | K or complete C | C requires its full pre-kill payload snapshot and persisted Candidate=C/Attempt=0 in the new PID |
+| `trial.persisted` | K only | Actual Attempt=1; C quarantined on recovery |
+| `hotentry.executing` | K only | Exact C selection, one C root/hot load, every original metadata image; persisted trial and quarantine |
+
+Recovery may fetch signed channel/manifest envelopes but must not download payload bytes to repair C. This prevents a broad “any ready version” result from hiding crash-state problems. The runner establishes v1 for changed-byte transfer/fault/kill setups and v2 for UI/session setups through the ordinary signed channel and a fresh process. It never rewrites state or clears/reinstalls data between required flow steps. Matching v2 files would be reused from K=v2, so transfer policy construction explicitly rejects that no-download setup.
+
+Each injected C must have a fresh release ID and independently copied payload files; do not reuse the already-installed v1/v2 slot IDs or mutate hard-linked original artifacts. In particular, switching K back to v1 is not enough if the candidate ID still points to an existing complete v2 slot. The original v2 payload template is reused by authenticated hashes, not by reusing its installed slot identity. Signed per-case artifacts are a later controlled input, and no private key is read during preparation.
+
+`Serve-FrameworkReleases.ps1` is a separate D2-only server; the reviewed D1 `Serve-TestReleases.ps1` is unchanged. The new server is blocked by the same preparation gate. Its hold policy binds an authenticated manifest, exact payload path/SHA256 and Content-Length. It sends a positive strict prefix (normally at most 4096 bytes), flushes it, publishes `holding.json`, and sends **no remainder**. Only an exact owned abort control or a bounded timeout ends the response. Timeout never resumes transmission. The opened source bytes are hashed and remain locked during the hold. Only public envelopes and paths listed in the signed inventory are served.
+
+The case bundle's optional `transfer` object contains exact `holding` and `abort` file references. Kill, cancellation and network-interruption cases require the server's unchanged positive byte count, incomplete Content-Length, exact transfer/run/case/server/native PID association and expected abort reason. Kill proof additionally requires the holding interval to include the actual OS termination time. A native download callback from a free-running server is insufficient. Published-C recovery also supplies a `preparedCandidate` snapshot reference.
 
 ## Supplemental tool aggregation
 
@@ -63,6 +88,14 @@ Preparation-rejected C must have zero C root/metadata/hot-code attempts. K may i
 
 `Framework-Collector.ps1` contains executable local file collection and a code-only orchestration boundary. `Save-FrameworkAttemptEvidence` binds the native attempt directory, exact event identities and owned process record before creating output, then copies original event/checkpoint/completion/screenshot bytes with CreateNew and before/after hashes. `Get-FrameworkSlotSnapshot` checks exact signed inventory paths, lengths and hashes, and captures original manifest/signature bytes; it does not parse GF indexes or replace the native signature verifier. `New-FrameworkCollectionPlan` retains all 34 Windows or 31 Android cases and separate recovery commands. Its unit adapter exercises prepare/start/checkpoint/owned-kill/terminal/capture/recovery ordering using synthetic data. Unit orchestration leaves every native case `NotRun`.
 
+`Bind-FrameworkCollectionPlan` binds the exact producer receipt, complete runnable native inventory and literal launch arguments. `-DiagnosticCapture` can preserve an owned startup guard failure without inventing missing identity fields; it marks the capture ineligible for acceptance. Live first-record reading uses shared file access and never replaces the final durable capture.
+
+`Framework-NativeAdapter.ps1` contains guarded definitions for owned Windows process start/checkpoint/kill/terminal records, Android PID/start-tick/boot-ID/package checks and intent/force-stop operations, exact APK installation/capture, binary command receipts, update-server control, and transfer abort control. Every effect entry point fails before OS observation or execution during preparation. Initial Windows cache cleanup is restricted to the exact observed PlayerBuildId under this user's LocalLow tree, before any required case, after byte-preserving backup; it cannot be used between cases. Android installation refuses an existing package instead of silently overwriting or clearing it. These effect branches have not been live-qualified.
+
+Server input selection first retires an old transfer policy without losing its bytes. A required hold is then installed for the new exact signed input. The client must reach its actual partial-transfer checkpoint before an owned kill/cancel/interrupt. The runner records native termination when applicable, writes the exact server abort control, and retains both original server records before recovery. Clearing a test-server policy is not a native state operation.
+
+UI continuity uses actual nonempty focused input, exact signed object IDs and the same Presenter. Geometry completion is measured at the final changed `ui.sample`, within two frames of final-size metrics; `ui.stable` must then confirm two unchanged frames. Its later confirmation timestamp is not mistaken for the layout-completion timestamp. Native layout mode must follow the actual aspect ratio.
+
 `Tests/Fixtures/Delivery/ThrowOnStart` overrides only `DeliveryVersion.Run` and includes a byte-identical copy of the shared V2 generated `Added.cs`. It runs the unchanged V2 probes, emits `CLIENT_DELIVERY_THROW` with `after login first frame; before ReportReady`, then throws `InvalidOperationException("D2 Delivery ThrowOnStart")`. The existing Entry call site provides that ordering. `throw-provenance.json` binds original and overlay bytes. `Verify-DeliveryThrowFixture.ps1 -OutputDirectory <fresh-path>` checks those bytes and the exact two-line addition; it does not compile or run Unity. The native throw evaluator requires the exact Delivery cause/origin and selected release/epoch/attempt/PID, no Ready/promotion, preserved K/P bytes, and a new-PID K recovery.
 
 Run only the pure fixture suites during this phase:
@@ -71,6 +104,8 @@ Run only the pure fixture suites during this phase:
 pwsh -NoProfile -File Tests/Tools/Test-FrameworkEvidence.ps1
 pwsh -NoProfile -File Tests/Tools/Test-FrameworkIO.ps1
 pwsh -NoProfile -File Tests/Tools/Test-FrameworkCollector.ps1
+pwsh -NoProfile -File Tests/Tools/Test-FrameworkNativeAdapter.ps1
+pwsh -NoProfile -File Tests/Tools/Test-FrameworkTransferPolicy.ps1
 pwsh -NoProfile -File Tests/Tools/Test-DeliveryThrowFixture.ps1
 pwsh -NoProfile -File Tests/Tools/Test-HotUpdateEvidence.ps1
 ```
@@ -81,6 +116,23 @@ Remaining preparation/continuation work is explicit:
 
 1. Obtain final approved D1 archives and exact build result/receipt paths through the controller. The canonical View source correction is integrated; native artifacts remain a separate gate.
 2. Compile/build the Tests-only throw overlay through the authorized later owner and bind the real patch output/provenance. Its Unity compilation and every native throw run are currently `NotRun`.
-3. Bind actual platform/device installation, owned-process, update-service/fault-input and Tok/UI adapters to the prepared orchestration boundary. The local collector and synthetic ordering protocol are implemented; live adapters are intentionally disabled/unqualified. No controller lease has been used during preparation.
-4. Validate original metadata/archive compatibility and complete native snapshots against the final producer artifacts. Synthetic archive files do not prove IL2CPP, ELF/PE architecture, signatures, device behavior or runtime UI convergence.
+3. Supply signed case payloads, installation/lease receipts and actual Tok/operator interaction records, then qualify the guarded platform/service adapter definitions against final archives. No controller native/device/server lease has been used during preparation.
+4. Resolve and consume the producer's actual Android Java/per-app ABI evidence route. Do not substitute a separate test VM, declare physical ARM compatibility, or infer it from the C# pointer width. Synthetic archive files do not prove native execution, signatures, device behavior or runtime UI convergence.
 5. Run every real case under explicit controller release, then obtain independent D2 review. Remove no preparation gate merely because unit tests pass. No current output satisfies native acceptance.
+
+## Preparation checkpoint verified on 2026-10-31
+
+The preserved third preparation change set was resumed at source base `7123f0599fe4222593da318e3f8384b5217a99a4`. All seven tool suites were executed again, with no native effect gate removed:
+
+| Suite | Passing cases |
+| --- | ---: |
+| Framework evidence evaluator | 153 |
+| File/receipt and machine-header IO | 15 |
+| Evidence collector and preparation CLI | 11 |
+| Native adapter ownership and effect guards | 12 |
+| Incomplete-transfer policy | 11 |
+| Delivery throw fixture provenance | 4 |
+| Existing F8 evidence evaluator | 34 |
+| Total | 240 |
+
+All child processes returned exit code 0. PowerShell parsing passed for all 14 changed scripts, and `git diff --check` passed. Raw command logs, machine receipts and source hashes are retained under `Builds/Tests/D2/Resume-20261031T060220056Z-51f32ad7/`. These are synthetic tool checks; the two-platform D2 native matrix remains `NotRun`.

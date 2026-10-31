@@ -1,6 +1,48 @@
 #requires -Version 7.0
 # File-only preparation/import helpers. Command construction deliberately never starts a process.
 function Get-FrameworkFileHash([string]$Path) {(Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()}
+function Read-FrameworkMachine($Stream,[ValidateSet('PE','ELF')][string]$Format) {
+    $reader=[IO.BinaryReader]::new($Stream,[Text.Encoding]::UTF8,$true)
+    try{
+        if($Format -ceq 'PE'){
+            $header=$reader.ReadBytes(64)
+            Require-FrameworkFact ($header.Length -eq 64 -and $header[0] -eq 77 -and $header[1] -eq 90) 'E_PE_HEADER' 'Original Windows image lacks its DOS header.'
+            $offset=[BitConverter]::ToInt32($header,60)
+            Require-FrameworkFact ($Stream.CanSeek -and $offset -ge 64 -and $offset -le $Stream.Length-26) 'E_PE_HEADER' 'Invalid PE header offset.'
+            $null=$Stream.Seek($offset,[IO.SeekOrigin]::Begin)
+            Require-FrameworkFact ($reader.ReadUInt32() -eq 17744) 'E_PE_HEADER' 'Missing PE signature.'
+            $machine=$reader.ReadUInt16();$null=$Stream.Seek($offset+24,[IO.SeekOrigin]::Begin);$magic=$reader.ReadUInt16()
+            Require-FrameworkFact ($machine -eq 34404 -and $magic -eq 523) 'E_PE_MACHINE' 'Windows64 requires original AMD64 PE32+ machine headers.'
+            return @{format='PE';machine=$machine;wordBits=64}
+        }
+        $header=$reader.ReadBytes(20)
+        Require-FrameworkFact ($header.Length -eq 20 -and $header[0] -eq 127 -and $header[1] -eq 69 -and $header[2] -eq 76 -and $header[3] -eq 70 -and $header[4] -eq 2 -and $header[5] -eq 1) 'E_ELF_HEADER' 'Expected a 64-bit little-endian ELF image.'
+        $machine=[BitConverter]::ToUInt16($header,18)
+        Require-FrameworkFact ($machine -eq 183) 'E_ELF_MACHINE' 'Android package requires original AArch64 ELF machine headers.'
+        return @{format='ELF';machine=$machine;wordBits=64}
+    }finally{$reader.Dispose()}
+}
+function Get-FrameworkBinaryEvidence([string]$Path,[ValidateSet('PE','ELF')][string]$Format) {
+    Assert-FrameworkNoReparse $Path
+    $stream=[IO.File]::OpenRead($Path)
+    try{$proof=Read-FrameworkMachine $stream $Format}finally{$stream.Dispose()}
+    $proof.sha256=Get-FrameworkFileHash $Path;$proof.length=(Get-Item -LiteralPath $Path).Length
+    return $proof
+}
+function Get-FrameworkApkEvidence([string]$Path) {
+    Assert-FrameworkNoReparse $Path
+    $archive=[IO.Compression.ZipFile]::OpenRead($Path);$libraries=@{}
+    try{
+        foreach($entry in $archive.Entries|Where-Object {$_.FullName.StartsWith('lib/',[StringComparison]::Ordinal) -and $_.FullName.EndsWith('.so',[StringComparison]::Ordinal)}){
+            Require-FrameworkFact ($entry.FullName.StartsWith('lib/arm64-v8a/',[StringComparison]::Ordinal) -and $entry.FullName -cnotmatch '(^|/)\.\.(/|$)' -and -not $libraries.ContainsKey($entry.FullName)) 'E_APK_ABI' 'Unexpected or duplicate APK native ABI entry.'
+            $stream=$entry.Open();try{$proof=Read-FrameworkMachine $stream ELF}finally{$stream.Dispose()}
+            $stream=$entry.Open();$hash=[Security.Cryptography.SHA256]::Create();try{$proof.sha256=([BitConverter]::ToString($hash.ComputeHash($stream))).Replace('-','').ToLowerInvariant()}finally{$stream.Dispose();$hash.Dispose()}
+            $proof.length=$entry.Length;$libraries[$entry.FullName]=$proof
+        }
+    }finally{$archive.Dispose()}
+    Require-FrameworkFact ($libraries.ContainsKey('lib/arm64-v8a/libil2cpp.so') -and $libraries.ContainsKey('lib/arm64-v8a/libunity.so')) 'E_APK_ABI' 'Original IL2CPP and Unity ARM64 libraries are required.'
+    return @{format='APK';sha256=(Get-FrameworkFileHash $Path);libraries=$libraries}
+}
 function Assert-FrameworkFields($Value,[string[]]$Required,[string[]]$Optional=@()) {
     Require-FrameworkFact ($Value -is [System.Collections.IDictionary]) 'E_SCHEMA' 'Expected an object.'
     foreach($name in $Required){Require-FrameworkFact ($Value.Contains($name)) 'E_SCHEMA' "Missing required field: $name"}
@@ -10,33 +52,6 @@ function Assert-FrameworkNoReparse([string]$Path) {
     for($entry=[IO.Path]::GetFullPath($Path);$entry;$entry=[IO.Path]::GetDirectoryName($entry)){
         if(Test-Path -LiteralPath $entry){Require-FrameworkFact (((Get-Item -LiteralPath $entry -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) 'E_REPARSE' 'Evidence paths cannot traverse a reparse point.'}
     }
-}
-function ConvertFrom-FrameworkJson([string]$Text,[switch]$ObjectOnly) {
-    try{$document=[System.Text.Json.JsonDocument]::Parse($Text)}catch{throw [IO.InvalidDataException]::new('E_JSON: Invalid strict JSON.', $_.Exception)}
-    function CheckElement($Element) {
-        if($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Object){
-            $names=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-            foreach($property in $Element.EnumerateObject()){Require-FrameworkFact ($names.Add($property.Name)) 'E_JSON_DUPLICATE' 'Duplicate or case-aliased JSON key.';CheckElement $property.Value}
-        }elseif($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Array){foreach($element in $Element.EnumerateArray()){CheckElement $element}}
-    }
-    function ConvertElement($Element) {
-        switch($Element.ValueKind.ToString()) {
-            'Object' {$map=@{};foreach($property in $Element.EnumerateObject()){$map[$property.Name]=ConvertElement $property.Value};return $map}
-            'Array' {$items=@();foreach($child in $Element.EnumerateArray()){$items+=,(ConvertElement $child)};return ,$items}
-            'String' {return $Element.GetString()}
-            'True' {return $true}
-            'False' {return $false}
-            'Null' {return $null}
-            'Number' {$signed=0L;$unsigned=0UL;if($Element.TryGetInt64([ref]$signed)){return $signed};if($Element.TryGetUInt64([ref]$unsigned)){return $unsigned};return $Element.GetDouble()}
-            default {throw [IO.InvalidDataException]::new('E_JSON_VALUE: Unsupported JSON value.')}
-        }
-    }
-    try{
-        if($ObjectOnly){Require-FrameworkFact ($document.RootElement.ValueKind -eq [System.Text.Json.JsonValueKind]::Object) 'E_JSON_ROOT' 'A JSON object is required.'}
-        CheckElement $document.RootElement
-        # Preserve JSON scalar types, including UTC strings; PowerShell's JSON conversion can coerce dates.
-        return ConvertElement $document.RootElement
-    }finally{$document.Dispose()}
 }
 function Read-FrameworkUtf8([string]$Path,[long]$MaximumBytes=32MB) {
     Assert-FrameworkNoReparse $Path
@@ -61,6 +76,21 @@ function Read-FrameworkEvents([string]$Path) {
         $events+=$event
     }
     return ,$events
+}
+function Read-FrameworkFirstEvent([string]$Path) {
+    Assert-FrameworkNoReparse $Path
+    $stream=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+    try{
+        $bytes=[Collections.Generic.List[byte]]::new()
+        while($bytes.Count -le 256KB){$value=$stream.ReadByte();if($value -lt 0){throw [IO.IOException]::new('First native record is not yet complete.')};if($value -eq 10){break};$bytes.Add([byte]$value)}
+        Require-FrameworkFact ($bytes.Count -le 256KB) 'E_EVENTS_SIZE' 'First native record exceeds its writer budget.'
+        try{$line=[Text.UTF8Encoding]::new($false,$true).GetString($bytes.ToArray())}catch{throw [IO.InvalidDataException]::new('E_UTF8: Invalid native first-record bytes.', $_.Exception)}
+        $event=ConvertFrom-FrameworkJson $line -ObjectOnly
+        Assert-FrameworkFields $event @('runId','caseId','attemptId','processId','sequence','utc','kind','data')
+        Assert-FrameworkScalars $event
+        Require-FrameworkFact ($event.kind -ceq 'process.start' -and $event.sequence -eq 1 -and $event.attemptId -cmatch '^[a-f0-9]{32}$') 'E_EVENTS' 'First record must be the native-generated process start.'
+        return $event
+    }finally{$stream.Dispose()}
 }
 function Resolve-FrameworkReference([string]$Root,$Reference) {
     Assert-FrameworkFields $Reference @('path','sha256')
@@ -159,7 +189,12 @@ function Read-FrameworkArchive([string]$PlayerArchive,[string]$BuildResult,[stri
     $native=@{};foreach($record in $archive.player){$native[$record.path]=$record.sha256}
     $metadata=@{};foreach($record in $archive.metadata){$metadata[$record.path]=$record.sha256}
     $identity=@{};foreach($name in @('playerBuildId','platform','architecture','unityVersion','contractVersion','envelopeSha256','aotMetadataSetId')){$identity[$name]=$archive[$name]}
-    return @{archive=$archive;identity=$identity;archiveNative=$native;metadataHashes=$metadata;metadataNames=@($metadata.Keys);playerBuildId=$archive.playerBuildId;archiveSha256=(Get-FrameworkFileHash $archivePath);buildResultSha256=(Get-FrameworkFileHash $BuildResult);resultFile=[IO.Path]::GetFullPath($BuildResult);outputDirectory=[IO.Path]::GetFullPath($result.OutputDirectory)}
+    $publicProfile=Read-FrameworkJson (Join-Path $PlayerArchive 'Inputs/Assets/Tests/Generated/D1/NativeProfile.json')
+    Require-FrameworkFact ($publicProfile.packageId -is [string] -and $publicProfile.packageId -cmatch '^[A-Za-z0-9]+(\.[A-Za-z0-9]+)+$') 'E_PROFILE_PACKAGE' 'Original archived native profile package ID is required.'
+    $binary=@{}
+    if($Platform -ceq 'Windows64'){foreach($name in @('Client.exe','GameAssembly.dll','UnityPlayer.dll')){Require-FrameworkFact ($native.ContainsKey($name)) 'E_PE_FILES' 'Original Windows native binary is missing.';$binary[$name]=Get-FrameworkBinaryEvidence (Join-Path $PlayerArchive ('Player/'+$name)) PE}}
+    else{$binary['Client.apk']=Get-FrameworkApkEvidence (Join-Path $PlayerArchive 'Player/Client.apk')}
+    return @{archive=$archive;identity=$identity;archiveNative=$native;nativeBinaryEvidence=$binary;metadataHashes=$metadata;metadataNames=@($metadata.Keys);playerBuildId=$archive.playerBuildId;profilePackageId=$publicProfile.packageId;updateEndpoint=$publicProfile.endpoint;archiveSha256=(Get-FrameworkFileHash $archivePath);buildResultSha256=(Get-FrameworkFileHash $BuildResult);resultFile=[IO.Path]::GetFullPath($BuildResult);outputDirectory=[IO.Path]::GetFullPath($result.OutputDirectory)}
 }
 function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[string]$DeviceId) {
     $bundle=Read-FrameworkJson $Path;$root=Split-Path -Parent ([IO.Path]::GetFullPath($Path))
@@ -170,7 +205,9 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
     $receipt=Read-FrameworkReference $root $bundle.buildReceipt -Json
     Assert-FrameworkFields $receipt @('Status','OutputDirectory','ResultFile')
     Require-FrameworkFact ((($receipt.Status -is [string] -and $receipt.Status -ceq 'Succeeded') -or ((Test-FrameworkInteger $receipt.Status) -and $receipt.Status -eq 1)) -and [IO.Path]::GetFullPath($receipt.ResultFile) -ceq $Archive.resultFile -and [IO.Path]::GetFullPath($receipt.OutputDirectory) -ceq $Archive.outputDirectory) 'E_RECEIPT' 'Producer receipt differs from the explicit successful BuildResult.'
-    $evidence=@{schemaVersion=1;runId=$bundle.runId;platform=$Platform;deviceId=$DeviceId;evidenceKind=$bundle.evidenceKind;playerBuildId=$Archive.playerBuildId;identity=$Archive.identity;archiveNative=$Archive.archiveNative;metadataNames=$Archive.metadataNames;metadataHashes=$Archive.metadataHashes;cases=@();releases=@{};sourceBundle=@{path=[IO.Path]::GetFullPath($Path);sha256=(Get-FrameworkFileHash $Path)}}
+    $evidence=@{schemaVersion=1;runId=$bundle.runId;platform=$Platform;deviceId=$DeviceId;evidenceKind=$bundle.evidenceKind;playerBuildId=$Archive.playerBuildId;identity=$Archive.identity;profilePackageId=$Archive.profilePackageId;archiveNative=$Archive.archiveNative;metadataNames=$Archive.metadataNames;metadataHashes=$Archive.metadataHashes;cases=@();releases=@{};sourceBundle=@{path=[IO.Path]::GetFullPath($Path);sha256=(Get-FrameworkFileHash $Path)}}
+    $evidence.nativeBinaryEvidence=$Archive.nativeBinaryEvidence
+    $evidence.updateEndpoint=$Archive.updateEndpoint
     foreach($name in @('nativeBefore','nativeAfter')){$evidence[$name]=Read-FrameworkReference $root $bundle[$name] -Json}
     if($bundle.evidenceKind -ceq 'Native'){
         $gate=Read-FrameworkReference $root $bundle.executionGate -Json
@@ -184,17 +221,19 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
         Require-FrameworkFact ($id -cmatch '^[A-Za-z0-9_-]{1,40}$') 'E_RELEASE_ID' 'Unsafe release identity.'
         $release=$bundle.releases[$id]
         $manifest=Read-FrameworkReference $root $release.manifest -Json
-        $dll=Resolve-FrameworkReference $root $release.dll;$table=Resolve-FrameworkReference $root $release.table
+        $dll=Resolve-FrameworkReference $root $release.dll;$protocol=Resolve-FrameworkReference $root $release.protocolDll;$table=Resolve-FrameworkReference $root $release.table
         Require-FrameworkFact ($manifest.releaseId -ceq $id) 'E_RELEASE_INPUT' 'Release input identity differs.'
-        foreach($pair in @(@('Hotfix/Client.Game.dll',$release.dll.sha256,$dll),@('Resources/GameFrameworkVersion.dat',$release.table.sha256,$table))){Require-FrameworkFact (@($manifest.files|Where-Object {$_.path -ceq $pair[0] -and $_.sha256 -ceq $pair[1] -and (Test-FrameworkInteger $_.length) -and $_.length -eq (Get-Item -LiteralPath $pair[2]).Length}).Count -eq 1) 'E_RELEASE_INPUT' 'Producer file bytes/length differ from their manifest inventory.'}
-        $files=@{};foreach($file in $manifest.files){Require-FrameworkFact (-not $files.ContainsKey($file.path)) 'E_RELEASE_INPUT' 'Duplicate manifest file.';$files[$file.path]=$file.sha256}
-        $evidence.releases[$id]=@{manifestSha256=$release.manifest.sha256;dllSha256=$release.dll.sha256;tableSha256=$release.table.sha256;files=$files;sourcePaths=@($release.manifest.path,$release.dll.path,$release.table.path)}
+        foreach($pair in @(@('Hotfix/Client.Game.dll',$release.dll.sha256,$dll),@('Hotfix/Client.Game.Protocol.dll',$release.protocolDll.sha256,$protocol),@('Resources/GameFrameworkVersion.dat',$release.table.sha256,$table))){Require-FrameworkFact (@($manifest.files|Where-Object {$_.path -ceq $pair[0] -and $_.sha256 -ceq $pair[1] -and (Test-FrameworkInteger $_.length) -and $_.length -eq (Get-Item -LiteralPath $pair[2]).Length}).Count -eq 1) 'E_RELEASE_INPUT' 'Producer file bytes/length differ from their manifest inventory.'}
+        $files=@{};$lengths=@{};foreach($file in $manifest.files){Require-FrameworkFact (-not $files.ContainsKey($file.path) -and (Test-FrameworkInteger $file.length) -and $file.length -ge 0) 'E_RELEASE_INPUT' 'Duplicate manifest file or invalid exact length.';$files[$file.path]=$file.sha256;$lengths[$file.path]=$file.length}
+        $evidence.releases[$id]=@{manifestSha256=$release.manifest.sha256;dllSha256=$release.dll.sha256;protocolDllSha256=$release.protocolDll.sha256;tableSha256=$release.table.sha256;files=$files;fileLengths=$lengths;sourcePaths=@($release.manifest.path,$release.dll.path,$release.protocolDll.path,$release.table.path)}
     }
     $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach($source in $bundle.cases){
-        Assert-FrameworkFields $source @('id','executed','attempts') @('knownGood','previousGood','candidate','fault','preservation','operator','kill','install','server')
+        Assert-FrameworkFields $source @('id','executed','attempts') @('knownGood','previousGood','candidate','fault','preservation','operator','kill','install','server','transfer','preparedCandidate')
         $case=@{id=$source.id;executed=($source.executed -eq $true);knownGood=$source.knownGood;previousGood=$source.previousGood;candidate=$source.candidate;attempts=@()}
         if($case.executed){
+            if($source.transfer){Assert-FrameworkFields $source.transfer @('holding','abort');$case.transfer=@{holding=(Read-FrameworkReference $root $source.transfer.holding -Json);abort=(Read-FrameworkReference $root $source.transfer.abort -Json)}}
+            if($source.preparedCandidate){$case.preparedCandidate=Read-FrameworkReference $root $source.preparedCandidate -Json}
             foreach($name in @('fault','preservation','operator','kill','install','server')){if($source[$name]){$case[$name]=Read-FrameworkReference $root $source[$name] -Json}}
             foreach($name in @('fault','install','server')){
                 if($case[$name]){

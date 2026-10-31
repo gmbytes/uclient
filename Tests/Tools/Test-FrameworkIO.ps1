@@ -81,6 +81,37 @@ Check 'CLI missing final archive emits failed NotRun matrix without launching to
     $result=Read-FrameworkJson (Join-Path $output 'framework-result.json')
     Require (-not $result.passed -and @($result.cases|Where-Object status -eq NotRun).Count -eq 34 -and $result.execution.nativeProcessesStarted -eq 0) 'Missing native gates were not made explicit.'
 }
+Check 'PE AMD64 machine is independently verified from raw original bytes' {
+    $path=Join-Path $run 'synthetic-x64.exe';[IO.File]::WriteAllBytes($path,(New-FrameworkSyntheticPE))
+    $proof=Get-FrameworkBinaryEvidence $path PE
+    Require ($proof.machine -eq 34404 -and $proof.wordBits -eq 64) 'PE machine was inferred instead of parsed.'
+    $bytes=New-FrameworkSyntheticPE;$bytes[69]=170;[IO.File]::WriteAllBytes($path,$bytes)
+    $rejected=$false;try{Get-FrameworkBinaryEvidence $path PE|Out-Null}catch [IO.InvalidDataException]{$rejected=$true};Require $rejected '64-bit non-x64 PE was accepted.'
+}
+Check 'ELF AArch64 machine remains separate from pointer width' {
+    $path=Join-Path $run 'synthetic-arm64.so';$bytes=[byte[]]::new(64);$bytes[0]=127;$bytes[1]=69;$bytes[2]=76;$bytes[3]=70;$bytes[4]=2;$bytes[5]=1;$bytes[18]=183;[IO.File]::WriteAllBytes($path,$bytes)
+    $proof=Get-FrameworkBinaryEvidence $path ELF
+    Require ($proof.machine -eq 183 -and $proof.wordBits -eq 64) 'ELF AArch64 machine was not parsed.'
+    $bytes[18]=62;[IO.File]::WriteAllBytes($path,$bytes);$rejected=$false;try{Get-FrameworkBinaryEvidence $path ELF|Out-Null}catch [IO.InvalidDataException]{$rejected=$true};Require $rejected '64-bit x86 ELF was accepted as ARM64.'
+}
+Check 'APK proof reads each original native ELF and rejects another packaged ABI' {
+    $path=Join-Path $run 'synthetic.apk';$zip=[IO.Compression.ZipFile]::Open($path,[IO.Compression.ZipArchiveMode]::Create)
+    $bytes=[byte[]]::new(64);$bytes[0]=127;$bytes[1]=69;$bytes[2]=76;$bytes[3]=70;$bytes[4]=2;$bytes[5]=1;$bytes[18]=183
+    try{foreach($name in @('lib/arm64-v8a/libil2cpp.so','lib/arm64-v8a/libunity.so')){$stream=$zip.CreateEntry($name).Open();try{$stream.Write($bytes,0,$bytes.Length)}finally{$stream.Dispose()}}}finally{$zip.Dispose()}
+    $proof=Get-FrameworkApkEvidence $path
+    Require ($proof.libraries.Count -eq 2 -and $proof.sha256 -ceq (Get-FrameworkFileHash $path) -and $proof.libraries['lib/arm64-v8a/libil2cpp.so'].machine -eq 183) 'Original APK machine/hash proof differs.'
+    $zip=[IO.Compression.ZipFile]::Open($path,[IO.Compression.ZipArchiveMode]::Update);try{$stream=$zip.CreateEntry('lib/x86_64/libextra.so').Open();try{$stream.Write($bytes,0,$bytes.Length)}finally{$stream.Dispose()}}finally{$zip.Dispose()}
+    $rejected=$false;try{Get-FrameworkApkEvidence $path|Out-Null}catch [IO.InvalidDataException]{$rejected=$true};Require $rejected 'Additional packaged native ABI was accepted.'
+}
+Check 'live first record is readable without closing its native-style writer' {
+    $path=Join-Path $run 'live-events.jsonl';$writer=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
+    try{
+        $line='{"runId":"r","caseId":"c","attemptId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","processId":123,"sequence":1,"utc":"2026-10-30T00:00:00Z","kind":"process.start","data":{}}'+"`n"
+        $bytes=[Text.Encoding]::UTF8.GetBytes($line);$writer.Write($bytes,0,$bytes.Length);$writer.Flush($true)
+        $record=Read-FrameworkFirstEvent $path
+        Require ($record.processId -eq 123 -and $record.kind -ceq 'process.start') 'Actual first event could not be read while the writer remained open.'
+    }finally{$writer.Dispose()}
+}
 Write-FrameworkJsonNew (Join-Path $run 'test-result.json') @{schemaVersion=1;evidenceKind='SyntheticUnit';nativeAcceptance=$false;passed=($failed.Count -eq 0);count=$count;cases=$records;sourceHashes=@{io=(Get-FrameworkFileHash $io);suite=(Get-FrameworkFileHash $PSCommandPath)}}
 if($failed.Count){throw "D2_IO_FAILED $($failed.Count)/$count`n$($failed -join "`n")"}
 Write-Host "D2_IO_SUITE_PASS $count synthetic-only; evidence=$run"

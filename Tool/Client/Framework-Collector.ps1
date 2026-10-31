@@ -18,22 +18,27 @@ function Get-FrameworkSlotSnapshot([string]$CapturedSlot,$Selection) {
         if($entry.path.StartsWith('Metadata/',[StringComparison]::Ordinal)){$name=$entry.path.Substring(9);Require-FrameworkFact ($name -cnotmatch '[/\\]' -and $name.EndsWith('.dll',[StringComparison]::Ordinal)) 'E_METADATA' 'Original metadata must retain its exact flat .dll name.';$metadata[$name]=$entry.sha256}
     }
     $files['release.manifest.json']=Get-FrameworkFileHash $manifestPath;$files['release.manifest.sig']=Get-FrameworkFileHash $signaturePath
-    Require-FrameworkFact ($files.ContainsKey('Hotfix/Client.Game.dll') -and $files.ContainsKey('Resources/GameFrameworkVersion.dat') -and $metadata.Count -gt 0) 'E_SLOT_FILES' 'Selected code/table/metadata inventory is incomplete.'
-    return @{releaseId=$Selection.ReleaseId;root=$Selection.Root;capturedRoot=[IO.Path]::GetFullPath($CapturedSlot);manifestSha256=$Selection.ManifestSha256;dllSha256=$files['Hotfix/Client.Game.dll'];tableSha256=$files['Resources/GameFrameworkVersion.dat'];metadata=$metadata;files=$files}
+    Require-FrameworkFact ($files.ContainsKey('Hotfix/Client.Game.dll') -and $files.ContainsKey('Hotfix/Client.Game.Protocol.dll') -and $files.ContainsKey('Resources/GameFrameworkVersion.dat') -and $metadata.Count -gt 0) 'E_SLOT_FILES' 'Selected Game+Protocol DLL/table/metadata inventory is incomplete.'
+    return @{releaseId=$Selection.ReleaseId;root=$Selection.Root;capturedRoot=[IO.Path]::GetFullPath($CapturedSlot);manifestSha256=$Selection.ManifestSha256;dllSha256=$files['Hotfix/Client.Game.dll'];protocolDllSha256=$files['Hotfix/Client.Game.Protocol.dll'];tableSha256=$files['Resources/GameFrameworkVersion.dat'];metadata=$metadata;files=$files}
 }
-function Save-FrameworkAttemptEvidence([string]$NativeAttemptDirectory,$OwnedProcess,$Context,[string]$OutputDirectory) {
+function Save-FrameworkAttemptEvidence([string]$NativeAttemptDirectory,$OwnedProcess,$Context,[string]$OutputDirectory,[switch]$DiagnosticCapture) {
     Assert-FrameworkNoReparse $NativeAttemptDirectory
     $source=[IO.Path]::GetFullPath($NativeAttemptDirectory)
     $eventPath=Join-Path $source 'events.jsonl';$events=Read-FrameworkEvents $eventPath
     $attempt=@{caseId=$OwnedProcess.caseId;attemptId=$events[0].attemptId;processId=$events[0].processId;observedProcessId=$OwnedProcess.processId;process=$OwnedProcess;events=$events}
     Require-FrameworkFact ([IO.Path]::GetFileName($source.TrimEnd('\','/')) -ceq $attempt.attemptId) 'E_ATTEMPT_DIRECTORY' 'Source directory must retain its native-generated attempt name.'
-    Assert-FrameworkAttempt $attempt $Context $OwnedProcess.caseId
+    Assert-FrameworkAttemptEnvelope $attempt $Context $OwnedProcess.caseId
+    $schemaAccepted=$true;$rejection=$null
+    try{Assert-FrameworkAttempt $attempt $Context $OwnedProcess.caseId}catch [IO.InvalidDataException]{
+        if(-not $DiagnosticCapture){throw}
+        $schemaAccepted=$false;$rejection=$_.Exception.Message
+    }
     $files=@();foreach($name in @('events.jsonl','checkpoint.json','complete.json','screen.png','continue')){
         $path=Join-Path $source $name
         if(Test-Path -LiteralPath $path -PathType Leaf){Assert-FrameworkNoReparse $path;$files+=@{name=$name;path=$path;sha256=(Get-FrameworkFileHash $path)}}
     }
     $output=New-FrameworkOutputDirectory $OutputDirectory
-    $descriptor=@{attemptId=$attempt.attemptId;processId=$attempt.processId;sourceDirectory=$source;evidenceKind=$Context.evidenceKind}
+    $descriptor=@{attemptId=$attempt.attemptId;processId=$attempt.processId;sourceDirectory=$source;evidenceKind=$Context.evidenceKind;schemaAccepted=$schemaAccepted;nativeAcceptance=$false;rejection=$rejection}
     foreach($file in $files){
         $destination=Join-Path $output $file.name
         $input=[IO.File]::OpenRead($file.path);$copy=[IO.FileStream]::new($destination,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
@@ -50,7 +55,7 @@ function Save-FrameworkAttemptEvidence([string]$NativeAttemptDirectory,$OwnedPro
 function New-FrameworkCollectionPlan {
     param([ValidateSet('Windows64','Android')][string]$Platform,[string]$RunId,[string]$PlayerPath,[string]$NativeEvidenceRoot,[string]$DeviceId,[string]$ApplicationId)
     $matrix=Get-FrameworkMatrix
-    $plan=[ordered]@{schemaVersion=1;task='D2';runId=$RunId;platform=$Platform;deviceId=$DeviceId;status='NotRun';nativeExecutionEnabled=$false;cases=@();requirements=@('Explicit final PlayerArchive and successful BuildResult/receipt','Independent D1 archive approval','Explicit controller execution release','Task-owned installation/package identity','Task-owned update/Tok service and fault payload receipts')}
+    $plan=[ordered]@{schemaVersion=1;task='D2';runId=$RunId;platform=$Platform;deviceId=$DeviceId;nativeEvidenceRoot=$NativeEvidenceRoot;status='NotRun';nativeExecutionEnabled=$false;cases=@();requirements=@('Explicit final PlayerArchive and successful BuildResult/receipt','Independent D1 archive approval','Explicit controller execution release','Task-owned installation/package identity','Task-owned update/Tok service and fault payload receipts')}
     foreach($definition in $matrix.cases|Where-Object {$Platform -cin $_.platforms}){
         $options=@{runId=$RunId;caseId=$definition.id;autoExit=($definition.kind -notin @('ui','session','strong-kill'))}
         if($definition.kind -ceq 'strong-kill'){$options.pausePoint=$definition.point;if($definition.statePurpose){$options.statePurpose=$definition.statePurpose}}
@@ -60,6 +65,9 @@ function New-FrameworkCollectionPlan {
         if($definition.id -ceq 'tok-rejection'){$options.invalidCredential=$true}
         $command=New-FrameworkLaunchCommand -Platform $Platform -PlayerPath $PlayerPath -EvidenceRoot $NativeEvidenceRoot -Options $options -DeviceId $DeviceId -ApplicationId $ApplicationId
         $case=@{id=$definition.id;taskId=$definition.taskId;kind=$definition.kind;status='NotRun';attempts=@(@{role='primary';command=$command});operations=@('Verify immutable native package','Capture original state and complete K/P inventory','Select explicit task-owned signed delivery/fault input','Start owned native attempt','Bind observed OS PID and native-generated attempt','Collect original native event bytes and actual slot files','Evaluate required case')}
+        if($definition.setupRelease){$case.setupRelease=$definition.setupRelease;$case.setupMethod='ordinary-signed-channel-new-process';$case.operations=@('Establish required known-good through ordinary signed channel in a new PID; capture setup separately')+$case.operations}
+        if($definition.allowedRecovery){$case.allowedRecovery=$definition.allowedRecovery;$case.recoveryInput=$definition.recoveryInput;$case.forbidRecoveryPayloadDownloads=$true}
+        if($definition.requiresServerHold){$case.requiresServerHold=$true;$case.operations+=@('Hold authenticated response at a positive strict prefix until owned kill/cancel/interrupt; never resume body')}
         if($definition.kind -in @('strong-kill','semantic-reject','throw') -or $definition.id -ceq 'download-cancel'){
             $recovery=@{runId=$RunId;caseId=$definition.id;autoExit=$true}
             $case.attempts+=@{role='recovery';command=(New-FrameworkLaunchCommand -Platform $Platform -PlayerPath $PlayerPath -EvidenceRoot $NativeEvidenceRoot -Options $recovery -DeviceId $DeviceId -ApplicationId $ApplicationId)}
@@ -70,6 +78,34 @@ function New-FrameworkCollectionPlan {
         $plan.cases+=$case
     }
     return $plan
+}
+function Bind-FrameworkCollectionPlan($Plan,$Archive,[string]$BuildReceipt,[string]$RuntimePlayerRoot,$AdbTool=$null) {
+    $receipt=Read-FrameworkJson $BuildReceipt
+    Assert-FrameworkFields $receipt @('Status','OutputDirectory','ResultFile')
+    Require-FrameworkFact (($receipt.Status -ceq 'Succeeded' -or ((Test-FrameworkInteger $receipt.Status) -and $receipt.Status -eq 1)) -and [IO.Path]::GetFullPath($receipt.ResultFile) -ceq $Archive.resultFile -and [IO.Path]::GetFullPath($receipt.OutputDirectory) -ceq $Archive.outputDirectory) 'E_PLAN_RECEIPT' 'Explicit actual producer receipt must own the selected original archive.'
+    $expectedPlatform=if($Plan.platform -ceq 'Windows64'){'StandaloneWindows64'}else{'Android'}
+    Require-FrameworkFact ($Plan.platform -cin @('Windows64','Android') -and $Archive.identity.Platform -ceq $expectedPlatform -and $Plan.runId -cmatch '^[A-Za-z0-9_-]{1,40}$') 'E_PLAN_IDENTITY' 'Plan platform/run differs from its native archive.'
+    $inventory=Get-FrameworkInventory $RuntimePlayerRoot;$actual=@{};foreach($name in $inventory.Keys){$actual[$name]=$inventory[$name].sha256}
+    Assert-FrameworkHashMap $Archive.archiveNative $actual 'Runnable original native package'
+    $bound=ConvertFrom-FrameworkJson ($Plan|ConvertTo-Json -Depth 100 -Compress) -ObjectOnly
+    if($Plan.platform -ceq 'Windows64'){$executable=[IO.Path]::GetFullPath((Join-Path $RuntimePlayerRoot 'Client.exe'));$sha=$Archive.archiveNative['Client.exe']}
+    else{
+        Require-FrameworkFact (-not [string]::IsNullOrWhiteSpace($Plan.deviceId) -and $AdbTool.file -is [string] -and $AdbTool.sha256 -cmatch '^[a-f0-9]{64}$' -and (Get-FrameworkFileHash $AdbTool.file) -ceq $AdbTool.sha256) 'E_ADB_RECEIPT' 'Android plan requires the explicit selected device and pinned adb tool receipt.'
+        $executable=[IO.Path]::GetFullPath($AdbTool.file);$sha=$AdbTool.sha256
+    }
+    foreach($case in $bound.cases){foreach($attempt in $case.attempts){
+        Require-FrameworkFact ([IO.Path]::GetFullPath($attempt.command.file) -ceq $executable) 'E_PLAN_EXECUTABLE' 'Plan command points outside the exact runnable package/tool.'
+        $options=ConvertFrom-FrameworkJson $attempt.command.acceptanceJson -ObjectOnly
+        Require-FrameworkFact ($options.runId -ceq $Plan.runId -and $options.caseId -ceq $case.id) 'E_PLAN_CASE' 'Command controls differ from their logical case.'
+        $expected=New-FrameworkLaunchCommand -Platform $Plan.platform -PlayerPath $executable -EvidenceRoot $Plan.nativeEvidenceRoot -Options $options -DeviceId $Plan.deviceId -ApplicationId $Archive.profilePackageId
+        if($Plan.platform -ceq 'Windows64'){$expected.arguments[1]=$attempt.command.acceptanceJson}else{$expected.arguments[-1]="'"+$attempt.command.acceptanceJson+"'"}
+        Require-FrameworkFact ($attempt.command.arguments -is [System.Collections.IList] -and $attempt.command.arguments.Count -eq $expected.arguments.Count) 'E_PLAN_ARGUMENTS' 'Command includes unreviewed or missing native launch tokens.'
+        for($i=0;$i -lt $expected.arguments.Count;$i++){Require-FrameworkFact ($attempt.command.arguments[$i] -is [string] -and $attempt.command.arguments[$i] -ceq $expected.arguments[$i]) 'E_PLAN_ARGUMENTS' 'Command tokens differ from the exact bounded native launch recipe.'}
+        $attempt.command.sha256=$sha
+    }}
+    $bound.binding=@{playerBuildId=$Archive.playerBuildId;profilePackageId=$Archive.profilePackageId;archiveSha256=$Archive.archiveSha256;buildResultSha256=$Archive.buildResultSha256;buildReceipt=@{path=[IO.Path]::GetFullPath($BuildReceipt);sha256=(Get-FrameworkFileHash $BuildReceipt)};runtimePlayerRoot=[IO.Path]::GetFullPath($RuntimePlayerRoot);nativeInventory=$actual;nativeBinaryEvidence=$Archive.nativeBinaryEvidence}
+    $bound.nativeExecutionEnabled=$false
+    return $bound
 }
 function Invoke-FrameworkCollection {
     param($Plan,[switch]$Execute,[scriptblock]$UnitAdapter)
