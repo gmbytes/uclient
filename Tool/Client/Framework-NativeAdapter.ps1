@@ -284,7 +284,8 @@ function Start-FrameworkWindowsAttempt($Command,$Context,[string]$OutputDirector
     foreach($argument in $Command.arguments){$start.ArgumentList.Add($argument)}
     $start.ArgumentList.Add('-logFile');$start.ArgumentList.Add((Join-Path $output 'Player.log'))
     $process=[Diagnostics.Process]::Start($start)
-    $record=@{processId=$process.Id;startedUtc=$process.StartTime.ToUniversalTime().ToString('o');executable=$process.MainModule.FileName;executableSha256=$proof.sha256;runId=$options.runId;caseId=$options.caseId;playerBuildId=$Context.playerBuildId;acceptance=$options;arguments=@($start.ArgumentList)}
+    # MainModule 在 CreateProcess 返回后可能尚未公布；先绑定已校验的启动目标，清理前再核对实际模块路径与 hash。
+    $record=@{processId=$process.Id;startedUtc=$process.StartTime.ToUniversalTime().ToString('o');executable=$start.FileName;executableSha256=$proof.sha256;runId=$options.runId;caseId=$options.caseId;playerBuildId=$Context.playerBuildId;acceptance=$options;arguments=@($start.ArgumentList)}
     Write-FrameworkJsonNew (Join-Path $output 'process-start.json') $record
     return @{handle=$process;record=$record;command=$Command;outputDirectory=$output}
 }
