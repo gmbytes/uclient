@@ -1,10 +1,29 @@
 # D1 统一构建与原生基线验收
 
-> 当前状态：695dee2 修复了热入口异常被清理关闭遮蔽的问题（完整413/142回归通过）。该改动涉及固定层，本文原Native通过记录保留历史身份；D1需按修后新Player重新验收，D2旧21项不能混入新基线。
+> 当前状态：695dee2固定层修复的新Windows/Android原生基线已完成D1复验。D2旧21项保留历史身份，新基线完整D2矩阵和D3仍未完成。
 
 状态：已完成。此记录只关闭D1，D2综合故障/UI/会话矩阵及D3干净工程复现仍未完成。
 
-## 当前正式产物
+## 2026-11-01 修后正式产物
+
+构建来源为 `6a12a454d2f7541a57f0ad3b30c50dc4064ebb0e`，包含固定层修复 `695dee2`。六次Player/V2/Throw构建均成功，源码前后及原始Archive前后清单一致。根目录为 `E:/sgame/Builds/EntryFailureFixed`。
+
+| 平台 | PlayerBuildId | Player目录 | V2目录 |
+| --- | --- | --- | --- |
+| Windows64 | b46d21fc9e494d0b8cba04cf990be9dd | Build_20261031T194903961Z_04a97628949f | Build_20261031T195306839Z_55ad1e942ff6 |
+| Android | bae44f6a05884171937c0eef946bba35 | Build_20261031T195526694Z_cfc5aa88838b | Build_20261031T200002331Z_abf58615a01a |
+
+- [x] 完整回归Edit413/413、图形Play142/142；本次D1定向70/70，结果位于 `Builds/Tests/D1/20261031T200817092Z-62e9d807`。
+- [x] 两平台原始Archive完整文件、实际PE/ELF头、59/48份原元数据及7个固定编译引用逐一重算校验；V1无AddedMessage、V2有Parser；普通Player无热程序集/测试程序集AOT加载，Proof空壳无证明加载器。
+- [x] Windows同一Player的V1 PID54696、V2 PID63160；Android同一APK的V1 PID23239、V2 PID23514。四次均Ready、单资源根、两个热程序集、原始metadata全部OK、零原生错误；V2新增Parser实际执行，页面显示Framework v2。四次各有 `runtime-audit.json`。
+- [x] Android APK SHA256为 `2e32b95cfd0feb2e22ef31e91b4fd431993f058af0e53e062ab248b9df73aac7`，安装前验证并备份旧测试包，仅执行保留数据安装。三个原生库均AArch64，签名校验通过；V1和实际V2槽位各54文件与各自清单/签名一致。
+- [x] 修复探针：Windows Throw PID81616→恢复PID78616；Android Throw PID23743→恢复PID24008。原始 `System.InvalidOperationException: D2 Delivery ThrowOnStart` 保留为 `HotfixInitializationFailed`/`Hotfix`，坏版隔离、无Ready，新的进程从v2恢复。该探针不计正式D2用例。
+
+统一证据目录为主工程 `Builds/Tests/D2/EntryFailureFixed-20261031T194853969Z`，含构建结果、源码/Archive前后清单、`physical-compatibility.json`、两平台 `native-fix-probe.json` 及Android槽位捕获。`Android-v2-slot` 是重复捕获V1的历史脚本输出；真正V2证明为 `Android-v2-release-slot/result.json`，按V2发布清单验证，未混用。
+
+原始运行目录均在主工程 `Builds/Tests/D1`：Windows `WindowsRuntime-d1-20261031T195354690-v1`、`WindowsRuntime-d1-20261031T195512725-v2`；Android `AndroidRuntime-d1a-20261031T200147648-v1`、`AndroidRuntime-d1a-20261031T200315760-v2`。测试拥有的原生进程和服务器均已结束。后续D2必须绑定本节新身份。
+
+## 历史正式产物（修复前）
 
 | 平台 | PlayerBuildId | 主包输出 | V2补丁输出 |
 | --- | --- | --- | --- |
