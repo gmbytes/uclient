@@ -1,0 +1,34 @@
+{
+  "kind": "D1 isolated acceptance Parser fixtures",
+  "protocVersion": "36.2",
+  "protocSha256": "5a1b5350308309c9729ce4484a798981f281c10909144c4bdefd6a37688e4b1f",
+  "files": [
+    {
+      "path": "V1/Assets/Scripts/Game/DeliveryVersion.cs",
+      "sha256": "939989b9ee767c45795dc06d530a890372d3408f53e788e6378af26dda0e8888"
+    },
+    {
+      "path": "V1/Assets/Scripts/Game/Protocol/Delivery/Baseline.cs",
+      "sha256": "3ef638be6ed0c2f0a51d51c17f725aed4cf02dc5e03549bcdc43cdce43f00e68"
+    },
+    {
+      "path": "V2/Assets/Scripts/Game/DeliveryVersion.cs",
+      "sha256": "08095abf5385b37577277af35f5877c4ecba9bb529643219dcbccff012fe6bf0"
+    },
+    {
+      "path": "V2/Assets/Scripts/Game/Protocol/Delivery/Added.cs",
+      "sha256": "ea429a6c9a9f36d2318092b89b08488e02ed34a86b5951fb6a9187e3b0e55a37"
+    }
+  ],
+  "sharedSourceCommit": "93faaa14b6a7a30d8518ed8a10b2411330b1d8b8",
+  "sources": [
+    {
+      "path": "proto/tests/fixtures/delivery/baseline.proto",
+      "sha256": "7d29e0b2acb83faee0c0225d6d1ca1a71d3e297a5d1853bc5a284b158dddf182"
+    },
+    {
+      "path": "proto/tests/fixtures/delivery/added.proto",
+      "sha256": "53611eda810030ec5d12c9c2bec3f727bf68d74c2d8e87edb53de6001d54e068"
+    }
+  ]
+}

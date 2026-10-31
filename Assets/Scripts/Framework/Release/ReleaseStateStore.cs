@@ -66,6 +66,8 @@ namespace Client.Framework.Release
         public void WriteAtomic(ReleaseState state)
             => WriteAtomic(state, CancellationToken.None);
         internal void WriteAtomic(ReleaseState state, CancellationToken token)
+            => WriteAtomic(state, token, "write", state.Candidate ?? state.KnownGood);
+        internal void WriteAtomic(ReleaseState state, CancellationToken token, string purpose, string releaseId)
         {
             lock (sync)
             {
@@ -87,11 +89,13 @@ namespace Client.Framework.Release
                 ReleaseFileSystem.WriteDurable(temp, bytes);
                 faults.Hit("state.write.after");
                 faults.Hit("state.replace.before");
+                (faults as IReleaseBoundaryObserver)?.StateBoundary("state.replace.before", purpose, releaseId, state);
                 token.ThrowIfCancellationRequested();
                 if (File.Exists(primary)) File.Replace(temp, primary, backup);
                 else File.Move(temp, primary);
                 // Test-only crash boundary; production's no-op cannot throw after successful commit.
                 faults.Hit("state.replace.after");
+                (faults as IReleaseBoundaryObserver)?.StateBoundary("state.replace.after", purpose, releaseId, state);
             }
         }
         internal void PublishCandidate(string releaseId, CancellationToken token)
@@ -103,7 +107,7 @@ namespace Client.Framework.Release
                 if (latest.BadReleaseIds.Contains(releaseId, StringComparer.Ordinal)) throw new InvalidOperationException("A quarantined release cannot be prepared.");
                 latest.Candidate = releaseId;
                 token.ThrowIfCancellationRequested();
-                WriteAtomic(latest);
+                WriteAtomic(latest, token, "candidate", releaseId);
             }
         }
         internal void PruneUnreferencedSlots()

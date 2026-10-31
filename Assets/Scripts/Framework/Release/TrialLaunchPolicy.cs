@@ -28,8 +28,8 @@ namespace Client.Framework.Release
                     throw new InvalidOperationException("The selected release is no longer referenced.");
                 store.VerifySlot(id);
                 bool trial = state.Candidate == id && state.KnownGood != id;
-                if (trial) { state.Attempt = 1; store.WriteAtomic(state); }
-                else if (state.Candidate == id) { state.Candidate = null; store.WriteAtomic(state); }
+                if (trial) { state.Attempt = 1; store.WriteAtomic(state, CancellationToken.None, "trial", id); }
+                else if (state.Candidate == id) { state.Candidate = null; store.WriteAtomic(state, CancellationToken.None, "clearCandidate", id); }
                 return trial;
             }
         }
@@ -45,7 +45,7 @@ namespace Client.Framework.Release
                     throw new InvalidOperationException("Launch selection changed before ready commit.");
                 if (state.KnownGood != id) { state.PreviousGood = state.KnownGood ?? state.PreviousGood; state.KnownGood = id; }
                 if (state.PreviousGood == id) state.PreviousGood = null;
-                state.Candidate = null; state.Attempt = 0; store.WriteAtomic(state, token);
+                state.Candidate = null; state.Attempt = 0; store.WriteAtomic(state, token, "promote", id);
             }
         }
         internal void Quarantine(string id)
@@ -57,7 +57,7 @@ namespace Client.Framework.Release
                 if (state.PreviousGood == id) state.PreviousGood = null;
                 if (state.Candidate == id) { state.Candidate = null; state.Attempt = 0; }
                 if (!state.BadReleaseIds.Contains(id, StringComparer.Ordinal)) state.BadReleaseIds = state.BadReleaseIds.Concat(new[] { id }).ToArray();
-                store.WriteAtomic(state);
+                store.WriteAtomic(state, CancellationToken.None, "quarantine", id);
             }
         }
     }

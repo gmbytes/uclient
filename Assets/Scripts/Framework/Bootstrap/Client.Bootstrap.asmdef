@@ -1,5 +1,5 @@
 {
   "name": "Client.Bootstrap",
-  "references": ["Client.Framework", "Client.Contracts", "UnityEngine.UI"],
+  "references": ["Client.Framework", "Client.Contracts", "UnityEngine.UI", "Unity.TextMeshPro", "UnityGameFramework.Runtime"],
   "autoReferenced": false
 }

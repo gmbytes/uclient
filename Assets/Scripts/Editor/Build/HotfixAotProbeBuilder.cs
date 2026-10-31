@@ -11,6 +11,7 @@ using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityBuildResult = UnityEditor.Build.Reporting.BuildResult;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityGameFramework.Editor.ResourceTools;
@@ -22,8 +23,7 @@ namespace Client.Editor.Build
     {
         private static string root;
         private static ReleaseLinkerSymbolPolicy linkerPolicy;
-        [ResourceCollectionConfigPath] private static string CollectionPath => root == null ? null : Path.Combine(root, "ResourceCollection.xml");
-        [ResourceBuilderConfigPath] private static string BuilderPath => root == null ? null : Path.Combine(root, "ResourceBuilder.xml");
+        private static ResourceConfigurationScope configuration;
         public static void Run()
         {
             try
@@ -31,6 +31,7 @@ namespace Client.Editor.Build
                 root = Path.GetFullPath(Arg("-f6Output"));
                 if (Directory.Exists(root)) throw new IOException("A new F6 output directory is required.");
                 Directory.CreateDirectory(root);
+                configuration = ResourceConfigurationScope.Enter(root);
                 if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64) throw new BuildFailedException("F6 native probe requires Win64.");
                 var installer = new InstallerController();
                 if (!installer.HasInstalledHybridCLR()) installer.InstallFromLocal(Path.GetFullPath(Arg("-hybridclrSource")));
@@ -60,7 +61,7 @@ namespace Client.Editor.Build
                 string exe = Path.Combine(player, "Client.exe");
                 var build = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { scenePath }, target = BuildTarget.StandaloneWindows64, locationPathName = exe, options = BuildOptions.None });
                 File.WriteAllText(Path.Combine(root, "build-result.json"), SmokeBuild.CreateResultJson("Windows64", exe, build.summary.result, build.summary.totalErrors, build.summary.totalWarnings, build.summary.totalSize) + "\n");
-                if (build.summary.result != BuildResult.Succeeded || build.summary.totalErrors != 0) throw new BuildFailedException("F6 Release IL2CPP Player build failed.");
+                if (build.summary.result != UnityBuildResult.Succeeded || build.summary.totalErrors != 0) throw new BuildFailedException("F6 Release IL2CPP Player build failed.");
                 // Signatures are outside payload inventory; compare the payload exactly as packaged.
                 File.Delete(Path.Combine(baseline, "release.json")); File.Delete(Path.Combine(baseline, "release.sig"));
                 PlayerBaselineArchive.Finalize(archiveRoot, baseline, player, BuildTarget.StandaloneWindows64);
@@ -72,8 +73,12 @@ namespace Client.Editor.Build
             catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
             finally
             {
-                if (linkerPolicy != null) { linkerPolicy.Dispose(); linkerPolicy = null; }
-                root = null;
+                try { linkerPolicy?.Dispose(); }
+                finally
+                {
+                    linkerPolicy = null;
+                    try { configuration?.Dispose(); } finally { configuration = null; root = null; }
+                }
             }
         }
         private static void FullReleaseFlags() { EditorUserBuildSettings.development = false; EditorUserBuildSettings.buildScriptsOnly = false; EditorUserBuildSettings.exportAsGoogleAndroidProject = false; UnityEditor.WindowsStandalone.UserBuildSettings.createSolution = false; }
@@ -115,9 +120,11 @@ namespace Client.Editor.Build
         {
             const string asset = "Assets/Tests/Generated/F6Package/marker.txt";
             Directory.CreateDirectory(Path.GetDirectoryName(asset)); File.WriteAllText(asset, "F6 native GF Package\n"); AssetDatabase.ImportAsset(asset, ImportAssetOptions.ForceUpdate);
-            var collection = new ResourceCollection();
+            var collection = configuration.CreateCollection();
             if (!collection.AddResource("f6/marker", null, null, LoadType.LoadFromFile, true) || !collection.AssignAsset(AssetDatabase.AssetPathToGUID(asset), "f6/marker", null) || !collection.Save()) throw new BuildFailedException("Cannot create native GF collection.");
-            var builder = new ResourceBuilderController { Platforms = Platform.Windows64, InternalResourceVersion = 1, OutputDirectory = Path.Combine(root, "NativePackage"), OutputPackageSelected = true, OutputFullSelected = false, OutputPackedSelected = false, ForceRebuildAssetBundleSelected = true };
+            var builder = configuration.CreateBuilder();
+            builder.Platforms = Platform.Windows64; builder.InternalResourceVersion = 1; builder.OutputDirectory = Path.Combine(root, "NativePackage");
+            builder.OutputPackageSelected = true; builder.OutputFullSelected = false; builder.OutputPackedSelected = false; builder.ForceRebuildAssetBundleSelected = true;
             Directory.CreateDirectory(builder.OutputDirectory);
             if (!builder.BuildResources()) throw new BuildFailedException("Native GF Package build failed.");
             string source = Path.GetFullPath(Path.Combine(builder.OutputPackagePath, "Windows64"));

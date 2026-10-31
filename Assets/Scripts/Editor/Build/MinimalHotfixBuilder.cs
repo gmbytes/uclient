@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Player;
 using UnityEditor.Build.Reporting;
+using UnityBuildResult = UnityEditor.Build.Reporting.BuildResult;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
@@ -43,7 +44,7 @@ namespace Client.Editor.Build
                 });
                 File.WriteAllText(Path.Combine(output, "build-result.json"), SmokeBuild.CreateResultJson("Windows64", artifact,
                     report.summary.result, report.summary.totalErrors, report.summary.totalWarnings, report.summary.totalSize) + "\n");
-                if (report.summary.result != BuildResult.Succeeded || report.summary.totalErrors != 0) throw new BuildFailedException("Minimal hotfix Player build failed.");
+                if (report.summary.result != UnityBuildResult.Succeeded || report.summary.totalErrors != 0) throw new BuildFailedException("Minimal hotfix Player build failed.");
 
                 // Read after this actual Player build: HybridCLR's postprocess replaces this directory.
                 string metadata = Path.Combine(output, "Metadata");

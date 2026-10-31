@@ -1,0 +1,143 @@
+using System;
+using System.IO;
+using System.Reflection;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
+using Client.Contracts;
+using Client.Bootstrap;
+using Client.Framework.Network;
+using Client.Framework.Release;
+using Newtonsoft.Json.Linq;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace Client.Tests.EditMode
+{
+    [Category("D1")]
+    public sealed class NativeAcceptanceTests
+    {
+        private string root;
+        [SetUp] public void Setup() { root=Path.GetFullPath("Builds/Tests/D1/Acceptance/"+Guid.NewGuid().ToString("N")); }
+        [TearDown] public void Cleanup() { if(Directory.Exists(root))Directory.Delete(root,true); }
+        private static Type Required(string name) { var type=Type.GetType("Client.Framework.Release."+name+", Client.Framework");Assert.That(type,Is.Not.Null,"D1 native observation boundary missing: "+name);return type; }
+        private static object Options(bool allowed,string json)
+        {try{return Required("NativeAcceptanceOptions").GetMethod("Parse").Invoke(null,new object[]{allowed,json});}catch(TargetInvocationException e){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e.InnerException).Throw();throw;}}
+        private static void RuntimeIdentity(PlayerIdentity player,RuntimePlatform platform,string actualId,string unityVersion="2022.3.25f1",int pointerBytes=8)
+        {
+            var method=typeof(NativeClientHost).GetMethod("RequireRuntimeIdentity",BindingFlags.Static|BindingFlags.NonPublic);
+            Assert.That(method,Is.Not.Null,"Native identity must validate real platform/version/width before selection.");
+            try{method.Invoke(null,new object[]{player,"com.sgame.client.acceptance",platform,actualId,unityVersion,pointerBytes});}
+            catch(TargetInvocationException error){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();}
+        }
+        private static PlayerIdentity Identity(string platform,string architecture,string version="2022.3.25f1")=>new PlayerIdentity("identity-test",platform,architecture,version,"1",new string('a',64),"metadata-test");
+        [TestCase(null),TestCase("standalone-value-is-not-an-android-package")]
+        public void WindowsNativeIdentityDoesNotRequireAndroidPackageIdentifier(string actualId)
+        {Assert.DoesNotThrow(()=>RuntimeIdentity(Identity("StandaloneWindows64","x64"),RuntimePlatform.WindowsPlayer,actualId));}
+        [TestCase("com.sgame.client.acceptance",true),TestCase("com.sgame.unrelated",false),TestCase("",false)]
+        public void AndroidNativeIdentityRequiresExactOsPackage(string actualId,bool valid)
+        {
+            TestDelegate validate=()=>RuntimeIdentity(Identity("Android","arm64"),RuntimePlatform.Android,actualId);
+            if(valid)Assert.DoesNotThrow(validate);else Assert.Throws<InvalidDataException>(validate);
+        }
+        [TestCase("platform"),TestCase("version"),TestCase("width"),TestCase("architecture"),TestCase("unsupported")]
+        public void NativeRuntimeIdentityRejectsWrongFacts(string fault)
+        {
+            var player=Identity(fault=="platform"?"Android":"StandaloneWindows64",fault=="architecture"?"arm64":"x64",fault=="version"?"different-unity":"2022.3.25f1");
+            Assert.Throws<InvalidDataException>(()=>RuntimeIdentity(player,fault=="unsupported"?RuntimePlatform.LinuxPlayer:RuntimePlatform.WindowsPlayer,"",pointerBytes:fault=="width"?4:8));
+        }
+        [TestCase("pausePoint","rename.before"),TestCase("lowSpace",true),TestCase("invalidCredential",true)]
+        public void ProductionProfileCannotEnableAcceptanceControls(string property,object value)
+        {
+            string json=new JObject{["runId"]="run",["caseId"]="case",[property]=JToken.FromObject(value)}.ToString();
+            Assert.Throws<InvalidDataException>(()=>Options(false,json));
+        }
+        [Test] public void StatePauseRequiresExactWritePurpose()
+        {Assert.Throws<InvalidDataException>(()=>Options(true,new JObject{["runId"]="run",["caseId"]="case",["pausePoint"]="state.replace.after"}.ToString()));}
+        [Test] public void SameLogicalCaseCreatesDistinctNativeAttemptsAndPreservesPriorBytes()
+        {
+            var options=(NativeAcceptanceOptions)Options(true,"{\"runId\":\"run\",\"caseId\":\"recovery\"}");
+            string firstDirectory;
+            using(var first=new NativeEvidence(root,options)){first.Record("first.attempt",new {value=1});firstDirectory=first.DirectoryPath;}
+            byte[] firstBytes=File.ReadAllBytes(Path.Combine(firstDirectory,"events.jsonl"));
+            using(var second=new NativeEvidence(root,options))
+            {
+                second.Record("second.attempt",new {value=2});
+                Assert.That(second.DirectoryPath,Is.Not.EqualTo(firstDirectory));
+                Assert.That(Path.GetFileName(second.DirectoryPath),Does.Match("^[a-f0-9]{32}$"));
+                Assert.That(File.ReadAllBytes(Path.Combine(firstDirectory,"events.jsonl")),Is.EqualTo(firstBytes));
+            }
+        }
+        [Test] public void RepeatedDisabledDefaultEvidenceRemainsNoOp()
+        {
+            var options=NativeAcceptanceOptions.Parse(false,null);
+            using(var first=new NativeEvidence(root,options)){first.Record("ignored",new {value=1});}
+            using(var second=new NativeEvidence(root,options)){second.Record("ignored",new {value=2});}
+            Assert.That(Directory.Exists(root),Is.False);
+        }
+        [TestCase(false),TestCase(true)] public void AttemptEvidenceBudgetIsCheckedBeforeAnyDirectoryCreation(bool unicode)
+        {
+            string prefix=root+Path.DirectorySeparatorChar;int remaining=192-System.Text.Encoding.UTF8.GetByteCount(prefix);
+            string part=unicode?"中"+new string('a',remaining-3):new string('a',remaining);
+            string path=prefix+part;
+            Assert.Throws<PathTooLongException>(()=>new NativeEvidence(path,(NativeAcceptanceOptions)Options(true,"{\"runId\":\"run\",\"caseId\":\"budget\"}")));
+            Assert.That(Directory.Exists(path),Is.False);
+        }
+        [Test] public void ActualStateReplacementEmitsPurposeAndDurableProcessCorrelation()
+        {
+            var options=Options(true,"{\"runId\":\"run\",\"caseId\":\"case\"}");
+            using(var evidence=(IDisposable)Activator.CreateInstance(Required("NativeEvidence"),root,options))
+            {
+                var state=new ReleaseStateStore(Path.Combine(root,"store"),new ManifestVerifier(),new PlayerIdentity("player","StandaloneWindows64","x64","2022.3.25f1","1",new string('a',64),"metadata"),(IFileFaultInjector)evidence);
+                state.WriteAtomic(new ReleaseState());
+                Assert.That(state.Read().Attempt,Is.EqualTo(0));
+                string actualDirectory=(string)evidence.GetType().GetProperty("DirectoryPath").GetValue(evidence);
+                string[] records;using(var input=new FileStream(Path.Combine(actualDirectory,"events.jsonl"),FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var reader=new StreamReader(input))records=reader.ReadToEnd().Split('\n');
+                var before=Array.Find(records,line=>line.Contains("state.replace.before"));var after=Array.Find(records,line=>line.Contains("state.replace.after"));
+                Assert.That(before,Is.Not.Null);Assert.That(after,Is.Not.Null);
+                var parsed=JObject.Parse(after);Assert.That((string)parsed["runId"],Is.EqualTo("run"));Assert.That((string)parsed["caseId"],Is.EqualTo("case"));
+                Assert.That((int)parsed["processId"],Is.EqualTo(System.Diagnostics.Process.GetCurrentProcess().Id));Assert.That((string)parsed["data"]["purpose"],Is.EqualTo("write"));
+                Assert.That((int)parsed["data"]["state"]["Attempt"],Is.EqualTo(0));
+            }
+        }
+        [Test] public void PartialTransferRequiresAuthenticatedPathAndIncompletePositiveLength()
+        {
+            var method=typeof(NativeEvidence).GetMethod("IsIncompleteTransfer");Assert.That(method,Is.Not.Null,"A start/update callback alone cannot prove an incomplete transfer.");
+            using(var key=new RSACryptoServiceProvider(2048){PersistKeyInCsp=false})
+            {
+                var verifier=(ManifestVerifier)Activator.CreateInstance(typeof(ManifestVerifier),BindingFlags.Instance|BindingFlags.NonPublic,null,new object[]{new Dictionary<string,RSAParameters>{{"test-f4",key.ExportParameters(false)}}},null);
+                byte[] json=File.ReadAllBytes("Tests/Fixtures/Releases/ManifestCases/valid-release.json");
+                var release=verifier.Verify(json,key.SignData(json,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1),new PlayerIdentity("player-1","Windows","x64","2022.3.25f1","1",new string('a',64),"aot-1"));
+                using(var evidence=new NativeEvidence(root,(NativeAcceptanceOptions)Options(true,"{\"runId\":\"run\",\"caseId\":\"transfer\"}")))
+                {
+                    string store=Path.Combine(root,"store");evidence.Preparation(release,Path.Combine(store,"slots",release.ReleaseId));
+                    var fs=typeof(ReleaseStore).Assembly.GetType("Client.Framework.Release.ReleaseFileSystem");string stage=(string)fs.GetMethod("StageKey",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{release.ManifestSha256});
+                    string path=Path.Combine(store,"staging",stage+".partial","downloads","0.partial");
+                    Assert.That(method.Invoke(evidence,new object[]{path,0L}),Is.False);Assert.That(method.Invoke(evidence,new object[]{path,2L}),Is.True);Assert.That(method.Invoke(evidence,new object[]{path,3L}),Is.False);Assert.That(method.Invoke(evidence,new object[]{path,4L}),Is.False);
+                    Assert.That(method.Invoke(evidence,new object[]{Path.Combine(root,"foreign.partial"),2L}),Is.False);
+                }
+            }
+        }
+        [Test] public void SessionObservationExposesActualInFlightRequestAndConnectionEpoch()
+        {
+            var id=typeof(SessionClient).GetProperty("ActiveRequestId");var epoch=typeof(SessionClient).GetProperty("ConnectionEpoch");Assert.That(id,Is.Not.Null);Assert.That(epoch,Is.Not.Null);
+            using(var session=new SessionClient(new PendingConnection(),new SessionOptions("localhost",1),new RequestIdSequence(42),context:new ImmediateContext()))
+            {
+                var pending=session.LoginAsync(new LoginInput("fixture",null),CancellationToken.None);
+                Assert.That(id.GetValue(session),Is.EqualTo(42UL));Assert.That(epoch.GetValue(session),Is.EqualTo(1L));
+                session.Disconnect();Assert.That(id.GetValue(session),Is.EqualTo(0UL));Assert.That(epoch.GetValue(session),Is.EqualTo(2L));Assert.That(pending.IsCompleted,Is.True);
+            }
+        }
+        private sealed class ImmediateContext:SynchronizationContext {public override void Post(SendOrPostCallback action,object value)=>action(value);}
+        private sealed class PendingConnection:IFrameConnection
+        {
+            private readonly TaskCompletionSource<bool> pending=new TaskCompletionSource<bool>();
+            public event Action<byte[]> FrameReceived {add{}remove{}}
+            public event Action<TransportException> TransportFailed {add{}remove{}}
+            public Task ConnectAsync(string host,int port,CancellationToken token){token.Register(()=>pending.TrySetCanceled());return pending.Task;}
+            public Task SendAsync(ReadOnlyMemory<byte> frame,CancellationToken token)=>Task.CompletedTask;
+            public void Close()=>pending.TrySetCanceled();
+        }
+    }
+}

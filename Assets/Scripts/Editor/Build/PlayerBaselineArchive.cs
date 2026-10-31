@@ -111,6 +111,8 @@ namespace Client.Editor.Build
             paths.Add("Packages/com.code-philosophy.hybridclr/Data~/NetStandard/netstandard2.1.dll");
             paths.Add("Packages/com.code-philosophy.hybridclr/LICENSE");
             paths.Add("docs/licenses/HybridCLR-netstandard-facade-NOTICE.txt");
+            paths.Add(BuildInputs.GeneratedAot);
+            if(File.Exists(BuildInputs.PublicAsset))paths.Add(BuildInputs.PublicAsset);
             return paths.ToArray();
         }
         public static string CurrentBuildProfile()

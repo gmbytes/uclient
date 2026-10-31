@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityBuildResult = UnityEditor.Build.Reporting.BuildResult;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityGameFramework.Editor.ResourceTools;
@@ -24,13 +25,13 @@ namespace Client.Editor.Build
     {
         private static string root;
         private static BuildTarget target;
-        [ResourceCollectionConfigPath] private static string CollectionPath=>root==null?null:Path.Combine(root,"ResourceCollection.xml");
-        [ResourceBuilderConfigPath] private static string BuilderPath=>root==null?null:Path.Combine(root,"ResourceBuilder.xml");
+        private static ResourceConfigurationScope configuration;
         public static void Run()
         {
             try
             {
                 root=Path.GetFullPath(Arg("-f8Output"));Directory.CreateDirectory(root);
+                configuration=ResourceConfigurationScope.Enter(root);
                 target=Arg("-f8Platform")=="Android"?BuildTarget.Android:BuildTarget.StandaloneWindows64;
                 if(EditorUserBuildSettings.activeBuildTarget!=target)throw new BuildFailedException("Launch the Editor with the exact target.");
                 var installer=new InstallerController();if(!installer.HasInstalledHybridCLR())installer.InstallFromLocal(Path.GetFullPath(Arg("-hybridclrSource")));
@@ -39,7 +40,7 @@ namespace Client.Editor.Build
                 { if(Arg("-f8Mode")=="Native")BuildNative();else BuildPatch(); }
             }
             catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
-            finally{root=null;}
+            finally{try{configuration?.Dispose();}finally{configuration=null;root=null;}}
         }
         private static void FullRelease()
         {EditorUserBuildSettings.development=false;EditorUserBuildSettings.buildScriptsOnly=false;EditorUserBuildSettings.buildAppBundle=false;EditorUserBuildSettings.exportAsGoogleAndroidProject=false;UnityEditor.WindowsStandalone.UserBuildSettings.createSolution=false;}
@@ -83,7 +84,7 @@ namespace Client.Editor.Build
             string player=Path.Combine(root,"Player");Directory.CreateDirectory(player);string artifact=Path.Combine(player,target==BuildTarget.Android?"Client.apk":"Client.exe");
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{"Assets/Tests/Generated/F8.unity"},target=target,locationPathName=artifact,options=BuildOptions.None});
             File.WriteAllText(Path.Combine(root,"build-result.json"),SmokeBuild.CreateResultJson(target==BuildTarget.Android?"Android":"Windows64",artifact,report.summary.result,report.summary.totalErrors,report.summary.totalWarnings,report.summary.totalSize)+"\n");
-            if(report.summary.result!=BuildResult.Succeeded||report.summary.totalErrors!=0)throw new BuildFailedException("Fresh native Player build failed.");
+            if(report.summary.result!=UnityBuildResult.Succeeded||report.summary.totalErrors!=0)throw new BuildFailedException("Fresh native Player build failed.");
             File.Delete(Path.Combine(baseline,"release.json"));File.Delete(Path.Combine(baseline,"release.sig"));File.Delete(Path.Combine(baseline,"channel.json"));File.Delete(Path.Combine(baseline,"channel.sig"));
             PlayerBaselineArchive.Finalize(archivePath,baseline,player,target);var verified=PlayerBaselineArchive.Open(archivePath);
             Check(archivePath,compiled,Path.Combine(root,"compatibility-v1.json"));Debug.Log("F8_NATIVE_BUILD_COMPLETE "+verified.playerBuildId);
@@ -106,12 +107,12 @@ namespace Client.Editor.Build
         {
             var profile=AssetDatabase.LoadAssetAtPath<LoginPresentationProfile>("Assets/Settings/Environment/LocalSimulationProfile.asset");
             profile.Version=version=="v1"?"F8 resource v1":"F8 resource v2";EditorUtility.SetDirty(profile);AssetDatabase.SaveAssets();
-            var collection=new ResourceCollection();
+            var collection=configuration.CreateCollection();
             string[] assets={"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/Common/UIViewDefinitions.asset","Assets/Settings/Environment/LocalSimulationProfile.asset"};
             if(!collection.AddResource("f8/ui",null,null,LoadType.LoadFromFile,true)||!collection.AddResource("f8/profile",null,null,LoadType.LoadFromFile,true))throw new BuildFailedException("Native resources failed.");
             for(int i=0;i<assets.Length;i++){string name=i<2?"f8/ui":"f8/profile";if(!collection.AssignAsset(AssetDatabase.AssetPathToGUID(assets[i]),name,null))throw new BuildFailedException("Native collection failed.");}
             if(!collection.Save())throw new BuildFailedException("Native collection save failed.");
-            var builder=new ResourceBuilderController{Platforms=target==BuildTarget.Android?Platform.Android:Platform.Windows64,InternalResourceVersion=version=="v1"?1:2,OutputDirectory=Path.Combine(root,"NativePackage",version),OutputPackageSelected=true,OutputFullSelected=false,OutputPackedSelected=false,ForceRebuildAssetBundleSelected=true};
+            var builder=configuration.CreateBuilder();builder.Platforms=target==BuildTarget.Android?Platform.Android:Platform.Windows64;builder.InternalResourceVersion=version=="v1"?1:2;builder.OutputDirectory=Path.Combine(root,"NativePackage",version);builder.OutputPackageSelected=true;builder.OutputFullSelected=false;builder.OutputPackedSelected=false;builder.ForceRebuildAssetBundleSelected=true;
             Directory.CreateDirectory(builder.OutputDirectory);if(!builder.BuildResources())throw new BuildFailedException("Real GF Package build failed.");
             CopyTree(Path.GetFullPath(Path.Combine(builder.OutputPackagePath,target==BuildTarget.Android?"Android":"Windows64")),Path.Combine(destination,"Resources"));
         }
