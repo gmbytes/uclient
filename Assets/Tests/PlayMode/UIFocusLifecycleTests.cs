@@ -65,6 +65,15 @@ namespace Client.Tests
             Assert.That(input.isFocused,Is.True,"Android may deactivate the old keyboard after the resume callback.");
             Assert.That(input.selectionAnchorPosition,Is.EqualTo(anchor));Assert.That(input.selectionFocusPosition,Is.EqualTo(focus));
         }
+        [UnityTest] public IEnumerator SecondFramePlatformKeyboardTeardownStillRestoresEditing()
+        {
+            Create();yield return Focus();int anchor=input.selectionAnchorPosition,focus=input.selectionFocusPosition;
+            Pause(true);Pause(false);yield return null;yield return null;
+            input.DeactivateInputField();
+            yield return null;yield return null;yield return null;yield return null;
+            Assert.That(input.isFocused,Is.True,"Native Android teardown was observed two frames after resume.");
+            Assert.That(input.selectionAnchorPosition,Is.EqualTo(anchor));Assert.That(input.selectionFocusPosition,Is.EqualTo(focus));
+        }
         [UnityTest] public IEnumerator ResumeDoesNotStealSelectionFromAnotherView()
         {
             Create();yield return Focus();Pause(true);input.DeactivateInputField();
