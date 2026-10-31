@@ -75,7 +75,7 @@ F7 Part B 在独立工作区390824e/bacd292完成；首轮审查发现错误证�
 
 ## D1 当前检查点
 
-D1 的实现与证据目前位于独立工作区 `E:/sgame/.worktrees/client-screen-layout`，尚未作为完整交付整合到主工程。统一 Run/Execute、Player/Patch/资源包编排、原生公开数据配置与验收观察点已实现并导入；当前修后AOT检查点 `28fd6f7` 已通过窄范围复审。Windows核心链路已实测，Android、真实 CLI/Editor 入口等价及完整成功/失败恢复仍待相应门禁。
+D1 的实现与证据目前位于独立工作区 `E:/sgame/.worktrees/client-screen-layout`，尚未作为完整交付整合到主工程。统一 Run/Execute、Player/Patch/资源包编排、原生公开数据配置与验收观察点已实现并导入；当前修后AOT检查点 `28fd6f7` 已通过窄范围复审。Windows及雷电Android核心链路已实测；Editor成功菜单入口、最终构建文档与完整D1整合审查仍待完成。
 
 出包前审查发现私钥路径可能进入产物、同一验收用例重启时证据文件冲突，以及校验器错误限制外部输出目录三项问题。均先保留真实 RED，再修复验证：证据隔离11/11、私钥位置10/10、外部输出5/5；`Builds/Tests/D1/Fix2-Green-20261029T172431923Z` 为54/54、零失败/跳过、Unity退出0，源码前后哈希一致。限定复审已通过；这些Editor/PowerShell结果不代替最终原生主包验证。
 
@@ -85,10 +85,23 @@ D1 的实现与证据目前位于独立工作区 `E:/sgame/.worktrees/client-scr
 
 第二次Windows CLI构建完整Succeeded，实际输出为 `E:/sgame/Builds/D1Final/Build_20261029T191420650Z_f20e1fa0dc9e`，PlayerBuildId为 `8836fa139c884865a1e510f11f647f5f`；原始归档、严格兼容检查和源设置恢复通过。但该Player首次运行在版本选择前的身份检查失败，未到Ready。这些旧产物保持原始身份，不作为修后AOT的运行结果。
 
-实际失败推动两项AOT修正：Win32独立程序按真实平台、Unity版本和目标位宽核对原生身份，记录实际applicationId和独立profilePackageId，Android仍严格核对OS包名；输入观测改为支持当前UILogin的真实uGUI InputField。修后 `28fd6f7` 的23/23定向回归及窄审通过，原签名、完整Player身份、元数据和七引用门禁保持。Android设备级重连及目标包未安装预检已完成，尚未安装或运行通过。
+实际失败推动两项AOT修正：Win32独立程序按真实平台、Unity版本和目标位宽核对原生身份，记录实际applicationId和独立profilePackageId，Android仍严格核对OS包名；输入观测改为支持当前UILogin的真实uGUI InputField。修后 `28fd6f7` 的23/23定向回归及窄审通过，原签名、完整Player身份、元数据和七引用门禁保持。当时Android仅完成设备级重连与目标包未安装预检；后续真实构建和运行结果见下。
 
 修后Windows原始PlayerBuildId为 `02014a45a75b4bfd8befc56ff30ddbd1`，输出 `E:/sgame/Builds/D1Final/Build_20261029T194327321Z_980e5b83b8ff`。其V1实际Ready；独立V2 Patch显式使用该原归档，输出 `Build_20261029T194927754Z_2cd84002d268`，7个固定引用逐项相等，59份原始metadata与Patch实际文件SHA全部相等。V1无AddedMessage/Parser，V2包含并实际执行集合、map、未知字段、uint64、热泛型及空Registry探针，随后Ready。两运行的原生文件清单保持一致。
 
 Windows实际记录在 `Builds/Tests/D1/WindowsRuntime-d1-20261029T194739006-v1` 与 `WindowsRuntime-d1-20261029T195041888-v2`：PID97160/6036均退出0，59条metadata加载记录各全部OK；物理client720×1280、可调整窗口、DPI144，观察线程使用PER_MONITOR_AWARE_V2。实际720×1280截图中的CJK、本地模拟与Framework v1/v2标记可读。这些是Windows里程碑，不代表D2完整故障、强杀、UI/IME或真实Tok综合矩阵已经通过。
 
 新增测试proto已迁到共享comm提交 `93faaa1` 的 `proto/tests/fixtures/delivery`。客户端只保留生成C#与来源记录；缺源/变源负例拒绝、重新生成字节一致和补充编译已核实。用户原有README删除保持未暂存。整体仍为18/21个Task完成，D1、D2、D3继续推进。
+## 2026-10-31 Android D1 原生里程碑
+
+冻结源码仍为 `28fd6f727b71e8fe23fb5fc4f0abafd151c2ce02`。Android CLI Player与独立V2 Patch均实际退出0，源码恢复检查通过。主包输出 `E:/sgame/Builds/D1Final/Build_20261031T060414131Z_392b04008e61`，PlayerBuildId为 `1368af463434440cb6f1db4e41c9db5e`；补丁输出 `Build_20261031T060936043Z_49c42661837e`，显式使用原始Archive。7个固定编译引用及48份原始AOT元数据已逐文件重算SHA，与补丁完全相等。
+
+雷电实例0、Android14、设备 `emulator-5554` 上首次安装该测试包，安装前包不存在。实际APK只有ARM64原生库，ELF机器头均为AArch64；包名、INTERNET权限与签名校验通过。同一APK上V1 PID2173、V2 PID2408均实际Ready，48条metadata记录各全部OK、一个资源根、两个热程序集、无启动失败。V2实际执行 `AddedMessage list,map,unknown-fields,uint64,hot-generics,empty-registry` 并显示 `Framework v2`；1440×2560原始截图中的CJK登录界面可读。
+
+原始运行记录位于 `Builds/Tests/D1/AndroidRuntime-d1a-20261031T061700247-v1` 和 `AndroidRuntime-d1a-20261031T061753610-v2`。两个实际PID的ActivityManager记录均为 `mRequiredAbi=arm64-v8a instructionSet=arm64`，包路径与安装APK对应；设备主ABI为x86_64、native bridge为libhoudini.so。安装后实际APK SHA为 `91fbc820a3550fe6f8aded9b68d7c1de16801265c3a260ab335ad071408eec65`，与原产物一致，安装次数为1。真实ARM硬件与iOS仍未测。
+
+首次观察脚本因受限的 `/proc/PID/exe` 读取提前停止PID2078；该次没有产生原生启动事件，不计通过，原始失败记录保留。后续保留exe/maps权限失败，采用同PID系统进程记录核对ABI，没有修改应用或放宽Ready条件。V1/V2测试进程均在核对PID与内核启动时间后停止；拥有的回环服务器正常退出，仅移除本次ADB反向映射。以上属于D1里程碑，不能替代D2完整设备矩阵。
+
+## D2 检测工具检查点
+
+独立工作区 `client-release-verifier` 已提交准备检查点 `40757ddf3fd36b3a6cec0a7c1fbb80727baaa400`。本次完整运行7个工具套件：153判定器、15文件/机器头、11采集器、12进程所有权/执行门禁、11部分传输、4Throw fixture来源及34项原F8判定，共240项通过；14个修改脚本语法检查通过。证据位于 `Builds/Tests/D2/Resume-20261031T060220056Z-51f32ad7`。这些是工具测试，所有D2实际用例仍为NotRun，原生执行门禁未移除。整体仍为18/21，D1–D3未宣称完成。
