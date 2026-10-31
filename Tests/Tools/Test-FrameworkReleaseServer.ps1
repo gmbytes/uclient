@@ -29,6 +29,23 @@ Check 'owned qualification server reaches readiness and stops through its contro
     }
     Require ($result.succeeded -and -not $result.nativeAcceptance) 'Server qualification changed acceptance scope.'
 }
+Check 'localhost native endpoint binds the explicit loopback listener' {
+    $published=Join-Path $root 'localhost-input';[IO.Directory]::CreateDirectory((Join-Path $published 'Release'))|Out-Null
+    [IO.File]::WriteAllText((Join-Path $published 'Release/channel.json'),'localhost-public-response')
+    $result=Invoke-FrameworkNativeQualification -Platform Windows64 -RunId serverqual -PlayerArchive $f.archive -BuildResult $f.result -RuntimePlayerRoot (Join-Path $f.archive 'Player') -OutputDirectory (Join-Path $root 'qualification-localhost') -Body {
+        param($context)
+        $context.updateEndpoint='http://localhost:'+ $port + '/';$context.releaseRoot=$published;$context.chunkDelayMilliseconds=0
+        $exe=(Get-Command pwsh).Source;$script=Join-Path $project 'Tool/Client/Serve-FrameworkReleases.ps1';$server=$null;$client=$null
+        try{
+            $server=Start-FrameworkReleaseServer @{file=$exe;fileSha256=(Get-FrameworkFileHash $exe);script=$script;scriptSha256=(Get-FrameworkFileHash $script)} $context (Join-Path $root 'server-localhost')
+            [IO.File]::WriteAllText((Join-Path $server.outputDirectory 'active-release.txt'),'Release')
+            $handler=[Net.Http.HttpClientHandler]::new();$handler.UseProxy=$false;$client=[Net.Http.HttpClient]::new($handler);$client.Timeout=[TimeSpan]::FromSeconds(5)
+            $text=$client.GetStringAsync($context.updateEndpoint+'channel.json').GetAwaiter().GetResult()
+            Require ($text -ceq 'localhost-public-response') 'Native localhost URL did not reach the loopback service.'
+        }finally{if($client){$client.Dispose()};if($server -and -not $server.handle.HasExited){Stop-FrameworkReleaseServer $server}}
+    }
+    Require ($result.succeeded -and -not $result.nativeAcceptance) 'Localhost service qualification claimed acceptance.'
+}
 foreach($scenario in @('missing','scope','endpoint','scriptSha256','ownerStartTime')){
     Check "child server rejects invalid handoff $scenario before listening" {
         $result=Invoke-FrameworkNativeQualification -Platform Windows64 -RunId serverqual -PlayerArchive $f.archive -BuildResult $f.result -RuntimePlayerRoot (Join-Path $f.archive 'Player') -OutputDirectory (Join-Path $root ('qualification-'+$scenario)) -Body {

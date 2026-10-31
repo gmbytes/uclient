@@ -10,11 +10,14 @@ $ErrorActionPreference='Stop'
 . "$PSScriptRoot/Framework-TransferPolicy.ps1"
 Require-FrameworkFact (-not [string]::IsNullOrWhiteSpace($OwnerReceipt)) 'E_PREPARATION_GATE' 'An explicit owned qualification handoff is required.'
 $receipt=Read-FrameworkJson $OwnerReceipt
-Assert-FrameworkFields $receipt @('schemaVersion','scope','ownerProcess','platform','runId','deviceId','playerArchive','buildResult','runtimePlayerRoot','releaseRoot','controlRoot','endpoint','script','scriptSha256')
+Assert-FrameworkFields $receipt @('schemaVersion','scope','ownerProcess','platform','runId','deviceId','playerArchive','buildResult','runtimePlayerRoot','releaseRoot','controlRoot','endpoint','listenAddress','script','scriptSha256')
+$nativeEndpoint=[Uri]$receipt.endpoint
+$expectedListenAddress=if($nativeEndpoint.Host -ceq 'localhost'){'127.0.0.1'}else{$nativeEndpoint.Host}
 Require-FrameworkFact ($receipt.schemaVersion -eq 1 -and $receipt.scope -ceq 'QualificationOnly' -and
     [IO.Path]::GetFullPath($OwnerReceipt) -ceq [IO.Path]::GetFullPath((Join-Path $ControlRoot 'server-owner.json')) -and
     [IO.Path]::GetFullPath($ReleaseRoot) -ceq $receipt.releaseRoot -and [IO.Path]::GetFullPath($ControlRoot) -ceq $receipt.controlRoot -and
-    ('http://'+$ListenAddress+':'+$Port+'/') -ceq $receipt.endpoint -and [IO.Path]::GetFullPath($PSCommandPath) -ceq $receipt.script -and
+    $nativeEndpoint.IsLoopback -and $nativeEndpoint.Scheme -ceq 'http' -and $nativeEndpoint.Port -eq $Port -and
+    $receipt.listenAddress -ceq $ListenAddress -and $expectedListenAddress -ceq $ListenAddress -and [IO.Path]::GetFullPath($PSCommandPath) -ceq $receipt.script -and
     (Get-FrameworkFileHash $PSCommandPath) -ceq $receipt.scriptSha256) 'E_SERVER_HANDOFF' 'Server arguments or script differ from the owned qualification handoff.'
 $ownerProcess=[Diagnostics.Process]::GetProcessById($receipt.ownerProcess.processId)
 $observedOwner=$receipt.ownerProcess.Clone();$observedOwner.processId=$ownerProcess.Id;$observedOwner.startedUtc=$ownerProcess.StartTime.ToUniversalTime().ToString('o');$observedOwner.executable=$ownerProcess.MainModule.FileName;$observedOwner.executableSha256=Get-FrameworkFileHash $observedOwner.executable

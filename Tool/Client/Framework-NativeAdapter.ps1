@@ -124,6 +124,7 @@ function Start-FrameworkReleaseServer($Command,$Context,[string]$OutputDirectory
     Assert-FrameworkEffectsReleased
     $endpoint=[Uri]$Context.updateEndpoint
     Require-FrameworkFact ($endpoint.IsLoopback -and $endpoint.Scheme -ceq 'http' -and $endpoint.Port -ge 1024 -and $Command.fileSha256 -cmatch '^[a-f0-9]{64}$' -and (Get-FrameworkFileHash $Command.file) -ceq $Command.fileSha256 -and (Get-FrameworkFileHash $Command.script) -ceq $Command.scriptSha256) 'E_SERVER_RECEIPT' 'Owned update server tool/script and fixed loopback endpoint must match their receipts.'
+    $listenAddress=if($endpoint.Host -ceq 'localhost'){'127.0.0.1'}else{$endpoint.Host}
     $control=New-FrameworkOutputDirectory $OutputDirectory
     $lease=(Get-Variable FrameworkNativeQualification -Scope Script).Value
     $owner=[Diagnostics.Process]::GetCurrentProcess()
@@ -132,9 +133,9 @@ function Start-FrameworkReleaseServer($Command,$Context,[string]$OutputDirectory
     Write-FrameworkJsonNew $ownerPath @{schemaVersion=1;scope='QualificationOnly';ownerProcess=$ownerRecord;
         platform=$Context.platform;runId=$Context.runId;deviceId=$Context.deviceId;playerArchive=$lease.playerArchive;buildResult=$lease.buildResult;
         runtimePlayerRoot=$lease.binding.runtimePlayerRoot;releaseRoot=[IO.Path]::GetFullPath($Context.releaseRoot);controlRoot=$control;
-        endpoint=$Context.updateEndpoint;script=[IO.Path]::GetFullPath($Command.script);scriptSha256=$Command.scriptSha256}
+        endpoint=$Context.updateEndpoint;listenAddress=$listenAddress;script=[IO.Path]::GetFullPath($Command.script);scriptSha256=$Command.scriptSha256}
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$Command.file;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
-    foreach($argument in @('-NoProfile','-File',$Command.script,'-ReleaseRoot',$Context.releaseRoot,'-ControlRoot',$control,'-ListenAddress',$endpoint.Host,'-Port',[string]$endpoint.Port,'-ChunkDelayMilliseconds',[string]$Context.chunkDelayMilliseconds,'-OwnerReceipt',$ownerPath)){$start.ArgumentList.Add($argument)}
+    foreach($argument in @('-NoProfile','-File',$Command.script,'-ReleaseRoot',$Context.releaseRoot,'-ControlRoot',$control,'-ListenAddress',$listenAddress,'-Port',[string]$endpoint.Port,'-ChunkDelayMilliseconds',[string]$Context.chunkDelayMilliseconds,'-OwnerReceipt',$ownerPath)){$start.ArgumentList.Add($argument)}
     $process=[Diagnostics.Process]::Start($start);$record=@{processId=$process.Id;startedUtc=$process.StartTime.ToUniversalTime().ToString('o');executable=$null;executableSha256=$Command.fileSha256;binarySha256=$Command.fileSha256;kind='ReleaseServer';runId=$Context.runId;caseId='update-server';playerBuildId=$Context.playerBuildId;scriptSha256=$Command.scriptSha256;releaseRoot=$Context.releaseRoot;controlRoot=$control;endpoint=$Context.updateEndpoint}
     $stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync();$clock=[Diagnostics.Stopwatch]::StartNew()
     Write-FrameworkJsonNew (Join-Path $control 'server-start.json') @{processId=$process.Id;startedUtc=$record.startedUtc;intendedExecutable=$Command.file;arguments=@($start.ArgumentList)}
