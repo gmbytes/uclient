@@ -407,7 +407,7 @@ function Invoke-FrameworkReceiptCommand($Command,[string]$OutputDirectory,[Valid
 }
 function Invoke-FrameworkAdb($Tool,[string]$DeviceId,[string[]]$Arguments,[string]$OutputFile) {
     Assert-FrameworkEffectsReleased
-    Require-FrameworkFact ($DeviceId -cmatch '^[A-Za-z0-9_.:-]+$' -and $Arguments.Count -gt 0 -and $Arguments[0] -cin @('get-state','shell','exec-out','pull','install','reverse','logcat')) 'E_ADB_SCOPE' 'An explicit selected device and supported task operation are required.'
+    Require-FrameworkFact ($DeviceId -cmatch '^[A-Za-z0-9_.:-]+$' -and $Arguments.Count -gt 0 -and $Arguments[0] -cin @('get-state','shell','exec-out','pull','install','uninstall','reverse','logcat')) 'E_ADB_SCOPE' 'An explicit selected device and supported task operation are required.'
     $command=@{file=$Tool.file;sha256=$Tool.sha256;arguments=(@('-s',$DeviceId)+$Arguments)}
     # stdout stays binary so APK/native captures and screenshots are never decoded and re-encoded.
     return Invoke-FrameworkReceiptCommand $command $OutputFile
@@ -493,6 +493,46 @@ function Install-FrameworkAndroidPackage($Tool,$Context,[string]$ApkPath,[string
     $receipt=@{deviceId=$Context.deviceId;applicationId=$Context.profilePackageId;playerBuildId=$Context.playerBuildId;clean=$true;count=1;apkSha256=$after.apkSha256;before=$before;install=$install;after=$after}
     Write-FrameworkJsonNew (Join-Path $output 'install-receipt.json') $receipt
     return $receipt
+}
+function Assert-FrameworkAndroidInitialInstall($Context,$Installed) {
+    Require-FrameworkFact ($Context.scope -ceq 'NativeExecution' -and $Context.platform -ceq 'Android' -and
+        $Context.installationPhase -ceq 'BeforeBaseline' -and (Test-FrameworkInteger $Context.completedRequiredCases) -and $Context.completedRequiredCases -eq 0 -and
+        $Context.initialInstallConsumed -is [bool] -and $Context.initialInstallConsumed -eq $false -and
+        $Installed.deviceId -ceq $Context.deviceId -and $Installed.applicationId -ceq $Context.profilePackageId -and $Installed.present -is [bool]) 'E_ANDROID_INITIAL_PHASE' 'Only the current released original package before the first required case may be prepared.'
+    if($Installed.present){Require-FrameworkFact ($Context.archiveNative['Client.apk'] -cmatch '^[a-f0-9]{64}$' -and $Installed.apkSha256 -ceq $Context.archiveNative['Client.apk']) 'E_ANDROID_INITIAL_OWNER' 'An existing package may be removed only when it is exactly this task-owned original APK.'}
+}
+function Prepare-FrameworkAndroidBaseline($Tool,$Context,[string]$ApkPath,[string]$OutputDirectory) {
+    Assert-FrameworkEffectsReleased
+    Require-FrameworkFact ($Context.scope -ceq 'NativeExecution' -and $Context.installationPhase -ceq 'BeforeBaseline' -and $Context.completedRequiredCases -eq 0 -and $Context.initialInstallConsumed -eq $false -and (Get-FrameworkFileHash $ApkPath) -ceq $Context.archiveNative['Client.apk']) 'E_ANDROID_INITIAL_PHASE' 'Initial preparation requires the original APK and a released before-baseline context.'
+    $output=New-FrameworkOutputDirectory $OutputDirectory
+    $installed=Get-FrameworkInstalledAndroidPackage $Tool $Context (Join-Path $output 'prior-package')
+    Assert-FrameworkAndroidInitialInstall $Context $installed
+    $backup=$null;$removal=$null
+    if($installed.present){
+        $prior=Invoke-FrameworkAdb $Tool $Context.deviceId @('shell','pidof',$Context.profilePackageId) (Join-Path $output 'prior-process')
+        Require-FrameworkFact ($prior.exitCode -in @(0,1) -and [string]::IsNullOrWhiteSpace((Read-FrameworkUtf8 (Join-Path $prior.outputDirectory 'stdout.bin') 256))) 'E_ANDROID_INITIAL_RUNNING' 'Do not replace an existing running application process.'
+        $remote='/sdcard/Android/data/'+$Context.profilePackageId+'/files'
+        $data=Invoke-FrameworkAdb $Tool $Context.deviceId @('pull',$remote,(Join-Path $output 'prior-app-files')) (Join-Path $output 'backup-command')
+        Require-FrameworkFact ($data.exitCode -eq 0) 'E_ANDROID_INITIAL_BACKUP' 'Runtime files must be captured before removing the existing task package.'
+        $inventory=Get-FrameworkInventory (Join-Path $output 'prior-app-files')
+        Require-FrameworkFact ($inventory.Count -gt 0) 'E_ANDROID_INITIAL_BACKUP' 'Existing runtime-file backup is empty.'
+        Write-FrameworkJsonNew (Join-Path $output 'prior-app-inventory.json') $inventory
+        $backup=@{runtimeFiles='prior-app-files';inventory=@{path='prior-app-inventory.json';sha256=(Get-FrameworkFileHash (Join-Path $output 'prior-app-inventory.json'))};apkCapture=$installed.capture}
+        # 备份耗时期间重新核对安装包和进程；此入口只用于首个必测用例之前。
+        $current=Get-FrameworkInstalledAndroidPackage $Tool $Context (Join-Path $output 'before-removal-package');Assert-FrameworkAndroidInitialInstall $Context $current
+        Require-FrameworkFact $current.present 'E_ANDROID_INITIAL_OWNER' 'The verified original package disappeared during backup.'
+        $pidCheck=Invoke-FrameworkAdb $Tool $Context.deviceId @('shell','pidof',$Context.profilePackageId) (Join-Path $output 'before-removal-process')
+        Require-FrameworkFact ($pidCheck.exitCode -in @(0,1) -and [string]::IsNullOrWhiteSpace((Read-FrameworkUtf8 (Join-Path $pidCheck.outputDirectory 'stdout.bin') 256))) 'E_ANDROID_INITIAL_RUNNING' 'Application started during the backup; do not remove it.'
+        $Context.initialInstallConsumed=$true
+        Write-FrameworkJsonNew (Join-Path $output 'initial-boundary.json') @{runId=$Context.runId;deviceId=$Context.deviceId;applicationId=$Context.profilePackageId;playerBuildId=$Context.playerBuildId;completedRequiredCases=0;backup=$backup;utc=[DateTime]::UtcNow.ToString('o')}
+        $removal=Invoke-FrameworkAdb $Tool $Context.deviceId @('uninstall',$Context.profilePackageId) (Join-Path $output 'remove-prior-owned-package')
+        Require-FrameworkFact ($removal.exitCode -eq 0) 'E_ANDROID_INITIAL_REMOVE' 'Verified task package removal failed.'
+    }else{$Context.initialInstallConsumed=$true}
+    $install=Install-FrameworkAndroidPackage $Tool $Context $ApkPath (Join-Path $output 'clean-install')
+    $Context.installedApkSha256=$install.apkSha256;$Context.installReceiptSha256=Get-FrameworkFileHash (Join-Path $output 'clean-install/install-receipt.json')
+    $Context.installationPhase='MatrixRunning'
+    $record=@{runId=$Context.runId;deviceId=$Context.deviceId;applicationId=$Context.profilePackageId;playerBuildId=$Context.playerBuildId;clean=$true;count=1;backup=$backup;priorPackage=$installed;removal=$removal;install=$install;nativeAcceptance=$false}
+    Write-FrameworkJsonNew (Join-Path $output 'initial-install.json') $record;return $record
 }
 function Stop-FrameworkAndroidAttempt($Tool,$Owned,$Checkpoint,[string]$OutputDirectory,$Context) {
     Assert-FrameworkEffectsReleased
