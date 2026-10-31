@@ -229,3 +229,21 @@ Network-interruption candidate `q9834ddaf58d84184a53e79a416e9ac99`: PID15454/att
 Original holding.json/terminal.json, native progress, completion/process/slot captures, fault/server/transfer records and screenshots are retained. Strict original assertions were independently replayed from raw files in `independent-criterion-replay.json`. Progress is15/31 Android cases with installCount1; the full aggregate remains incomplete. Service45948 exited0, the owned reverse was removed, app processes ended and the original APK hash was rechecked unchanged.
 
 Two earlier operator-controller attempts were preserved and not counted: `185709920Z` failed path normalization before candidate launch; `185924063Z` held Game DLL while native cancellation first triggered on the concurrently downloaded Protocol DLL. The URI/length binding rejected that mismatch. Failed source/capture directories were moved only within verified matrix paths and retained. The corrected controller selected the actual first Protocol transfer for cancellation and ignored unrelated native progress by exact URI/length. No runtime assertion was relaxed and no native code was changed.
+## Six formal Android strong-kill boundaries
+
+Same run/install continued at `stages/strong-kills-20261031T191346493Z`, with a fresh signed V2-derived candidate for each boundary and ordinary signed V1 setup in a separate process. Each primary blocked at its native-generated durable checkpoint; exact run/case/attempt/PID/token and state-write purpose were validated, kernel start ticks/boot ID were reobserved, and only that process was force-stopped. Original event/checkpoint/process/kill/source bytes remain preserved. Recovery used a complete new PID and no payload downloads.
+
+| Boundary | Primary PID | Recovery PID | Recovered release |
+| --- | --- | --- | --- |
+| download.partial | 16806 | 17039 | v1 |
+| rename.before | 17672 | 17906 | v1 |
+| state.replace.before / candidate | 18512 | 18782 | v1 |
+| state.replace.after / candidate | 19430 | 19666 | q0817b64aa10d433b95bed752cf97d454 |
+| trial.persisted | 20363 | 20740 | v1 |
+| hotentry.executing | 21416 | 21807 | v1 |
+
+The download case bound actual Protocol bytes4096/12288 to the owned Holding/Abort service and killed process. The three early preparation/state boundaries loaded zero resource roots/metadata; the entry boundary had exactly one C root/hot set and all48 original metadata images before killing. The last two cases proved durable Attempt=1 before termination and candidate quarantine on the next process.
+
+After candidate state replacement, the complete published candidate was physically captured before recovery. The new process observed Candidate=C/Attempt=0, selected C and reached actual V2-template readiness using only existing bytes (metadata-envelope checks downloaded, no DLL/Bundle payload repair). Other cases recovered K. Complete old K/P payloads were preserved; the preservation snapshot follows the original references dynamically, including the C release that became previous-good after this allowed recovery.
+
+All six original strict kill assertions passed and were independently replayed from saved files in `independent-criterion-replay.json`. Matrix progress is21/31 Android required cases, installation count1; the aggregate remains incomplete. All18 setup/primary/recovery processes ended, server21952 exited0, owned18765 reverse removed and original installed APK97121e79... rechecked unchanged. Throw, session/UI, Windows34 cases and complete bundle/environment/evaluator integration remain pending.
