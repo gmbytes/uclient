@@ -157,6 +157,11 @@ namespace Client.Bootstrap
             if (coordinator == null || !coordinator.IsReady) return;
             if (m_UpdateUI != null) m_UpdateUI.gameObject.SetActive(false);
         }
+        internal void ShowNativeSetupFailure()
+        {
+            if (destroyed || m_UpdateUI == null) return;
+            m_UpdateUI.ShowFailure("Startup setup failed. Please exit.", false);
+        }
         private void OnReleaseChanged(ReleaseDiagnostics value)
         {
             if (destroyed || m_UpdateUI == null) return;

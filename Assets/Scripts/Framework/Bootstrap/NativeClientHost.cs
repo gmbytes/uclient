@@ -81,6 +81,7 @@ namespace Client.Bootstrap
             catch(Exception error)
             {
                 Debug.LogException(error);evidence?.Record("host.failure",new {error=Bounded(error.ToString())});completed=true;
+                (host??GetComponent<ClientBootstrap>())?.ShowNativeSetupFailure();
                 if(options?.AutoExit==true)StartCoroutine(FinishAcceptance());
             }
         }
