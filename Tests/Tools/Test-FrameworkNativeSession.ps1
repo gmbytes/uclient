@@ -46,6 +46,20 @@ Check 'unbounded run identifiers reject before output' {
     $f=Fixture 'bad-run';$caught=$false;try{Invoke-FrameworkNativeQualification -Platform Windows64 -RunId '../foreign' -PlayerArchive $f.archive -BuildResult $f.result -RuntimePlayerRoot (Join-Path $f.archive 'Player') -OutputDirectory (Join-Path $root 'bad-run-output') -Body {throw 'Must not execute'}}catch [IO.InvalidDataException]{$caught=$true}
     Require ($caught -and -not(Test-Path (Join-Path $root 'bad-run-output'))) 'Invalid run entered native scope.'
 }
+Check 'owned helper closes binary capture before hashing its receipt' {
+    $f=Fixture 'helper';$r=Run $f 'helper-run' {
+        param($context)
+        $exe=(Get-Command pwsh).Source
+        $command=@{file=$exe;sha256=(Get-FrameworkFileHash $exe);arguments=@('-NoProfile','-Command','[Console]::OpenStandardOutput().Write([byte[]](0,1,2,255),0,4);[Console]::Error.Write("diagnostic");exit 0')}
+        $receipt=Invoke-FrameworkReceiptCommand $command (Join-Path $root 'helper-output')
+        Require ($receipt.terminal -eq $true -and $receipt.exitCode -eq 0) 'Owned helper is not terminal/successful.'
+        $stdout=Join-Path $receipt.outputDirectory 'stdout.bin';$stderr=Join-Path $receipt.outputDirectory 'stderr.log'
+        Require (([BitConverter]::ToString([IO.File]::ReadAllBytes($stdout))) -ceq '00-01-02-FF') 'Binary output was decoded or truncated.'
+        Require ((Get-FrameworkFileHash $stdout) -ceq $receipt.stdout.sha256 -and [IO.File]::ReadAllText($stderr) -ceq 'diagnostic') 'Closed capture receipt does not match actual bytes.'
+        return @{processId=$receipt.processId;terminal=$receipt.terminal}
+    }
+    Require ($r.succeeded -and -not $r.nativeAcceptance -and (IsBlocked)) 'Helper qualification leaked native acceptance or an open gate.'
+}
 $failed=@($records|Where-Object passed -eq $false)
 Write-FrameworkJsonNew (Join-Path $root 'test-result.json') @{evidenceKind='SyntheticUnit';nativeAcceptance=$false;passed=($failed.Count -eq 0);count=$records.Count;cases=$records}
 Write-Host "D2_SESSION_RECEIPT $root"

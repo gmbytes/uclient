@@ -278,6 +278,8 @@ function Invoke-FrameworkReceiptCommand($Command,[string]$OutputDirectory,[Valid
             $process.Kill();$process.WaitForExit();throw [IO.InvalidDataException]::new('E_TOOL_TIMEOUT: Owned helper timed out.')
         }
         $null=$stdout.GetAwaiter().GetResult();$stream.Flush($true)
+        # Windows 的文件共享规则要求先结束写句柄，再用独立读句柄计算完整捕获文件的哈希。
+        $stream.Dispose()
         [IO.File]::WriteAllText((Join-Path $output 'stderr.log'),$stderr.Result)
         $result=@{file=$Command.file;sha256=$Command.sha256;arguments=$Command.arguments;outputDirectory=$output;processId=$process.Id;startedUtc=$started;finishedUtc=[DateTime]::UtcNow.ToString('o');terminal=$process.HasExited;exitCode=$process.ExitCode;stdout=@{path='stdout.bin';sha256=(Get-FrameworkFileHash (Join-Path $output 'stdout.bin'))};stderr=@{path='stderr.log';sha256=(Get-FrameworkFileHash (Join-Path $output 'stderr.log'))}}
         Write-FrameworkJsonNew (Join-Path $output 'command-result.json') $result

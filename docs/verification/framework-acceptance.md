@@ -4,6 +4,12 @@ This checkpoint prepares file-based evaluation and command construction. It is *
 
 The initial source base was `7ba8acd1167d4401c7a0357e47354b7d6fb949f9`. After the first two preparation checkpoints, the controller merged approved producer `28fd6f727b71e8fe23fb5fc4f0abafd151c2ce02` as `7123f0599fe4222593da318e3f8384b5217a99a4`. It includes canonical View GameObject IDs, actual UGUI InputField observations, and platform-specific native identity guards. Third preparation continues from this exact base. Final D1 archive approval and explicit controller execution release remain prerequisites.
 
+The current preparation branch also contains main `911ba5f` through merge `7125ca2`, including the GF callback/destruction fixes. The native qualification scope added in `abe2015` is separate from acceptance: `Invoke-FrameworkNativeQualification` verifies the selected archive/result and every runnable native file, opens effects only during its synchronous body, closes them on success or exception, and rechecks original archive/native bytes before writing `qualification-result.json`. Its result always has `nativeAcceptance=false`; nested scopes and mutated run bindings reject. `Verify-Framework.ps1` and collector acceptance remain closed.
+
+The first actual Android read qualification exposed a Windows capture-handle bug. A real pinned helper regression reproduced it; the output stream now closes before its SHA256 is computed, preserving binary stdout without decoding. The complete tool suite is 249 checks (153 evaluator,15 IO,11 collector,12 ownership,11 transfer,4 throw provenance,34 F8 evaluator,9 qualification). This count is tool verification, not executed matrix cases.
+
+Actual Android read qualification is preserved at `Builds/Tests/D2/NativeQualification-Android-20261031T160221099Z`: selected device online, installed APK bytes captured through the receipt-based adapter, SHA256 equal to original Player `31a7aaaf1c0f45a49d82eed7eb0047da`, and original native/archive bytes unchanged. It did not install, clear data, launch a Player, change a channel or run a required D2 case. Player start/stop, checkpoint, held-transfer, UI and session adapters still require their own actual qualification.
+
 ## Invocation
 
 ```powershell
