@@ -10,6 +10,19 @@ Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，�
 
 UGF 源码完整快照和 HybridCLR 嵌入 UPM 包已入库，官方 Unity 包由 UPM 按 `Packages/packages-lock.json` 解析；来源、版本及二进制 hash 见 `docs/dependencies.lock.json`。Protobuf运行库及生成物已按N1共享锁交付，协议源统一在`../comm/proto`。不需要旧客户端Assets、Addressables或Lua。
 
+共享 C# 工具还需要 .NET 8 SDK、PowerShell 7，并能访问 NuGet 与锁定的 protoc 官方下载地址。`client` 与 `comm` 作为相邻目录检出后，在 `client` 根目录执行：
+
+```powershell
+$clientRoot = (Get-Location).Path
+$env:SGAME_COMM_ROOT = [IO.Path]::GetFullPath('../comm')
+$protoRoot = Join-Path $env:SGAME_COMM_ROOT 'proto'
+& "$env:SGAME_COMM_ROOT/tools/Dependencies/Restore-Dependencies.ps1" -ClientRoot $clientRoot
+& "$env:SGAME_COMM_ROOT/tools/Generate-Protocol.ps1" -ClientRoot $clientRoot -Target CSharp -ProtoRoot $protoRoot -ProtocolLock (Join-Path $protoRoot 'protocol.lock.json') -ClientMessages (Join-Path $protoRoot 'client-messages.json') -Output (Join-Path $clientRoot 'Builds/Protocol/Empty')
+dotnet run --project "$env:SGAME_COMM_ROOT/tools/ProtocolGen/ProtocolGen.csproj" "-p:SGameClientRoot=$clientRoot" --no-restore -- --client-root $clientRoot --proto-root $protoRoot --protocol-lock (Join-Path $protoRoot 'protocol.lock.json') --envelope-output (Join-Path $clientRoot 'Builds/Protocol/Envelope')
+dotnet test "$env:SGAME_COMM_ROOT/tools/ProtocolGen.Tests/ProtocolGen.Tests.csproj" "-p:SGameClientRoot=$clientRoot" -p:RestoreLockedMode=true --filter 'CSharpTargetTests|EnvelopeLockTests'
+```
+
+上述生成命令输出到忽略的 `Builds/Protocol`，用于核对已入库的空业务 Registry 与固定信封，不会向 `Game` 添加业务协议。生成器详细约束见 `comm/tools/ProtocolGen/README.md`。2026-11-01 的独立 checkout 已复现依赖恢复、协议契约24项和生成器28项测试，两个生成 C# 文件与入库字节相同；Unity测试、构建和启动复现仍待完成，不能据此宣称D3完成。
 首次使用 HybridCLR 时，按依赖锁的 runtime 和 il2cpp_plus 精确提交准备源码：以 il2cpp_plus 的 `libil2cpp` 目录为根，将 runtime 仓库的 `hybridclr` 子目录放入该根目录。调用编辑器方法 `Client.Editor.Build.ProjectSetup.InstallHybridCLR` 并传入 `-hybridclrSource <libil2cpp目录>`，例如：
 
 ```powershell
