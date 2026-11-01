@@ -1,5 +1,11 @@
 # 全 C# 竖屏客户端框架 Implementation Plan
 
+
+## 2026-11-01 首期验收范围修订（用户明确要求）
+
+显示验收仅保留竖屏720×1280、1080×1920；横屏、旋转、其他分辨率及依赖额外尺寸的专项移出首期。真实登录服务器验证不做，保留会话接口、Protobuf契约和后续接入位置，登录页维持明确的本地演示模式。
+
+热更新启动/校验/故障拒绝/强杀恢复/Throw回退22项在两平台均保持必测。Android另保留两种指定竖屏尺寸与键盘、后台恢复、安全区、竖屏滚动。当前矩阵为Windows24项、Android28项，范围修订号2026-11-01-portrait-interface-only；移出的历史用例保留为ExcludedByUser，不要求改变Windows显示器方向。
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在 `E:/sgame/client` 建立竖屏优先、横竖屏自适配、Protobuf 通信、可发布 C# 代码与资源热更新的 Unity 框架，并以无业务登录页证明完整链路。
