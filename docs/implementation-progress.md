@@ -27,8 +27,8 @@
 | U4 | 已验证并通过独立审查 | 8212d63/43093f8；工具/预览/满屏背景与局部安全区，合并回归通过 |
 | U5 | 已验证并通过独立审查 | c752806/b55dbc1/639f447；完整310/95，主工程9项Edit及16项真实图形集成通过 |
 | D1 | 修后两平台基线复验完成 | 当前Windows0bdb3aa/Android14a355d，D1 70/70、全量413/149、7固定引用/59和48元数据、两平台V1/V2/Parser/槽位/ABI/Throw回退及Android后台恢复资格检测通过；见D1记录 |
-| D2 | 当前Android11/31，完整矩阵进行中 | 工具342项通过；旧源Android24/31、Windows13/34保留历史身份，不能计入当前原生基线；当前Android14a新数据集四条同包基础及七条拒绝场景已通过、安装次数1，原始产物与18份新故障输入已复核，接续故障/强杀验收 |
-| D3 | 文档准备 | 已提供运行时架构、迁移台账与iOS后续清单；干净checkout复现和最终交付审计未完成 |
+| D2 | 当前Android22/31、Windows4/34，完整矩阵进行中 | 工具344/344通过；当前同包故障/六点强杀/Throw回退证据已核对，安装次数各1；安全区首轮因回退后的v1前置不符未计通过，原始记录保留；UI/Tok与最终汇总继续 |
+| D3 | 干净checkout部分复现通过 | 独立副本依赖恢复、协议契约24/24、生成器28/28，两个生成C#文件逐字节一致且client/comm干净；Unity测试、构建、启动与最终审计未完成 |
 
 ## 2026-11-01 D1完成检查点
 
@@ -125,3 +125,7 @@ Windows实际记录在 `Builds/Tests/D1/WindowsRuntime-d1-20261029T194739006-v1`
 ## 2026-11-01 后台编辑状态修复原生资格检测
 
 原生Android PlayerBuildId为14a355dc03454f6aab5b13d077e67650，主包SHA为9104b0f1ecb2674e0e947197a18196f1b50b02588ec1ee6e6e8988315fb2e32b。实际PID19413在不重新点击输入框的情况下，从Home返回同一Activity，原View/Input实例、文本哈希、焦点、光标及选区恢复一致，资格检测通过且原生包/归档不变。证据为E:/sgame/Builds/FocusLifecycleFixedTests/focus-20261031T231724830Z；这是修复资格检测，不冒充完整D2矩阵。最终两平台基线与全部required case仍待完成。
+
+## 2026-11-01 当前基线矩阵与干净复现
+
+Android数据集E:/sgame/Builds/D2/M-20261031T235052073Z已完成22项，六点强杀与Throw阶段执行退出0、nativeUnchanged=true。Windows数据集E:/sgame/Builds/D2/W-20261101T002710348Z四项基础用例通过，执行退出0、nativeUnchanged=true；继续故障阶段。工具完整回归证据在独立工作区Builds/Tests/D2/ToolRegression-20261101T001337080Z（18套344项）。21项采集器证明已按原始字节导出并验证；Android五份旧控制器producer字面量另附哈希绑定更正记录，原始文件未重写。D3局部证据在E:/sgame/Builds/D3/CleanCheckout-20261101T002117166Z/protocol-reproduction.json；NU1900元数据查询警告与首次沙箱失败日志保留。整体仍19/21，D2、D3未完成。
