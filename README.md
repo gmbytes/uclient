@@ -1,8 +1,8 @@
 # C# 客户端框架
 
-> 当前状态：后台编辑态修复后的Windows/Android新基线已完成D1复验（413/149完整回归、D1 70/70、原生同主包V1/V2与Throw回退、Android后台恢复资格检测）。当前产物见D1记录；完整D2矩阵和D3仍未完成，旧基线案例不混入新数据集。
+> 当前状态：D2发现Android原生方向锁定缺陷，已修复构建策略并通过D1 71/71；Android主包/补丁与方向实测重新验收。Windows现有基线继续验证，D2、D3与整个目标尚未完成，历史证据保留。
 
-Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地，F8 同主包热更新与坏版回退已在 Windows 和雷电 ARM64 APK 中通过。D1 统一构建与两平台最终同包V1/V2基线验收已完成；D2 综合矩阵和 D3 干净工程复现仍在实施，当前证据见[实施进度](docs/implementation-progress.md)。
+Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地，F8 同主包热更新与坏版回退已在 Windows 和雷电 ARM64 APK 中通过。D1旧基线曾完成同包V1/V2验收，Android方向修复的新基线正在重验；D2 综合矩阵和 D3 干净工程复现仍在实施，当前证据见[实施进度](docs/implementation-progress.md)。
 
 ## 本地准备
 
