@@ -1,3 +1,17 @@
+# Framework acceptance — final portrait scope
+
+当前状态：D2已完成并通过最终独立审查。范围修订为`2026-11-01-portrait-interface-only`；Windows24/24、Android28/28，正式CLI与独立原始源数据重评均为Pass且errors=[]，两平台均为原安装、原主包。工具22套382/382，源哈希不变。
+
+- Windows当前结果：`E:/sgame/Builds/D2/W-20261101T002710348Z/exports/portrait-acceptance-20261101T063425325Z/final-verification-20261101T150610673Z/framework-result.json`。
+- Android当前结果：`E:/sgame/Builds/D2/P-20261101T064919739Z/exports/portrait-acceptance-20261101T145023706Z/formal-verification/framework-result.json`。
+- 工具结果：`E:/sgame/.worktrees/client-release-verifier/Builds/Tests/D2/ToolRegression-20261101T143029349Z/result.json`。
+- 最终独立审查见[final-review.md](final-review.md)。
+
+仅验收竖屏720×1280、1080×1920；横屏/旋转/其他尺寸和真实登录服务器按用户要求后置，接口保留。IME收起后结束编辑并保留文本；短内容滚动核对固定视口中的一致实际位移。雷电ARM64/Houdini功能验证不代表真实ARM硬件或iOS。
+
+以下按当时状态保留全部历史检查点；其中NotRun、旧数量、旧PlayerBuildId及失败结果不覆盖上述最终结果。
+
+## 历史收尾检查点
 # Framework acceptance — current portrait scope
 
 The explicit user revision is `2026-11-01-portrait-interface-only`: only720x1280 and1080x1920 portrait display targets are required; landscape/rotation/other-size specialties and real login-server validation are excluded by user request. Interfaces and Protobuf contracts remain. All22 hot-update/startup/fault/kill/rollback cases remain required per platform. The required totals are Windows24 and Android28.
