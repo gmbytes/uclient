@@ -156,8 +156,8 @@
 **Interfaces:** README从干净checkout到本地登录页的命令可执行；hotupdate-release文档分别说明新Player、原基线补丁、发布回滚和坏版下进程回退。台账每个旧模块记录Reference/Reimplemented/NotMigrated及理由，不把参考误写成复制完成。
 
 - [ ] **Step 1:** 用干净checkout或隔离工作区照README执行依赖恢复、协议生成、测试、构建与启动；未写的必要个人配置/工具前置导致失败，先补文档再重跑。
-- [ ] **Step 2:** 核对主包和热更边界：原生SDK/引擎/稳定契约/信封改变需要新Player；UI/资源/允许的C#业务改动走补丁。说明不能原地卸载程序集、网络恢复后置和生产安全接入后置。
-- [ ] **Step 3:** iOS清单明确后续需Mac、兼容Unity/HybridCLR、Xcode工具链、签名、ARM64 Player、路径/后台/键盘/安全区、同主包v1→v2、坏补丁回退与分发审核验证；当前状态全部NotRun，不承诺可上架。
+- [x] **Step 2:** 核对主包和热更边界：原生SDK/引擎/稳定契约/信封改变需要新Player；UI/资源/允许的C#业务改动走补丁。说明不能原地卸载程序集、网络恢复后置和生产安全接入后置。
+- [x] **Step 3:** iOS清单明确后续需Mac、兼容Unity/HybridCLR、Xcode工具链、签名、ARM64 Player、路径/后台/键盘/安全区、同主包v1→v2、坏补丁回退与分发审核验证；当前状态全部NotRun，不承诺可上架。
 - [ ] **Step 4:** 按目录规范核对Assets/Scripts、Assets/Tests、生成物与共享工具Include，拒绝旧自研Package根残留或扫描零文件；搜索Framework/Game中UnityEditor、Windows路径、Lua/XLua引用，按实际条件编译检查；整合D2证据链接和已知限制。满足M0–M4才更新首期完成声明。
 - [ ] **Step 5:** 提交 `docs(client): 记录框架交付与后续平台边界`。
 
