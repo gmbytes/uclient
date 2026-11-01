@@ -27,7 +27,7 @@ Check 'required cases cannot disappear' {
     if(-not(Get-Command Get-FrameworkAcceptance -ErrorAction SilentlyContinue)){throw 'Required cases have no evaluator.'}
     $r=Get-FrameworkAcceptance @{runId='unit';platform='Windows64';cases=@()}
     Require (-not $r.criteriaAccepted) 'No cases was accepted.'
-    Require (@($r.cases|Where-Object status -eq NotRun).Count -ge 34) 'Missing required cases must be explicit NotRun.'
+    Require (@($r.cases|Where-Object status -eq NotRun).Count -ge 24) 'Missing required cases must be explicit NotRun.'
 }
 Check 'complete native-shaped unit attempt validates' {Assert-FrameworkAttempt (New-FrameworkFixtureAttempt) (New-FrameworkFixtureContext) 'update-v2'}
 $attemptNegatives=[ordered]@{
@@ -149,7 +149,7 @@ Check 'aggregate evaluates executed cases and preserves all missing cases' {
     $e=New-FrameworkFixtureContext;$a=New-FrameworkFixtureAttempt 'restart-v2';$e.cases=@(@{id='restart-v2';executed=$true;attempts=@($a)})
     $r=Get-FrameworkAcceptance $e
     Require (@($r.cases|Where-Object {$_.caseId -eq 'restart-v2' -and $_.status -eq 'Fail'}).Count -eq 1) 'Missing prior-process correlation must fail an executed restart case.'
-    Require (-not $r.passed -and @($r.cases|Where-Object status -eq NotRun).Count -eq 33) 'Unexecuted required cases must stay NotRun.'
+    Require (-not $r.passed -and @($r.cases|Where-Object status -eq NotRun).Count -eq 23) 'Unexecuted required cases must stay NotRun.'
 }
 Check 'declared Pass without execution remains NotRun' {
     $e=New-FrameworkFixtureContext;$e.cases=@(@{id='update-v2';status='Pass';executed=$false});$r=Get-FrameworkAcceptance $e
@@ -196,14 +196,14 @@ $actionNegatives=@(
     @{action='window-drag';name='lost input';mutate={param($c)($c.attempts[0].events|Where-Object kind -eq 'ui.stable').data.snapshot.input.textSha256='0'*64}}
 )
 foreach($negative in $actionNegatives){Check ("native UI rejects "+$negative.name) {$c=New-FrameworkFixtureUi $negative.action;&$negative.mutate $c;$rejected=$false;try{Assert-FrameworkUi $c @{action=$negative.action}}catch [IO.InvalidDataException]{$rejected=$true};Require $rejected 'Invalid native action evidence was accepted.'}}
-foreach($outcome in @('Rejected','Disconnected')){Check "native Tok $outcome preserves patch health" {$pair=New-FrameworkFixtureSession $outcome;$r=Get-FrameworkAcceptance $pair.evidence;Require (@($r.cases|Where-Object {$_.caseId -eq $pair.case.id -and $_.status -eq 'UnitPass'}).Count -eq 1) 'Native Tok-shaped case did not validate.'}}
+foreach($outcome in @('Rejected','Disconnected')){Check "deferred session interface $outcome preserves patch health in synthetic unit data" {$pair=New-FrameworkFixtureSession $outcome;$definition=@((Get-FrameworkMatrix).cases|Where-Object id -CEQ $pair.case.id)[0];Assert-FrameworkSession $pair.case $pair.evidence $definition}}
 $sessionNegatives=[ordered]@{
     SimulatedView={param($c)($c.attempts[0].events|Where-Object {$_.data.code -eq 'CLIENT_VIEW'}).data.message='{"view":5,"presenter":6,"version":"Framework v2","mode":"LocalSimulation"}'}
     NoAuthenticating={param($c)$c.attempts[0].events=@($c.attempts[0].events|Where-Object {$_.data.state -ne 'Authenticating'})}
     MissingServerBinary={param($c)$c.server.binarySha256=$null}
     WrongServerError={param($c)($c.attempts[0].events|Where-Object kind -eq 'session.result').data.ServerErrorCode=7}
 }
-foreach($name in $sessionNegatives.Keys){$mutate=$sessionNegatives[$name];Check "native Tok rejects $name" {$pair=New-FrameworkFixtureSession;&$mutate $pair.case;for($i=0;$i -lt $pair.case.attempts[0].events.Count;$i++){$pair.case.attempts[0].events[$i].sequence=$i+1};$r=Get-FrameworkAcceptance $pair.evidence;Require (@($r.cases|Where-Object {$_.caseId -eq $pair.case.id -and $_.status -eq 'Fail'}).Count -eq 1) 'Invalid Tok session was accepted.'}}
+foreach($name in $sessionNegatives.Keys){$mutate=$sessionNegatives[$name];Check "deferred session interface rejects synthetic $name" {$pair=New-FrameworkFixtureSession;&$mutate $pair.case;for($i=0;$i -lt $pair.case.attempts[0].events.Count;$i++){$pair.case.attempts[0].events[$i].sequence=$i+1};$definition=@((Get-FrameworkMatrix).cases|Where-Object id -CEQ $pair.case.id)[0];$rejected=$false;try{Assert-FrameworkSession $pair.case $pair.evidence $definition}catch [IO.InvalidDataException]{$rejected=$true};Require $rejected 'Invalid deferred session unit data was accepted.'}}
 Check 'Android translated ARM64 environment stays explicit' {Assert-FrameworkContext (New-FrameworkFixtureAndroid)}
 $androidNegatives=[ordered]@{
     WrongDevice={param($e)$e.environment.deviceId='other'}

@@ -378,6 +378,22 @@ function Assert-FrameworkReady($Attempt,$Evidence,[string]$Version) {
     $stable=@(Get-FrameworkEvents $Attempt 'ui.stable'|Where-Object {$_.data.stableFrames -eq 2 -and $_.data.snapshot.view -eq $view.view -and (Test-FrameworkObjectId $_.data.snapshot.input.id)})
     Require-FrameworkFact ($stable.Count -gt 0) 'E_UI_READY' 'Actual stable native UI is missing.'
 }
+function Assert-FrameworkSession($Case,$Evidence,$Definition) {
+    # 保留会话接口的纯数据校验；真实服务器验收已按用户要求移出首期。
+    Assert-FrameworkScalars $Case
+    Require-FrameworkFact ($case.attempts.Count -eq 1) 'E_SESSION' 'One native process is required.'
+                        $attempt=$case.attempts[0];Assert-FrameworkAttempt $attempt $Evidence $Case.id;Assert-FrameworkReady $attempt $Evidence 'v2';Assert-FrameworkPreservation $case $Evidence
+                        $requests=@(Get-FrameworkEvents $attempt 'session.request');$sessionResults=@(Get-FrameworkEvents $attempt 'session.result')
+                        Require-FrameworkFact ($requests.Count -eq 1 -and $sessionResults.Count -eq 1 -and $sessionResults[0].data.request -eq $requests[0].data.request -and $sessionResults[0].data.Succeeded -eq $false -and $sessionResults[0].data.error -ceq $definition.outcome) 'E_SESSION' 'Actual Tok rejection/disconnect must bind to one native request.'
+                        $viewLog=@(Get-FrameworkEvents $attempt 'hot.log'|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'})
+                        $viewData=ConvertFrom-FrameworkJson $viewLog[0].data.message -ObjectOnly
+                        Require-FrameworkFact ($viewData.mode -ceq 'TokDevelopment' -and $case.server.kind -ceq 'TokDemo' -and (Test-FrameworkInteger $case.server.processId) -and $case.server.processId -gt 0 -and $case.server.binarySha256 -cmatch '^[a-f0-9]{64}$') 'E_REAL_TOK' 'Actual Tok development View and owned server binary identity are required.'
+                        $states=@(Get-FrameworkEvents $attempt 'session.state'|Where-Object {$_.data.requests -eq 1 -and $_.data.connectionEpoch -gt 0})
+                        Require-FrameworkFact (@($states|Where-Object {$_.data.state -ceq 'Authenticating' -and $_.data.requestId -gt 0}).Count -eq 1 -and $states[-1].data.state -ceq 'Disconnected') 'E_SESSION_STATE' 'Real transport authentication and terminal disconnect observations are required.'
+                        if($definition.outcome -ceq 'Rejected'){Require-FrameworkFact ($sessionResults[0].data.ServerErrorCode -eq 3) 'E_SERVER_REJECTION' 'Tok rejection must carry the real rejected server code.'}
+                        $launch=@(Get-FrameworkEvents $attempt 'launch.result')[0].data
+                        Require-FrameworkFact ($launch.state.KnownGood -cnotin $launch.state.BadReleaseIds -and @(Get-FrameworkEvents $attempt 'release.phase'|Where-Object {$_.data.phase -ceq 'RestartRequired'}).Count -eq 0 -and @($case.server.evidencePaths).Count -gt 0) 'E_SESSION_HEALTH' 'Server failure must not classify the locally-ready patch as bad.'
+}
 function Get-FrameworkAcceptance([System.Collections.IDictionary]$Evidence) {
     $matrix=Get-FrameworkMatrix
     $errors=[Collections.Generic.List[string]]::new()
@@ -393,7 +409,7 @@ function Get-FrameworkAcceptance([System.Collections.IDictionary]$Evidence) {
     foreach($group in @($Evidence.cases|Group-Object id|Where-Object Count -gt 1)){$errors.Add('E_DUPLICATE_CASE: '+$group.Name)}
     foreach($item in $Evidence.cases){if($item.id -cnotin $matrix.cases.id){$errors.Add('E_UNKNOWN_CASE: '+$item.id)}}
     $results=@()
-    foreach($definition in $matrix.cases | Where-Object {$Evidence.platform -in $_.platforms}) {
+    foreach($definition in $matrix.cases | Where-Object {$_.required -eq $true -and $Evidence.platform -in $_.platforms}) {
         $item=@{caseId=$definition.id;taskId=$definition.taskId;status='NotRun';errors=@();evidence=@()}
         $matches=@($Evidence.cases|Where-Object {$_.id -ceq $definition.id})
         if($matches.Count -eq 1 -and $matches[0].executed -eq $true){
@@ -421,20 +437,7 @@ function Get-FrameworkAcceptance([System.Collections.IDictionary]$Evidence) {
                     {$_ -in @('preparation-reject','semantic-reject')} {Assert-FrameworkFault $case $Evidence $definition}
                     'strong-kill' {Assert-FrameworkKill $case $Evidence $definition}
                     'ui' {Assert-FrameworkReady $case.attempts[0] $Evidence 'v2';Assert-FrameworkUi $case $definition}
-                    'session' {
-                        Require-FrameworkFact ($case.attempts.Count -eq 1) 'E_SESSION' 'One native process is required.'
-                        $attempt=$case.attempts[0];Assert-FrameworkReady $attempt $Evidence 'v2';Assert-FrameworkPreservation $case $Evidence
-                        $requests=@(Get-FrameworkEvents $attempt 'session.request');$sessionResults=@(Get-FrameworkEvents $attempt 'session.result')
-                        Require-FrameworkFact ($requests.Count -eq 1 -and $sessionResults.Count -eq 1 -and $sessionResults[0].data.request -eq $requests[0].data.request -and $sessionResults[0].data.Succeeded -eq $false -and $sessionResults[0].data.error -ceq $definition.outcome) 'E_SESSION' 'Actual Tok rejection/disconnect must bind to one native request.'
-                        $viewLog=@(Get-FrameworkEvents $attempt 'hot.log'|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'})
-                        $viewData=ConvertFrom-FrameworkJson $viewLog[0].data.message -ObjectOnly
-                        Require-FrameworkFact ($viewData.mode -ceq 'TokDevelopment' -and $case.server.kind -ceq 'TokDemo' -and (Test-FrameworkInteger $case.server.processId) -and $case.server.processId -gt 0 -and $case.server.binarySha256 -cmatch '^[a-f0-9]{64}$') 'E_REAL_TOK' 'Actual Tok development View and owned server binary identity are required.'
-                        $states=@(Get-FrameworkEvents $attempt 'session.state'|Where-Object {$_.data.requests -eq 1 -and $_.data.connectionEpoch -gt 0})
-                        Require-FrameworkFact (@($states|Where-Object {$_.data.state -ceq 'Authenticating' -and $_.data.requestId -gt 0}).Count -eq 1 -and $states[-1].data.state -ceq 'Disconnected') 'E_SESSION_STATE' 'Real transport authentication and terminal disconnect observations are required.'
-                        if($definition.outcome -ceq 'Rejected'){Require-FrameworkFact ($sessionResults[0].data.ServerErrorCode -eq 3) 'E_SERVER_REJECTION' 'Tok rejection must carry the real rejected server code.'}
-                        $launch=@(Get-FrameworkEvents $attempt 'launch.result')[0].data
-                        Require-FrameworkFact ($launch.state.KnownGood -cnotin $launch.state.BadReleaseIds -and @(Get-FrameworkEvents $attempt 'release.phase'|Where-Object {$_.data.phase -ceq 'RestartRequired'}).Count -eq 0 -and @($case.server.evidencePaths).Count -gt 0) 'E_SESSION_HEALTH' 'Server failure must not classify the locally-ready patch as bad.'
-                    }
+                    'session' {Assert-FrameworkSession $case $Evidence $definition}
                     'throw' {Assert-FrameworkThrow $case $Evidence}
                     default {throw [IO.InvalidDataException]::new('E_UNSUPPORTED_CASE: '+$definition.kind)}
                 }
@@ -447,5 +450,5 @@ function Get-FrameworkAcceptance([System.Collections.IDictionary]$Evidence) {
     $accepted=$errors.Count -eq 0 -and $results.Count -gt 0
     $nativePass=$accepted -and $Evidence.evidenceKind -ceq 'Native'
     $status=if($nativePass){'Pass'}elseif($accepted){'UnitEvidencePass'}else{'Fail'}
-    return [ordered]@{schemaVersion=1;task='D2';runId=$Evidence.runId;platform=$Evidence.platform;deviceId=$Evidence.deviceId;status=$status;criteriaAccepted=$accepted;passed=$nativePass;evidenceKind=$Evidence.evidenceKind;errors=@($errors);cases=$results;excluded=$matrix.excluded}
+    return [ordered]@{schemaVersion=1;task='D2';scopeRevision=$matrix.scopeRevision;requiredCaseCount=$results.Count;runId=$Evidence.runId;platform=$Evidence.platform;deviceId=$Evidence.deviceId;status=$status;criteriaAccepted=$accepted;passed=$nativePass;evidenceKind=$Evidence.evidenceKind;errors=@($errors);cases=$results;excluded=$matrix.excluded}
 }

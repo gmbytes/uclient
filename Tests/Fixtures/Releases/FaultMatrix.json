@@ -340,9 +340,10 @@
         "Windows64",
         "Android"
       ],
-      "required": true,
+      "required": false,
       "outcome": "Rejected",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: no live login-server validation; keep interfaces for later integration."
     },
     {
       "id": "tok-disconnect",
@@ -352,9 +353,10 @@
         "Windows64",
         "Android"
       ],
-      "required": true,
+      "required": false,
       "outcome": "Disconnected",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: no live login-server validation; keep interfaces for later integration."
     },
     {
       "id": "windows-720x1280",
@@ -389,11 +391,12 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "height": 2400,
       "action": "resize",
       "width": 1080,
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "windows-1536x2048",
@@ -402,11 +405,12 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "height": 2048,
       "action": "resize",
       "width": 1536,
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "windows-1280x720",
@@ -415,11 +419,12 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "height": 720,
       "action": "resize",
       "width": 1280,
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "windows-1920x1080",
@@ -428,11 +433,12 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "height": 1080,
       "action": "resize",
       "width": 1920,
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "windows-2560x1080",
@@ -441,11 +447,12 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "height": 1080,
       "action": "resize",
       "width": 2560,
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "windows-720x480",
@@ -454,11 +461,12 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "height": 480,
       "action": "resize",
       "width": 720,
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "windows-drag",
@@ -467,9 +475,10 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "action": "window-drag",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "windows-short-scroll",
@@ -478,9 +487,10 @@
       "platforms": [
         "Windows64"
       ],
-      "required": true,
+      "required": false,
       "action": "scroll",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "android-rotation",
@@ -489,9 +499,10 @@
       "platforms": [
         "Android"
       ],
-      "required": true,
+      "required": false,
       "action": "rotation",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "android-ime",
@@ -502,7 +513,9 @@
       ],
       "required": true,
       "action": "keyboard",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "width": 1080,
+      "height": 1920
     },
     {
       "id": "android-ime-rotation",
@@ -511,9 +524,10 @@
       "platforms": [
         "Android"
       ],
-      "required": true,
+      "required": false,
       "action": "keyboard-rotation",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     },
     {
       "id": "android-background",
@@ -524,7 +538,9 @@
       ],
       "required": true,
       "action": "background",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "width": 1080,
+      "height": 1920
     },
     {
       "id": "android-safe-area",
@@ -535,7 +551,9 @@
       ],
       "required": true,
       "action": "safe-area",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "width": 1080,
+      "height": 1920
     },
     {
       "id": "android-short-scroll",
@@ -546,7 +564,9 @@
       ],
       "required": true,
       "action": "scroll",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "width": 1080,
+      "height": 1920
     },
     {
       "id": "android-inflight-rotation",
@@ -555,9 +575,36 @@
       "platforms": [
         "Android"
       ],
-      "required": true,
+      "required": false,
       "action": "inflight-rotation",
-      "setupRelease": "v2"
+      "setupRelease": "v2",
+      "exclusionReason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "width": 720,
+      "kind": "ui",
+      "setupRelease": "v2",
+      "height": 1280,
+      "required": true,
+      "taskId": "D2.Step5",
+      "id": "android-720x1280",
+      "action": "resize",
+      "platforms": [
+        "Android"
+      ]
+    },
+    {
+      "width": 1080,
+      "kind": "ui",
+      "setupRelease": "v2",
+      "height": 1920,
+      "required": true,
+      "taskId": "D2.Step5",
+      "id": "android-1080x1920",
+      "action": "resize",
+      "platforms": [
+        "Android"
+      ]
     }
   ],
   "excluded": [
@@ -570,6 +617,83 @@
       "reason": "Outside first-phase platform scope.",
       "status": "NotRun",
       "id": "ios"
+    },
+    {
+      "id": "tok-rejection",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: no live login-server validation; keep interfaces for later integration."
+    },
+    {
+      "id": "tok-disconnect",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: no live login-server validation; keep interfaces for later integration."
+    },
+    {
+      "id": "windows-1080x2400",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "windows-1536x2048",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "windows-1280x720",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "windows-1920x1080",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "windows-2560x1080",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "windows-720x480",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "windows-drag",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "windows-short-scroll",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "android-rotation",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "android-ime-rotation",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
+    },
+    {
+      "id": "android-inflight-rotation",
+      "status": "ExcludedByUser",
+      "reason": "2026-11-01 user request: validate portrait720x1280 and1080x1920 only; landscape, rotation and other-size specialties are deferred."
     }
-  ]
+  ],
+  "scopeRevision": {
+    "id": "2026-11-01-portrait-interface-only",
+    "loginServer": "InterfaceOnly_NoLiveAcceptance",
+    "portraitTargets": [
+      "720x1280",
+      "1080x1920"
+    ],
+    "authorization": [
+      "去除 横屏的验证 继续 竖屏的验证 720x1280 1080x1920",
+      "登录服务器的也不用验证，留接口，后续可以接入就行"
+    ]
+  }
 }

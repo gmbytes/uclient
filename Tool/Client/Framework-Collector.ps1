@@ -55,8 +55,8 @@ function Save-FrameworkAttemptEvidence([string]$NativeAttemptDirectory,$OwnedPro
 function New-FrameworkCollectionPlan {
     param([ValidateSet('Windows64','Android')][string]$Platform,[string]$RunId,[string]$PlayerPath,[string]$NativeEvidenceRoot,[string]$DeviceId,[string]$ApplicationId)
     $matrix=Get-FrameworkMatrix
-    $plan=[ordered]@{schemaVersion=1;task='D2';runId=$RunId;platform=$Platform;deviceId=$DeviceId;nativeEvidenceRoot=$NativeEvidenceRoot;status='NotRun';nativeExecutionEnabled=$false;cases=@();requirements=@('Explicit final PlayerArchive and successful BuildResult/receipt','Independent D1 archive approval','Explicit controller execution release','Task-owned installation/package identity','Task-owned update/Tok service and fault payload receipts')}
-    foreach($definition in $matrix.cases|Where-Object {$Platform -cin $_.platforms}){
+    $plan=[ordered]@{schemaVersion=1;task='D2';runId=$RunId;platform=$Platform;deviceId=$DeviceId;nativeEvidenceRoot=$NativeEvidenceRoot;status='NotRun';nativeExecutionEnabled=$false;cases=@();requirements=@('Explicit final PlayerArchive and successful BuildResult/receipt','Independent D1 archive approval','Explicit controller execution release','Task-owned installation/package identity','Task-owned update service and fault payload receipts')}
+    foreach($definition in $matrix.cases|Where-Object {$_.required -eq $true -and $Platform -cin $_.platforms}){
         $options=@{runId=$RunId;caseId=$definition.id;autoExit=($definition.kind -notin @('ui','session','strong-kill'))}
         if($definition.kind -ceq 'strong-kill'){$options.pausePoint=$definition.point;if($definition.statePurpose){$options.statePurpose=$definition.statePurpose}}
         if($definition.id -ceq 'disk-budget'){$options.lowSpace=$true}

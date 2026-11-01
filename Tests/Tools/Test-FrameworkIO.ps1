@@ -79,7 +79,7 @@ Check 'CLI missing final archive emits failed NotRun matrix without launching to
     & (Get-Command pwsh).Source -NoProfile -File $cli -Platform Windows64 -PlayerArchive (Join-Path $run 'missing-archive') -OutputDirectory $output *> (Join-Path $run 'cli.log')
     Require ($LASTEXITCODE -ne 0) 'Missing final archive was reported as Pass.'
     $result=Read-FrameworkJson (Join-Path $output 'framework-result.json')
-    Require (-not $result.passed -and @($result.cases|Where-Object status -eq NotRun).Count -eq 34 -and $result.execution.nativeProcessesStarted -eq 0) 'Missing native gates were not made explicit.'
+    Require (-not $result.passed -and @($result.cases|Where-Object status -eq NotRun).Count -eq 24 -and $result.execution.nativeProcessesStarted -eq 0) 'Missing native gates were not made explicit.'
 }
 Check 'PE AMD64 machine is independently verified from raw original bytes' {
     $path=Join-Path $run 'synthetic-x64.exe';[IO.File]::WriteAllBytes($path,(New-FrameworkSyntheticPE))

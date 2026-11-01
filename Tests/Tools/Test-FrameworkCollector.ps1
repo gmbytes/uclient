@@ -31,7 +31,7 @@ Check 'collector rejects foreign process before any output is created' {
 }
 Check 'plan retains all required cases and separate kill recovery commands' {
     $plan=New-FrameworkCollectionPlan -Platform Windows64 -RunId d2unit -PlayerPath 'C:/native/Client.exe' -NativeEvidenceRoot 'C:/n/Acceptance'
-    Require ($plan.cases.Count -eq 34 -and @($plan.cases|Where-Object status -eq NotRun).Count -eq 34) 'Required cases were omitted or pre-marked Pass.'
+    Require ($plan.cases.Count -eq 24 -and @($plan.cases|Where-Object status -eq NotRun).Count -eq 24) 'Required cases were omitted or pre-marked Pass.'
     $kill=@($plan.cases|Where-Object id -eq 'kill-state-replace-before')[0]
     Require ($kill.attempts.Count -eq 2 -and ($kill.attempts[0].command.arguments[1]|ConvertFrom-Json).statePurpose -ceq 'candidate' -and -not ($kill.attempts[1].command.arguments[1]|ConvertFrom-Json).pausePoint) 'Kill/recovery controls differ from frozen native options.'
 }
@@ -106,7 +106,7 @@ Check 'preparation CLI emits a fully bound NotRun plan without native effects' {
     & (Get-Command pwsh).Source -NoProfile -File (Join-Path $project 'Tool/Client/Prepare-FrameworkRun.ps1') -Platform Windows64 -PlayerArchive $fixture.archive -BuildResult $fixture.result -BuildReceipt (Join-Path $fixture.bundleRoot 'receipt.json') -RuntimePlayerRoot (Join-Path $fixture.archive 'Player') -NativeEvidenceRoot 'C:/n/Acceptance' -RunId d2unit -OutputDirectory $output *> (Join-Path $root 'prepare-cli.log')
     Require ($LASTEXITCODE -eq 0) 'Preparation CLI failed.'
     $plan=Read-FrameworkJson (Join-Path $output 'execution-plan.json')
-    Require ($plan.scope -ceq 'PreparationOnly' -and -not $plan.nativeAcceptance -and -not $plan.nativeExecutionEnabled -and $plan.cases.Count -eq 34 -and @($plan.cases|Where-Object status -eq NotRun).Count -eq 34) 'Preparation plan claimed actual native execution.'
+    Require ($plan.scope -ceq 'PreparationOnly' -and -not $plan.nativeAcceptance -and -not $plan.nativeExecutionEnabled -and $plan.cases.Count -eq 24 -and @($plan.cases|Where-Object status -eq NotRun).Count -eq 24) 'Preparation plan claimed actual native execution.'
 }
 $failed=@($records|Where-Object passed -eq $false)
 Write-FrameworkJsonNew (Join-Path $root 'test-result.json') @{schemaVersion=1;evidenceKind='SyntheticUnit';nativeAcceptance=$false;passed=($failed.Count -eq 0);cases=$records;script=@{path=$PSCommandPath;sha256=(Get-FrameworkFileHash $PSCommandPath)}}
