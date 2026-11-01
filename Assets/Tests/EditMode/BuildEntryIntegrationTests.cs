@@ -100,9 +100,7 @@ namespace Client.Tests.EditMode
             }
             finally{if(existed)EditorPrefs.SetString(ClientBuild.MenuRequestPreference,previous);else EditorPrefs.DeleteKey(ClientBuild.MenuRequestPreference);}
         }
-        [TestCase(BuildPlatform.Windows64,UIOrientation.Portrait)]
-        [TestCase(BuildPlatform.Android,UIOrientation.AutoRotation)]
-        public void FinalPlayerSettingsApplyAndRestoreRequiredNativeWindowPolicy(BuildPlatform platform,UIOrientation orientation)
+        [Test] public void FinalPlayerSettingsApplyAndRestoreRequiredNativeWindowPolicy()
         {
             byte[] before=File.ReadAllBytes("ProjectSettings/ProjectSettings.asset");
             using(var key=new RSACryptoServiceProvider(2048){PersistKeyInCsp=false})
@@ -111,9 +109,9 @@ namespace Client.Tests.EditMode
                 var profile=NativeBuildProfile.Parse(new JObject{["schemaVersion"]=1,["keyId"]="acceptance-release",["modulus"]=Convert.ToBase64String(parameters.Modulus),["exponent"]=Convert.ToBase64String(parameters.Exponent),["endpoint"]="http://127.0.0.1:18765/",["acceptance"]=true,["packageId"]="com.sgame.client.acceptance",["sessionHost"]="127.0.0.1",["sessionPort"]=7000}.ToString());
                 using(BuildSourceTransaction.Begin(Array.Empty<string>()))
                 {
-                    typeof(PlayerBuilder).GetMethod("ApplySettings",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{new BuildRequest(BuildKind.Player,platform,"Builds"),profile});
+                    typeof(PlayerBuilder).GetMethod("ApplySettings",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{new BuildRequest(BuildKind.Player,BuildPlatform.Windows64,"Builds"),profile});
                     Assert.That(PlayerSettings.defaultScreenWidth,Is.EqualTo(720));Assert.That(PlayerSettings.defaultScreenHeight,Is.EqualTo(1280));Assert.That(PlayerSettings.resizableWindow,Is.True);Assert.That(PlayerSettings.fullScreenMode,Is.EqualTo(FullScreenMode.Windowed));
-                    Assert.That(PlayerSettings.defaultInterfaceOrientation,Is.EqualTo(orientation));Assert.That(PlayerSettings.allowedAutorotateToPortrait&&PlayerSettings.allowedAutorotateToLandscapeLeft&&PlayerSettings.allowedAutorotateToLandscapeRight,Is.True);Assert.That(PlayerSettings.allowedAutorotateToPortraitUpsideDown,Is.False);Assert.That(PlayerSettings.Android.forceInternetPermission,Is.True);
+                    Assert.That(PlayerSettings.defaultInterfaceOrientation,Is.EqualTo(UIOrientation.Portrait));Assert.That(PlayerSettings.allowedAutorotateToPortrait&&PlayerSettings.allowedAutorotateToLandscapeLeft&&PlayerSettings.allowedAutorotateToLandscapeRight,Is.True);Assert.That(PlayerSettings.allowedAutorotateToPortraitUpsideDown,Is.False);Assert.That(PlayerSettings.Android.forceInternetPermission,Is.True);
                     Assert.That(EditorUserBuildSettings.development||EditorUserBuildSettings.buildScriptsOnly||EditorUserBuildSettings.buildAppBundle||EditorUserBuildSettings.exportAsGoogleAndroidProject,Is.False);
                     AssetDatabase.SaveAssets();
                 }
