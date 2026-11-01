@@ -115,7 +115,7 @@
 
 ### Task D1：统一Player/补丁构建与不可变基线归档
 
-**状态：修后待原生复验。** 旧基线D1曾完成；Throw实测发现固定层原始异常保留问题，修复413/142通过，Step3–5需按新Player归档复验，不能复用旧Native通过标记。
+**状态：完成。** 最终Windows0bdb3aa/Android14a355d新基线及独立补丁已复验，D1 70/70、全量413/149、原生V1/V2、Throw回退和后台恢复资格检测通过。旧失败记录保留。
 
 **Files:**
 - Create: `Editor/Build/ClientBuild.cs`、`BuildRequest.cs`、`BuildResult.cs`、`PlayerBuilder.cs`、`PatchBuilder.cs`、`ResourcePackageBuilder.cs`、`BuildPreflight.cs`。
@@ -149,8 +149,8 @@
 - [x] **Step 2:** 每平台独立验证：干净安装离线基线→在线v2更新→完整重启执行新C#分支和新UI资源→再次无网启动；APK/EXE及native binary hash不变。验证Protobuf集合、未知字段和新增fixture Parser真实执行。
 - [x] **Step 3:** 每平台故障矩阵：坏签名、坏hash、错PlayerBuildId、错架构、缺DLL/Bundle、坏原生版本表、磁盘预算不足、下载取消/网络中断。完整性/身份校验失败的候选在资源初始化前拒绝，旧版本可继续启动；坏原生版本表还必须覆盖合法签名/hash但GF语义损坏的独立用例：该候选根至多尝试初始化一次，保留GF失败证据、无热DLL加载/无Ready/无known-good晋升，要求完整重启后从原known-good实际启动。旧版本文件保持完整；所有计数按候选与实际选中版本区分，不在同进程二次切根。
 - [x] **Step 4:** 在download完成前、slot改名前、状态替换前后、trial写后、热入口执行中强杀；完整重启仅选完整可用版本。ThrowOnStart必须下次启动回退；真实登录服务器拒绝/断线验收按用户要求移至后续，保留接口。强杀是测试控制，不引入原生崩溃插件。
-- [ ] **Step 5:** 按用户最新范围仅验收Windows/Android竖屏720×1280、1080×1920；Android另验收软键盘、后台恢复、安全区与短表单滚动。收起IME后按用户确认结束编辑并保留文本；其他连续编辑用例保持焦点/选区要求。记录主ABI与转译环境，真实ARM硬件与iOS不计首期通过。横屏、旋转、其他尺寸和真实登录服务器验收标ExcludedByUser，接口保留。当前Windows24/24、Android27/28，滚动未通过。
-- [ ] **Step 6:** 两平台执行 `./Tool/Client/Verify-Framework.ps1 -Platform Windows64 -PlayerArchive <Windows归档>` 与 `./Tool/Client/Verify-Framework.ps1 -Platform Android -DeviceId <Android序列号> -PlayerArchive <Android归档>`；首期 Android 使用用户选择的雷电环境，预期各 `FRAMEWORK_ACCEPTANCE_PASS`。人工运行项逐条记录操作者/时间/环境/截图；真实ARM硬件和未测项不得勾选。
+- [x] **Step 5:** 按用户最新范围仅验收Windows/Android竖屏720×1280、1080×1920；Android另验收软键盘、后台恢复、安全区与短表单滚动。收起IME后按用户确认结束编辑并保留文本；其他连续编辑用例保持焦点/选区要求。记录主ABI与转译环境，真实ARM硬件与iOS不计首期通过。横屏、旋转、其他尺寸和真实登录服务器验收标ExcludedByUser，接口保留。当前Windows24/24、Android28/28，IME/滚动已通过原生复核。
+- [x] **Step 6:** 两平台执行 `./Tool/Client/Verify-Framework.ps1 -Platform Windows64 -PlayerArchive <Windows归档>` 与 `./Tool/Client/Verify-Framework.ps1 -Platform Android -DeviceId <Android序列号> -PlayerArchive <Android归档>`；首期 Android 使用用户选择的雷电环境，预期各 `FRAMEWORK_ACCEPTANCE_PASS`。人工运行项逐条记录操作者/时间/环境/截图；真实ARM硬件和未测项不得勾选。
 - [ ] **Step 7:** 独立复核产物与结果后提交 `test(client): 完成热更新登录框架验收矩阵`。
 
 ### Task D3：启动文档、迁移台账与后续iOS清单
@@ -161,10 +161,10 @@
 
 **Interfaces:** README从干净checkout到本地登录页的命令可执行；hotupdate-release文档分别说明新Player、原基线补丁、发布回滚和坏版下进程回退。台账每个旧模块记录Reference/Reimplemented/NotMigrated及理由，不把参考误写成复制完成。
 
-- [ ] **Step 1:** 用干净checkout或隔离工作区照README执行依赖恢复、协议生成、测试、构建与启动；未写的必要个人配置/工具前置导致失败，先补文档再重跑。
+- [x] **Step 1:** 用干净checkout或隔离工作区照README执行依赖恢复、协议生成、测试、构建与启动；未写的必要个人配置/工具前置导致失败，先补文档再重跑。
 - [x] **Step 2:** 核对主包和热更边界：原生SDK/引擎/稳定契约/信封改变需要新Player；UI/资源/允许的C#业务改动走补丁。说明不能原地卸载程序集、网络恢复后置和生产安全接入后置。
 - [x] **Step 3:** iOS清单明确后续需Mac、兼容Unity/HybridCLR、Xcode工具链、签名、ARM64 Player、路径/后台/键盘/安全区、同主包v1→v2、坏补丁回退与分发审核验证；当前状态全部NotRun，不承诺可上架。
-- [ ] **Step 4:** 按目录规范核对Assets/Scripts、Assets/Tests、生成物与共享工具Include，拒绝旧自研Package根残留或扫描零文件；搜索Framework/Game中UnityEditor、Windows路径、Lua/XLua引用，按实际条件编译检查；整合D2证据链接和已知限制。满足M0–M4才更新首期完成声明。
+- [x] **Step 4:** 按目录规范核对Assets/Scripts、Assets/Tests、生成物与共享工具Include，拒绝旧自研Package根残留或扫描零文件；搜索Framework/Game中UnityEditor、Windows路径、Lua/XLua引用，按实际条件编译检查；整合D2证据链接和已知限制。满足M0–M4才更新首期完成声明。
 - [ ] **Step 5:** 提交 `docs(client): 记录框架交付与后续平台边界`。
 
 ## 首期最终演示脚本
