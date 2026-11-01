@@ -27,8 +27,8 @@
 | U4 | 已验证并通过独立审查 | 8212d63/43093f8；工具/预览/满屏背景与局部安全区，合并回归通过 |
 | U5 | 已验证并通过独立审查 | c752806/b55dbc1/639f447；完整310/95，主工程9项Edit及16项真实图形集成通过 |
 | D1 | 修后两平台基线复验完成 | 当前Windows0bdb3aa/Android14a355d，D1 70/70、全量413/149、7固定引用/59和48元数据、两平台V1/V2/Parser/槽位/ABI/Throw回退及Android后台恢复资格检测通过；见D1记录 |
-| D2 | 当前Android22/31、Windows4/34，完整矩阵进行中 | 工具344/344通过；当前同包故障/六点强杀/Throw回退证据已核对，安装次数各1；安全区首轮因回退后的v1前置不符未计通过，原始记录保留；UI/Tok与最终汇总继续 |
-| D3 | 干净checkout部分复现通过 | 独立副本依赖恢复、协议契约24/24、生成器28/28，两个生成C#文件逐字节一致且client/comm干净；Unity测试、构建、启动与最终审计未完成 |
+| D2 | Windows15/34；Android旧数据集22项后中断 | 工具19套350/350通过；Windows未完成的强杀/Throw继续。Android方向实验替换过APK，旧集已冻结installCount=3，不可冒充连续同包验收；正式矩阵须新建，先定位旋转输入与渲染尺寸 |
+| D3 | Windows干净checkout已复现至原生登录 | 依赖恢复、协议24/24+28/28、Unity F1 5/5+1/1、标准Windows IL2CPP构建与真实登录启动退出0，原生文件不变；最终目录/迁移/证据整合审计待完成 |
 
 ## 2026-11-01 D1完成检查点
 
@@ -129,3 +129,11 @@ Windows实际记录在 `Builds/Tests/D1/WindowsRuntime-d1-20261029T194739006-v1`
 ## 2026-11-01 当前基线矩阵与干净复现
 
 Android数据集E:/sgame/Builds/D2/M-20261031T235052073Z已完成22项，六点强杀与Throw阶段执行退出0、nativeUnchanged=true。Windows数据集E:/sgame/Builds/D2/W-20261101T002710348Z四项基础用例通过，执行退出0、nativeUnchanged=true；继续故障阶段。工具完整回归证据在独立工作区Builds/Tests/D2/ToolRegression-20261101T001337080Z（18套344项）。21项采集器证明已按原始字节导出并验证；Android五份旧控制器producer字面量另附哈希绑定更正记录，原始文件未重写。D3局部证据在E:/sgame/Builds/D3/CleanCheckout-20261101T002117166Z/protocol-reproduction.json；NU1900元数据查询警告与首次沙箱失败日志保留。整体仍19/21，D2、D3未完成。
+
+## 2026-11-01 方向诊断结论更正与当前状态
+
+静态Manifest锁Portrait并非已证实的根因：NativeClientHost在初始竖屏两帧后本来会设置AutoRotation。针对构建默认方向的实验修改已由dac5a3c撤回，Editor与运行时恢复到此前已验证字节。实验包596的强制OS旋转会报告LandscapeLeft/Right，但渲染尺寸为810×1440、布局仍Portrait，不能计横屏通过；真实LD重力命令仍未产生横向viewport。实验主包/两补丁与原始诊断全部保留，未计正式验收。
+
+已备份实验APK并保留应用数据恢复原14a主包，SHA仍为9104b0f1ecb2674e0e947197a18196f1b50b02588ec1ee6e6e8988315fb2e32b。但替换后恢复也违反完整矩阵不重装的契约：M-20261031T235052073Z已明确冻结为Interrupted，历史22项保留，installCount据实记3，不能用于最终连续验收。之后需在方向控制资格确认后新建正式Android数据集。Windows当前15项已通过，首个强杀采集适配器返回对象缺runId被严格拒绝，原始失败和强杀回执保留；仅修正控制器返回拥有进程记录，正从未完成阶段继续，不重跑已通过的15项。
+
+D3独立Windows复现原生PID32116退出0，59项元数据及真实登录页面、原生文件不变均已核对；证据E:/sgame/Builds/D3/CleanCheckout-20261101T002117166Z/protocol-reproduction.json，实际启动记录d3-20261101T005233146Z。首次更新端点连接失败后从包内基线到Ready，原始诊断保留。当前整体19/21，整个目标仍未完成。
