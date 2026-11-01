@@ -11,6 +11,7 @@ param(
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot/Framework-Evidence.ps1"
 . "$PSScriptRoot/Framework-IO.ps1"
+. "$PSScriptRoot/Framework-NativeAdapter.ps1"
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 if(-not $OutputDirectory){$OutputDirectory=Join-Path $project ('Builds/Framework/'+$Platform+'/'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8))}
 $output=New-FrameworkOutputDirectory $OutputDirectory

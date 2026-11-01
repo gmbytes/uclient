@@ -56,15 +56,16 @@ function Assert-FrameworkEffectsReleased {
     if($valid -and $lease.executionGatePath){$valid=(Get-FrameworkFileHash $lease.executionGatePath) -ceq $lease.executionGateSha256}
     Require-FrameworkFact $valid 'E_PREPARATION_GATE' 'Native effects require the current owned archive-bound qualification scope; preparation and acceptance remain closed.'
 }
-function Read-FrameworkExecutionGate([string]$Path,$Archive,[string]$Platform) {
+function Read-FrameworkExecutionGate([string]$Path,$Archive,[string]$Platform,[string]$EvidenceRoot) {
     $gate=Read-FrameworkJson $Path
     Assert-FrameworkFields $gate @('status','finalD1ArchivesApproved','platform','playerBuildId','archiveSha256','producerCommit','d1Evidence')
     Require-FrameworkFact ($gate.status -ceq 'Released' -and $gate.finalD1ArchivesApproved -is [bool] -and $gate.finalD1ArchivesApproved -eq $true -and $gate.platform -ceq $Platform -and $gate.playerBuildId -ceq $Archive.playerBuildId -and $gate.archiveSha256 -ceq $Archive.archiveSha256 -and $gate.producerCommit -cmatch '^[a-f0-9]{40}$' -and $gate.d1Evidence -is [Collections.IList] -and $gate.d1Evidence.Count -eq 2) 'E_NATIVE_EXECUTION_GATE' 'Current original archive and explicit D1 approval with both raw runs are required.'
     $versions=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$attempts=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach($proof in $gate.d1Evidence){
         Assert-FrameworkFields $proof @('version','path','sha256')
-        Require-FrameworkFact ($proof.version -cin @('v1','v2') -and $versions.Add($proof.version) -and (Get-FrameworkFileHash $proof.path) -ceq $proof.sha256) 'E_D1_PROOF' 'D1 proof is missing, duplicated or changed.'
-        $events=Read-FrameworkEvents $proof.path;$first=$events[0]
+        $proofPath=if($EvidenceRoot){Resolve-FrameworkReference $EvidenceRoot @{path=$proof.path;sha256=$proof.sha256}}else{$proof.path}
+        Require-FrameworkFact ($proof.version -cin @('v1','v2') -and $versions.Add($proof.version) -and (Get-FrameworkFileHash $proofPath) -ceq $proof.sha256) 'E_D1_PROOF' 'D1 proof is missing, duplicated or changed.'
+        $events=Read-FrameworkEvents $proofPath;$first=$events[0]
         $owner=@{runId=$first.runId;caseId=$first.caseId;processId=$first.processId}
         Require-FrameworkFact ($attempts.Add($first.attemptId)) 'E_D1_ATTEMPT' 'D1 versions must come from separate native attempts.'
         $terminal=Get-FrameworkNativeCompletion $events $owner $first.attemptId

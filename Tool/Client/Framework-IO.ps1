@@ -247,10 +247,9 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
     $evidence.updateEndpoint=$Archive.updateEndpoint
     foreach($name in @('nativeBefore','nativeAfter')){$evidence[$name]=Read-FrameworkReference $root $bundle[$name] -Json}
     if($bundle.evidenceKind -ceq 'Native'){
-        $gate=Read-FrameworkReference $root $bundle.executionGate -Json
-        Assert-FrameworkFields $gate @('status','finalD1ArchivesApproved','platform','playerBuildId','archiveSha256','producerCommit')
-        Assert-FrameworkScalars $gate
-        Require-FrameworkFact ($gate.status -ceq 'Released' -and $gate.finalD1ArchivesApproved -eq $true -and $gate.platform -ceq $Platform -and $gate.playerBuildId -ceq $Archive.playerBuildId -and $gate.archiveSha256 -ceq $Archive.archiveSha256 -and $gate.producerCommit -cmatch '^[a-f0-9]{40}$') 'E_NATIVE_GATE' 'Controller execution release and final D1 archive approval are pending.'
+        $gatePath=Resolve-FrameworkReference $root $bundle.executionGate
+        Require-FrameworkFact ($null -ne (Get-Command Read-FrameworkExecutionGate -ErrorAction SilentlyContinue)) 'E_NATIVE_GATE' 'Native D1 raw-proof validator must be loaded.'
+        $gate=Read-FrameworkExecutionGate $gatePath $Archive $Platform $root
         $evidence.executionGate=$gate
     }
     if($Platform -ceq 'Android'){$evidence.environment=Read-FrameworkReference $root $bundle.environment -Json}
