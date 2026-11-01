@@ -381,8 +381,12 @@ function Assert-FrameworkReady($Attempt,$Evidence,[string]$Version) {
 function Get-FrameworkAcceptance([System.Collections.IDictionary]$Evidence) {
     $matrix=Get-FrameworkMatrix
     $errors=[Collections.Generic.List[string]]::new()
-    # This preparation branch cannot certify native acceptance until collector integration and independent review close.
-    if($Evidence.evidenceKind -ceq 'Native'){$errors.Add('E_PREPARATION_GATE: Native acceptance execution/collector qualification remains pending.')}
+    if($Evidence.evidenceKind -ceq 'Native'){
+        try{
+            Require-FrameworkFact ($null -ne (Get-Command Read-FrameworkAcceptanceSource -ErrorAction SilentlyContinue)) 'E_NATIVE_SOURCE' 'Original native source importer must be loaded.'
+            $Evidence=Read-FrameworkAcceptanceSource $Evidence
+        }catch{$errors.Add($_.Exception.Message)}
+    }
     if($Evidence.platform -notin $matrix.platforms){$errors.Add('E_PLATFORM: Explicit native platform is required.')}
     if($Evidence.platform -eq 'Android' -and [string]::IsNullOrWhiteSpace($Evidence.deviceId)){$errors.Add('E_DEVICE: Explicit selected Android device is required.')}
     try{Assert-FrameworkContext $Evidence}catch{$errors.Add($_.Exception.Message)}

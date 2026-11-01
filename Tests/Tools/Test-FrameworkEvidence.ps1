@@ -163,9 +163,9 @@ Check 'string executed flag is invalid and cannot promote a case' {
     $e=New-FrameworkFixtureContext;$e.cases=@(@{id='update-v2';executed='true';attempts=@()});$r=Get-FrameworkAcceptance $e
     Require (@($r.errors|Where-Object {$_ -like 'E_SCALAR*'}).Count -gt 0 -and -not $r.passed) 'String execution flag was accepted.'
 }
-Check 'unfinished preparation independently blocks native acceptance' {
+Check 'unimported native-shaped context cannot bypass original-source validation' {
     $e=New-FrameworkFixtureContext;$e.evidenceKind='Native';$r=Get-FrameworkAcceptance $e
-    Require (@($r.errors|Where-Object {$_ -like 'E_PREPARATION_GATE*'}).Count -eq 1 -and -not $r.passed) 'Completing one fixture could enable an unfinished native evaluator.'
+    Require (@($r.errors|Where-Object {$_ -like 'E_NATIVE_SOURCE*'}).Count -eq 1 -and -not $r.passed) 'An unimported native-shaped context bypassed source validation.'
 }
 Check 'Delivery throw binds exact cause selection and new-process K' {
     $pair=New-FrameworkFixtureThrow;Assert-FrameworkThrow $pair.case $pair.evidence

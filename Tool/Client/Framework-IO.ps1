@@ -208,7 +208,7 @@ function Read-FrameworkArchive([string]$PlayerArchive,[string]$BuildResult,[stri
     $binary=@{}
     if($Platform -ceq 'Windows64'){foreach($name in @('Client.exe','GameAssembly.dll','UnityPlayer.dll')){Require-FrameworkFact ($native.ContainsKey($name)) 'E_PE_FILES' 'Original Windows native binary is missing.';$binary[$name]=Get-FrameworkBinaryEvidence (Join-Path $PlayerArchive ('Player/'+$name)) PE}}
     else{$binary['Client.apk']=Get-FrameworkApkEvidence (Join-Path $PlayerArchive 'Player/Client.apk')}
-    return @{archive=$archive;identity=$identity;archiveNative=$native;nativeBinaryEvidence=$binary;metadataHashes=$metadata;metadataNames=@($metadata.Keys);playerBuildId=$archive.playerBuildId;profilePackageId=$publicProfile.packageId;updateEndpoint=$publicProfile.endpoint;archiveSha256=(Get-FrameworkFileHash $archivePath);buildResultSha256=(Get-FrameworkFileHash $BuildResult);resultFile=[IO.Path]::GetFullPath($BuildResult);outputDirectory=[IO.Path]::GetFullPath($result.OutputDirectory)}
+    return @{archive=$archive;archiveDirectory=[IO.Path]::GetFullPath($PlayerArchive);identity=$identity;archiveNative=$native;nativeBinaryEvidence=$binary;metadataHashes=$metadata;metadataNames=@($metadata.Keys);playerBuildId=$archive.playerBuildId;profilePackageId=$publicProfile.packageId;updateEndpoint=$publicProfile.endpoint;archiveSha256=(Get-FrameworkFileHash $archivePath);buildResultSha256=(Get-FrameworkFileHash $BuildResult);resultFile=[IO.Path]::GetFullPath($BuildResult);outputDirectory=[IO.Path]::GetFullPath($result.OutputDirectory)}
 }
 function Import-FrameworkNativeCollectionProof([string]$Root,$Reference,$Case,$Archive,[string]$RunId,[string]$Platform) {
     $proof=Read-FrameworkReference $Root $Reference -Json
@@ -245,6 +245,7 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
     $evidence=@{schemaVersion=1;runId=$bundle.runId;platform=$Platform;deviceId=$DeviceId;evidenceKind=$bundle.evidenceKind;playerBuildId=$Archive.playerBuildId;identity=$Archive.identity;profilePackageId=$Archive.profilePackageId;archiveNative=$Archive.archiveNative;metadataNames=$Archive.metadataNames;metadataHashes=$Archive.metadataHashes;cases=@();releases=@{};sourceBundle=@{path=[IO.Path]::GetFullPath($Path);sha256=(Get-FrameworkFileHash $Path)}}
     $evidence.nativeBinaryEvidence=$Archive.nativeBinaryEvidence
     $evidence.updateEndpoint=$Archive.updateEndpoint
+    $evidence.sourceArchive=@{path=$Archive.archiveDirectory;sha256=$Archive.archiveSha256;buildResult=$Archive.resultFile;buildResultSha256=$Archive.buildResultSha256}
     foreach($name in @('nativeBefore','nativeAfter')){$evidence[$name]=Read-FrameworkReference $root $bundle[$name] -Json}
     if($bundle.evidenceKind -ceq 'Native'){
         $gatePath=Resolve-FrameworkReference $root $bundle.executionGate
@@ -303,6 +304,17 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
         $evidence.cases+=$case
     }
     return $evidence
+}
+function Read-FrameworkAcceptanceSource($Evidence) {
+    Require-FrameworkFact ($Evidence.evidenceKind -ceq 'Native' -and $Evidence.sourceBundle -is [Collections.IDictionary] -and $Evidence.sourceArchive -is [Collections.IDictionary]) 'E_NATIVE_SOURCE' 'Native acceptance requires the imported original file bundle and archive, not approval flags.'
+    $source=$Evidence.sourceBundle;$baseline=$Evidence.sourceArchive
+    Require-FrameworkFact ([IO.Path]::IsPathFullyQualified([string]$source.path) -and [IO.Path]::IsPathFullyQualified([string]$baseline.path) -and [IO.Path]::IsPathFullyQualified([string]$baseline.buildResult)) 'E_NATIVE_SOURCE' 'Explicit canonical source paths are required.'
+    Require-FrameworkFact ((Get-FrameworkFileHash $source.path) -ceq $source.sha256 -and (Get-FrameworkFileHash (Join-Path $baseline.path 'archive.json')) -ceq $baseline.sha256 -and (Get-FrameworkFileHash $baseline.buildResult) -ceq $baseline.buildResultSha256) 'E_NATIVE_SOURCE' 'Imported bundle, original archive or BuildResult changed before acceptance.'
+    # 最终汇总重新读取原始文件；调用方修改内存中的状态或用例不能获得验收资格。
+    $archive=Read-FrameworkArchive $baseline.path $baseline.buildResult $Evidence.platform
+    $canonical=Import-FrameworkEvidence $source.path $archive $Evidence.platform $Evidence.deviceId
+    Require-FrameworkFact ($canonical.evidenceKind -ceq 'Native' -and $canonical.runId -ceq $Evidence.runId -and $canonical.playerBuildId -ceq $Evidence.playerBuildId) 'E_NATIVE_SOURCE' 'A synthetic, foreign or stale source cannot be promoted to native acceptance.'
+    return $canonical
 }
 function Assert-FrameworkThrowFixture([string]$DeliveryRoot) {
     $contractPath=Join-Path $DeliveryRoot 'throw-provenance.json';$contract=Read-FrameworkJson $contractPath

@@ -20,14 +20,15 @@ $inputError=$null
 try{
     Require-FrameworkFact (-not [string]::IsNullOrWhiteSpace($BuildResult)) 'E_BUILD_RESULT' 'Supply the exact successful D1 build-result.json; output directories are never guessed.'
     $archive=Read-FrameworkArchive $PlayerArchive $BuildResult $Platform
-    Require-FrameworkFact (-not [string]::IsNullOrWhiteSpace($EvidenceFile)) 'E_NATIVE_NOT_RUN' 'Actual native matrix evidence is pending. This preparation command never launches a Player, server, Unity or device.'
+    Require-FrameworkFact (-not [string]::IsNullOrWhiteSpace($EvidenceFile)) 'E_NATIVE_NOT_RUN' 'Supply the captured native matrix bundle. Verification only reads evidence; it does not launch a Player, server, Unity or device.'
     $evidence=Import-FrameworkEvidence $EvidenceFile $archive $Platform $DeviceId
 }catch{$inputError=$_.Exception.Message}
 $result=Get-FrameworkAcceptance $evidence
 if($inputError){$result.errors=@($inputError)+@($result.errors);$result.passed=$false;$result.criteriaAccepted=$false;$result.status='Fail'}
 $result.playerArchive=[IO.Path]::GetFullPath($PlayerArchive);$result.buildResult=$BuildResult;$result.evidenceFile=$EvidenceFile
 $result.execution=@{mode='EvidenceOnly';nativeProcessesStarted=0;unityProcessesStarted=0;deviceCommands=0;serverProcessesStarted=0}
-$result.pending=@('Final D1 native archive approval','Controller release and actual platform adapter qualification','Actual native fault/UI/session matrix','Delivery ThrowOnStart Unity compilation and native execution','Independent D2 review')
+$result.pending=@($result.cases|Where-Object {$_.status -cne 'Pass'}|ForEach-Object {$_.caseId})
+if($inputError){$result.pending=@('Valid original native evidence bundle')+@($result.pending)}
 Write-FrameworkJsonNew (Join-Path $output 'framework-result.json') $result
 Write-FrameworkJsonNew (Join-Path $output 'task-evidence-map.json') @($result.cases|Select-Object taskId,caseId,status,evidence,errors)
 Write-Host "FRAMEWORK_EVIDENCE $output"
