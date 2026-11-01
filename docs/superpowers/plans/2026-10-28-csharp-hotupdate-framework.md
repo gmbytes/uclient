@@ -1,15 +1,11 @@
 # 全 C# 竖屏客户端框架 Implementation Plan
 
 
-## 2026-11-01 用户确认的首期验收修订
+## 2026-11-01 首期验收范围修订（用户明确要求）
 
-本节覆盖旧计划中相冲突的验收要求：用户明确要求“去除横屏的验证，继续竖屏720x1280、1080x1920”，并要求“登录服务器的也不用验证，留接口，后续可以接入就行”。
+显示验收仅保留竖屏720×1280、1080×1920；横屏、旋转、其他分辨率及依赖额外尺寸的专项移出首期。真实登录服务器验证不做，保留会话接口、Protobuf契约和后续接入位置，登录页维持明确的本地演示模式。
 
-- UI设计与本轮显示验收以竖屏720×1280、1080×1920为准；不再要求横屏、旋转、其他尺寸以及依赖额外尺寸的窗口专项。原有实现与历史证据保留，旧用例显式标为用户移出首期。
-- 真实登录服务器连接、认证、拒绝、断线验收后置。保留 `ISessionClient` 等接口、Protobuf契约和后续接入位置，登录界面明确使用本地演示模式。
-- 22项热更新启动、下载校验、故障拒绝、关键点强杀恢复和Throw回退在Android/Windows上均保持必测；Protobuf热更新Parser检查不变。
-- Android另保留两种指定竖屏尺寸、键盘、后台恢复、安全区及竖屏滚动检查。现矩阵为Windows24项、Android28项，最终结果必须带范围修订号 `2026-11-01-portrait-interface-only`。
-- 不需要改变Windows显示器方向；此前为1080×2400获得的临时转屏许可不再使用，实际尚未更改显示器设置。
+热更新启动/校验/故障拒绝/强杀恢复/Throw回退22项在两平台均保持必测。Android另保留两种指定竖屏尺寸与键盘、后台恢复、安全区、竖屏滚动。当前矩阵为Windows24项、Android28项，范围修订号2026-11-01-portrait-interface-only；移出的历史用例保留为ExcludedByUser，不要求改变Windows显示器方向。
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在 `E:/sgame/client` 建立竖屏优先、横竖屏自适配、Protobuf 通信、可发布 C# 代码与资源热更新的 Unity 框架，并以无业务登录页证明完整链路。

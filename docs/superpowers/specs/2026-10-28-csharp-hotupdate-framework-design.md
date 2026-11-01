@@ -1,15 +1,11 @@
 # 全 C# 竖屏客户端框架设计
 
 
-## 2026-11-01 用户确认的首期验收修订
+## 2026-11-01 首期验收范围修订（用户明确要求）
 
-本节覆盖旧计划中相冲突的验收要求：用户明确要求“去除横屏的验证，继续竖屏720x1280、1080x1920”，并要求“登录服务器的也不用验证，留接口，后续可以接入就行”。
+显示验收仅保留竖屏720×1280、1080×1920；横屏、旋转、其他分辨率及依赖额外尺寸的专项移出首期。真实登录服务器验证不做，保留会话接口、Protobuf契约和后续接入位置，登录页维持明确的本地演示模式。
 
-- UI设计与本轮显示验收以竖屏720×1280、1080×1920为准；不再要求横屏、旋转、其他尺寸以及依赖额外尺寸的窗口专项。原有实现与历史证据保留，旧用例显式标为用户移出首期。
-- 真实登录服务器连接、认证、拒绝、断线验收后置。保留 `ISessionClient` 等接口、Protobuf契约和后续接入位置，登录界面明确使用本地演示模式。
-- 22项热更新启动、下载校验、故障拒绝、关键点强杀恢复和Throw回退在Android/Windows上均保持必测；Protobuf热更新Parser检查不变。
-- Android另保留两种指定竖屏尺寸、键盘、后台恢复、安全区及竖屏滚动检查。现矩阵为Windows24项、Android28项，最终结果必须带范围修订号 `2026-11-01-portrait-interface-only`。
-- 不需要改变Windows显示器方向；此前为1080×2400获得的临时转屏许可不再使用，实际尚未更改显示器设置。
+热更新启动/校验/故障拒绝/强杀恢复/Throw回退22项在两平台均保持必测。Android另保留两种指定竖屏尺寸与键盘、后台恢复、安全区、竖屏滚动。当前矩阵为Windows24项、Android28项，范围修订号2026-11-01-portrait-interface-only；移出的历史用例保留为ExcludedByUser，不要求改变Windows显示器方向。
 日期：2026-10-28。2026-10-29用户已要求实施，当前状态见[实施进度](../../implementation-progress.md)；下面保留原设计基线，执行中的必要兼容调整记录于进度台账。
 
 ## 1. 已确认要求与范围
@@ -143,3 +139,7 @@ iOS只保留无Windows专属依赖的Framework、平台路径抽象和后续Mac/
 - [Protobuf C# 官方教程](https://protobuf.dev/getting-started/csharptutorial/)。项目版本以共享锁文件为准，不使用教程示例版本替换锁。
 
 本地依据：`tok/crates/tok-proto/proto/tok/client/v1/client.proto`、`tok/examples/demo-game/config/local.toml`、`tok/examples/demo-game/src/gateway.rs`、`comm/tools/ProtocolGen/README.md`、`comm/tools/ProtocolGen/schema.lock.json`、`tok/docs/client-session.md`。comm/proto旧内容已删除，不作为现行依据；旧工程只读分析结果用于迁移取舍，不把其历史构建记录当新工程验证结果。
+
+### Android竖屏设备配置的验证方式
+
+720×1280、1080×1920分别在配置模拟器像素尺寸后启动拥有的原生进程，验证实际Screen尺寸、稳定布局、安全交互边界和可编辑非空输入。运行中更改wm size不更新当前Unity渲染尺寸的失败现场保留；这两项不宣称进程内实时更换设备物理分辨率。Windows已验证的真实窗口缩放和编辑连续性断言保持不变。
