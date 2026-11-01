@@ -2,7 +2,7 @@
 
 > 当前状态：首期框架21/21 Task已完成并通过最终独立审查。Windows24/24、雷电Android28/28正式原生验收通过，工具回归382/382；当前PlayerBuildId与证据见[D1产物](docs/verification/d1-build-acceptance.md)和[最终交付核对](docs/verification/delivery-audit.md)。iOS、真实ARM硬件/性能、生产接入及登录美术改造仍属后续。
 
-Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地，F8 同主包热更新与坏版回退已在 Windows 和雷电 ARM64 APK 中通过。D1 统一构建与两平台最终同包V1/V2基线验收已完成；D2 综合矩阵和 D3 干净工程复现仍在实施，当前证据见[实施进度](docs/implementation-progress.md)。
+Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地；D1统一构建、两平台同包热更新/回退、D2完整首期矩阵及D3干净工程复现均已完成并独立复核，当前证据见[实施进度](docs/implementation-progress.md)。
 
 ## 本地准备
 

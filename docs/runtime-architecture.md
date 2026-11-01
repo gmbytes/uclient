@@ -2,7 +2,7 @@
 
 客户端采用 Unity IL2CPP、官方 GF/UGF 基线与 HybridCLR。自研运行时代码使用 C#，PowerShell 负责开发和构建编排。首期只有框架、默认本地模拟登录和显式 Tok 开发登录入口。
 
-本文记录已提交的稳定运行时能力。F8 已在 Windows Release IL2CPP 与雷电 ARM64 APK 中接通包内信任、身份、发布源和服务组合，验证同主包更新、坏版下进程回退与更新端点不可达启动。D1 的正式构建管线与最终基线仍在实施；平台与任务完成范围见[实施进度](implementation-progress.md)。
+本文记录已提交的稳定运行时能力。F8及最终D2已在Windows Release IL2CPP与雷电ARM64 APK中验证同主包更新、故障拒绝、坏版下进程回退与离线启动；D1正式构建与最终基线、D3干净工程复现均已完成。平台与任务完成范围见[实施进度](implementation-progress.md)。
 
 ## 目录与程序集
 
