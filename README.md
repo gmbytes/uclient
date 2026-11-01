@@ -1,6 +1,6 @@
 # C# 客户端框架
 
-> 当前状态：后台编辑态修复后的Windows/Android新基线已完成D1复验（413/149完整回归、D1 70/70、原生同主包V1/V2与Throw回退、Android后台恢复资格检测）。当前产物见D1记录；完整D2矩阵和D3仍未完成，旧基线案例不混入新数据集。
+> 当前状态：首期框架21/21 Task已完成并通过最终独立审查。Windows24/24、雷电Android28/28正式原生验收通过，工具回归382/382；当前PlayerBuildId与证据见[D1产物](docs/verification/d1-build-acceptance.md)和[最终交付核对](docs/verification/delivery-audit.md)。iOS、真实ARM硬件/性能、生产接入及登录美术改造仍属后续。
 
 Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地，F8 同主包热更新与坏版回退已在 Windows 和雷电 ARM64 APK 中通过。D1 统一构建与两平台最终同包V1/V2基线验收已完成；D2 综合矩阵和 D3 干净工程复现仍在实施，当前证据见[实施进度](docs/implementation-progress.md)。
 

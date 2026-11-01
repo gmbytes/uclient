@@ -151,7 +151,7 @@
 - [x] **Step 4:** 在download完成前、slot改名前、状态替换前后、trial写后、热入口执行中强杀；完整重启仅选完整可用版本。ThrowOnStart必须下次启动回退；真实登录服务器拒绝/断线验收按用户要求移至后续，保留接口。强杀是测试控制，不引入原生崩溃插件。
 - [x] **Step 5:** 按用户最新范围仅验收Windows/Android竖屏720×1280、1080×1920；Android另验收软键盘、后台恢复、安全区与短表单滚动。收起IME后按用户确认结束编辑并保留文本；其他连续编辑用例保持焦点/选区要求。记录主ABI与转译环境，真实ARM硬件与iOS不计首期通过。横屏、旋转、其他尺寸和真实登录服务器验收标ExcludedByUser，接口保留。当前Windows24/24、Android28/28，IME/滚动已通过原生复核。
 - [x] **Step 6:** 两平台执行 `./Tool/Client/Verify-Framework.ps1 -Platform Windows64 -PlayerArchive <Windows归档>` 与 `./Tool/Client/Verify-Framework.ps1 -Platform Android -DeviceId <Android序列号> -PlayerArchive <Android归档>`；首期 Android 使用用户选择的雷电环境，预期各 `FRAMEWORK_ACCEPTANCE_PASS`。人工运行项逐条记录操作者/时间/环境/截图；真实ARM硬件和未测项不得勾选。
-- [ ] **Step 7:** 独立复核产物与结果后提交 `test(client): 完成热更新登录框架验收矩阵`。
+- [x] **Step 7:** 独立复核产物与结果后提交 `test(client): 完成热更新登录框架验收矩阵`。
 
 ### Task D3：启动文档、迁移台账与后续iOS清单
 
@@ -165,7 +165,7 @@
 - [x] **Step 2:** 核对主包和热更边界：原生SDK/引擎/稳定契约/信封改变需要新Player；UI/资源/允许的C#业务改动走补丁。说明不能原地卸载程序集、网络恢复后置和生产安全接入后置。
 - [x] **Step 3:** iOS清单明确后续需Mac、兼容Unity/HybridCLR、Xcode工具链、签名、ARM64 Player、路径/后台/键盘/安全区、同主包v1→v2、坏补丁回退与分发审核验证；当前状态全部NotRun，不承诺可上架。
 - [x] **Step 4:** 按目录规范核对Assets/Scripts、Assets/Tests、生成物与共享工具Include，拒绝旧自研Package根残留或扫描零文件；搜索Framework/Game中UnityEditor、Windows路径、Lua/XLua引用，按实际条件编译检查；整合D2证据链接和已知限制。满足M0–M4才更新首期完成声明。
-- [ ] **Step 5:** 提交 `docs(client): 记录框架交付与后续平台边界`。
+- [x] **Step 5:** 提交 `docs(client): 记录框架交付与后续平台边界`。
 
 ## 首期最终演示脚本
 

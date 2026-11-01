@@ -1,6 +1,6 @@
 # 主包、补丁与回退操作说明
 
-> 当前状态：后台编辑态修复后的Windows/Android新基线已完成D1复验（413/149完整回归、D1 70/70、原生同主包V1/V2与Throw回退、Android后台恢复资格检测）。当前产物见D1记录；完整D2矩阵和D3仍未完成，旧基线案例不混入新数据集。
+> 当前状态：首期框架21/21 Task已完成并通过最终独立审查。Windows24/24、雷电Android28/28正式原生验收通过，工具回归382/382；当前PlayerBuildId与证据见[D1产物](verification/d1-build-acceptance.md)和[最终交付核对](verification/delivery-audit.md)。iOS、真实ARM硬件/性能、生产接入及登录美术改造仍属后续。
 
 本文说明已实现的发布边界与客户端恢复行为。F8 的 Windows Release IL2CPP 和雷电 ARM64 APK 技术闭环已经通过；D1 正式构建入口与当前两平台最终归档已通过验收，见[D1验收记录](verification/d1-build-acceptance.md)；D2/D3 综合验收仍在推进。实际状态见[实施进度](implementation-progress.md)。
 

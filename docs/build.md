@@ -1,6 +1,6 @@
 # 主包与补丁构建
 
-> 当前状态：后台编辑态修复后的Windows/Android新基线已完成D1复验（413/149完整回归、D1 70/70、原生同主包V1/V2与Throw回退、Android后台恢复资格检测）。当前产物见D1记录；完整D2矩阵和D3仍未完成，旧基线案例不混入新数据集。
+> 当前状态：首期框架21/21 Task已完成并通过最终独立审查。Windows24/24、雷电Android28/28正式原生验收通过，工具回归382/382；当前PlayerBuildId与证据见[D1产物](verification/d1-build-acceptance.md)和[最终交付核对](verification/delivery-audit.md)。iOS、真实ARM硬件/性能、生产接入及登录美术改造仍属后续。
 
 统一构建入口与实际Editor菜单已有D1证据；修后固定目录原生D1验收已通过。完整D2矩阵与D3干净checkout复现仍需各自验收。
 
