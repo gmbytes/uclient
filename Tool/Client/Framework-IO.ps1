@@ -210,6 +210,29 @@ function Read-FrameworkArchive([string]$PlayerArchive,[string]$BuildResult,[stri
     else{$binary['Client.apk']=Get-FrameworkApkEvidence (Join-Path $PlayerArchive 'Player/Client.apk')}
     return @{archive=$archive;identity=$identity;archiveNative=$native;nativeBinaryEvidence=$binary;metadataHashes=$metadata;metadataNames=@($metadata.Keys);playerBuildId=$archive.playerBuildId;profilePackageId=$publicProfile.packageId;updateEndpoint=$publicProfile.endpoint;archiveSha256=(Get-FrameworkFileHash $archivePath);buildResultSha256=(Get-FrameworkFileHash $BuildResult);resultFile=[IO.Path]::GetFullPath($BuildResult);outputDirectory=[IO.Path]::GetFullPath($result.OutputDirectory)}
 }
+function Import-FrameworkNativeCollectionProof([string]$Root,$Reference,$Case,$Archive,[string]$RunId,[string]$Platform) {
+    $proof=Read-FrameworkReference $Root $Reference -Json
+    Assert-FrameworkFields $proof @('schemaVersion','scope','caseId','source','attempts')
+    Require-FrameworkFact ($proof.schemaVersion -eq 1 -and $proof.scope -ceq 'NativeCollectionExport' -and $proof.caseId -ceq $Case.id) 'E_COLLECTION_PROVENANCE' 'Portable collection proof must bind this logical case.'
+    $source=Read-FrameworkReference $Root $proof.source -Json
+    Require-FrameworkFact ($source.schemaVersion -eq 1 -and $source.evidenceKind -ceq 'NativeCollection' -and $source.nativeAcceptance -is [bool] -and $source.nativeAcceptance -eq $false -and $source.runId -ceq $RunId -and $source.platform -ceq $Platform -and $source.playerBuildId -ceq $Archive.playerBuildId) 'E_COLLECTION_PROVENANCE' 'Original native collector output belongs to a different run, platform or Player.'
+    $records=@($source.cases|Where-Object id -ceq $Case.id)
+    Require-FrameworkFact ($records.Count -eq 1 -and $records[0].status -ceq 'Collected' -and $records[0].executed -is [bool] -and $records[0].executed -eq $true -and $records[0].attempts.Count -eq $Case.attempts.Count -and $proof.attempts.Count -eq $Case.attempts.Count -and $Case.attempts.Count -gt 0) 'E_COLLECTION_PROVENANCE' 'Every executed native attempt requires an original collected record.'
+    $bindings=@()
+    for($index=0;$index -lt $Case.attempts.Count;$index++){
+        $actual=$Case.attempts[$index];$original=$records[0].attempts[$index];$export=$proof.attempts[$index]
+        Assert-FrameworkFields $export @('role','receipt')
+        Require-FrameworkFact ($original.role -cin @('primary','recovery') -and $export.role -ceq $original.role -and $original.processId -eq $actual.processId -and $original.attemptId -ceq $actual.attemptId -and $original.terminal.terminal -is [bool] -and $original.terminal.terminal -eq $true -and $original.terminal.processId -eq $actual.processId) 'E_COLLECTION_PROVENANCE' 'Original attempt identity, role or terminal process differs.'
+        Require-FrameworkFact ($original.capture.evidenceKind -ceq 'Native' -and $original.capture.schemaAccepted -is [bool] -and $original.capture.schemaAccepted -eq $true -and $original.capture.receipt.sha256 -ceq $export.receipt.sha256) 'E_COLLECTION_PROVENANCE' 'Copied receipt must retain exactly the original native collector bytes.'
+        $path=Resolve-FrameworkReference $Root $export.receipt;$descriptor=Read-FrameworkJson $path;$directory=Split-Path -Parent $path
+        Require-FrameworkFact ($descriptor.evidenceKind -ceq 'Native' -and $descriptor.schemaAccepted -is [bool] -and $descriptor.schemaAccepted -eq $true -and $descriptor.processId -eq $actual.processId -and $descriptor.attemptId -ceq $actual.attemptId) 'E_COLLECTION_PROVENANCE' 'Native capture descriptor is rejected, synthetic or foreign.'
+        $null=Resolve-FrameworkReference $directory $descriptor.events;$process=Read-FrameworkReference $directory $descriptor.process -Json
+        Require-FrameworkFact ($descriptor.events.sha256 -ceq $actual.eventsSha256 -and $descriptor.process.sha256 -ceq $actual.processSha256 -and $process.processId -eq $actual.processId -and $process.attemptId -ceq $actual.attemptId -and $process.runId -ceq $RunId -and $process.caseId -ceq $Case.id -and $process.playerBuildId -ceq $Archive.playerBuildId -and $process.terminal -eq $true) 'E_COLLECTION_PROVENANCE' 'Imported event/process bytes differ from the original native capture.'
+        $bindings+=@{role=$original.role;processId=$actual.processId;attemptId=$actual.attemptId;receipt=$export.receipt;eventsSha256=$descriptor.events.sha256;processSha256=$descriptor.process.sha256}
+    }
+    # 导出的路径可以变化；原始采集器、回执、事件和进程文件字节必须一一相同。
+    return @{validated=$true;caseId=$Case.id;source=$proof.source;proof=$Reference;attempts=$bindings}
+}
 function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[string]$DeviceId) {
     $bundle=Read-FrameworkJson $Path;$root=Split-Path -Parent ([IO.Path]::GetFullPath($Path))
     Assert-FrameworkFields $bundle @('schemaVersion','evidenceKind','runId','platform','archiveSha256','buildResultSha256','buildReceipt','nativeBefore','nativeAfter','releases','cases') @('deviceId','environment','executionGate')
@@ -243,7 +266,7 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
     }
     $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach($source in $bundle.cases){
-        Assert-FrameworkFields $source @('id','executed','attempts') @('knownGood','previousGood','candidate','fault','preservation','operator','kill','install','server','transfer','preparedCandidate')
+        Assert-FrameworkFields $source @('id','executed','attempts') @('knownGood','previousGood','candidate','fault','preservation','operator','kill','install','server','transfer','preparedCandidate','collection')
         $case=@{id=$source.id;executed=($source.executed -eq $true);knownGood=$source.knownGood;previousGood=$source.previousGood;candidate=$source.candidate;attempts=@()}
         if($case.executed){
             if($source.transfer){Assert-FrameworkFields $source.transfer @('holding','abort');$case.transfer=@{holding=(Read-FrameworkReference $root $source.transfer.holding -Json);abort=(Read-FrameworkReference $root $source.transfer.abort -Json)}}
@@ -267,12 +290,16 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
                 $events=Read-FrameworkEvents $eventPath
                 Require-FrameworkFact ($events.Count -gt 0) 'E_EVENTS' 'Native event stream is empty.'
                 $process=Read-FrameworkReference $root $sourceAttempt.process -Json
-                $attempt=@{caseId=$case.id;attemptId=$events[0].attemptId;processId=$events[0].processId;observedProcessId=$process.processId;process=$process;events=$events;evidencePaths=@($sourceAttempt.events.path,$sourceAttempt.process.path);eventsSha256=$sourceAttempt.events.sha256}
+                $attempt=@{caseId=$case.id;attemptId=$events[0].attemptId;processId=$events[0].processId;observedProcessId=$process.processId;process=$process;events=$events;evidencePaths=@($sourceAttempt.events.path,$sourceAttempt.process.path);eventsSha256=$sourceAttempt.events.sha256;processSha256=$sourceAttempt.process.sha256}
                 if($sourceAttempt.slotInventory){$attempt.slotInventory=Read-FrameworkReference $root $sourceAttempt.slotInventory -Json;$attempt.evidencePaths+=$sourceAttempt.slotInventory.path}
                 if($sourceAttempt.checkpoint){$attempt.checkpoint=Read-FrameworkReference $root $sourceAttempt.checkpoint -Json;$attempt.evidencePaths+=$sourceAttempt.checkpoint.path}
                 $case.attempts+=$attempt
             }
             if($case.operator){foreach($shot in $case.operator.screenshots){$null=Resolve-FrameworkReference $root $shot}}
+            if($bundle.evidenceKind -ceq 'Native'){
+                Require-FrameworkFact ($null -ne $source.collection) 'E_COLLECTION_PROVENANCE' 'Executed native cases require the original portable collector proof.'
+                $case.collectionProvenance=Import-FrameworkNativeCollectionProof $root $source.collection $case $Archive $bundle.runId $Platform
+            }
         }
         $evidence.cases+=$case
     }
