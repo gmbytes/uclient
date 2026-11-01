@@ -26,6 +26,14 @@ Check 'unscoped Android checkpoint wait rejects before launching a helper' {
     $caught=$false;try{Wait-FrameworkAndroidCheckpoint -Tool @{} -Owned @{} -Context @{} -OutputDirectory (Join-Path $root 'forbidden')}catch [IO.InvalidDataException]{$caught=$_.Exception.Message -like 'E_PREPARATION_GATE*'}
     Require ($caught -and -not(Test-Path (Join-Path $root 'forbidden'))) 'Unscoped checkpoint wait caused effects.'
 }
+Check 'stale process checkpoint is skipped while the current exact checkpoint remains selected' {
+    $old=Point;$old.processId=124;$old.attemptId='b'*32;$old.token='qual:checkpoint:'+('b'*32)+':124:hotentry.executing:'
+    Require ($null -eq (Select-FrameworkAndroidOwnedCheckpoint $old (Owned) ('b'*32))) 'Older native process checkpoint was selected.'
+    $current=Select-FrameworkAndroidOwnedCheckpoint (Point) (Owned) ('a'*32);Require ($current.processId -eq 123 -and $current.attemptId -ceq ('a'*32)) 'Current native checkpoint was not selected.'
+}
+Check 'current process checkpoint with foreign run still rejects' {$p=Point;$p.runId='foreign';$caught=$false;try{Select-FrameworkAndroidOwnedCheckpoint $p (Owned) ('a'*32)|Out-Null}catch [IO.InvalidDataException]{$caught=$true};Require $caught 'Foreign current-process run accepted.'}
+Check 'current process checkpoint with wrong token still rejects' {$p=Point;$p.token='foreign';$caught=$false;try{Select-FrameworkAndroidOwnedCheckpoint $p (Owned) ('a'*32)|Out-Null}catch [IO.InvalidDataException]{$caught=$true};Require $caught 'Wrong current-process token accepted.'}
+Check 'stale process checkpoint must still belong to its exact native directory' {$p=Point;$p.processId=124;$caught=$false;try{Select-FrameworkAndroidOwnedCheckpoint $p (Owned) ('b'*32)|Out-Null}catch [IO.InvalidDataException]{$caught=$true};Require $caught 'Unrelated stale checkpoint directory accepted.'}
 $failed=@($records|Where-Object passed -eq $false)
 Write-FrameworkJsonNew (Join-Path $root 'test-result.json') @{evidenceKind='SyntheticUnit';nativeAcceptance=$false;passed=($failed.Count -eq 0);count=$records.Count;cases=$records}
 Write-Host "D2_CHECKPOINT_RECEIPT $root"

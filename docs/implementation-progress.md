@@ -137,3 +137,5 @@ D3 Step 2 已核对运行时/主包/补丁边界：稳定契约、信封、引�
 ## 2026-11-01 首期范围按用户要求调整
 
 首期仅保留竖屏720×1280、1080×1920的显示验收，取消横屏、旋转、其他尺寸专项及真实登录服务器验证；保留会话接口、Protobuf契约和本地演示。热更新核心22项两平台均不减少，Android竖屏键盘/后台/安全区/滚动继续。判定器只安排required=true项，旧用例保留为ExcludedByUser并说明原因，结果增加范围修订号和必测数量。Windows现需24项、Android28项；历史27项计数不直接作为新版分母。
+
+D3当前运行时边界复核通过：Framework/Game共87个C#文件，未发现UnityEditor、绝对Windows盘符路径或Lua/XLua引用；Packages中除官方HybridCLR外无自研程序集。原始hash与结果位于E:\sgame\.worktrees\client-release-verifier\Builds\Tests\D3\FinalBoundary-20261101T075009601Z/result.json。此项不代替尚未完成的Android验收和最终复核。

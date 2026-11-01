@@ -349,6 +349,13 @@ function Assert-FrameworkCheckpoint($Checkpoint,$Owned,[string]$AttemptId) {
             (Test-FrameworkInteger $Checkpoint.data.expectedBytes) -and $Checkpoint.data.bytes -gt 0 -and $Checkpoint.data.bytes -lt $Checkpoint.data.expectedBytes) 'E_PARTIAL_TRANSFER' 'Strong kill requires a positive incomplete authenticated transfer.'
     }
 }
+function Select-FrameworkAndroidOwnedCheckpoint($Checkpoint,$Owned,[string]$AttemptId) {
+    Require-FrameworkFact ($Checkpoint.runId -ceq $Owned.runId -and $Checkpoint.caseId -ceq $Owned.caseId -and $Checkpoint.attemptId -ceq $AttemptId) 'E_CHECKPOINT_IDENTITY' 'Checkpoint does not belong to this exact native run/case/directory.'
+    # 同一用例的历史进程目录保留作证据；不能把旧 PID 的暂停点绑定给当前进程。
+    if((Test-FrameworkInteger $Checkpoint.processId) -and $Checkpoint.processId -ne $Owned.processId){return $null}
+    Assert-FrameworkCheckpoint $Checkpoint $Owned $AttemptId
+    return $Checkpoint
+}
 function Wait-FrameworkAndroidCheckpoint($Tool,$Owned,$Context,[string]$OutputDirectory,[ValidateRange(1,60)][int]$TimeoutSeconds=60) {
     Assert-FrameworkEffectsReleased
     Require-FrameworkFact ($Context.platform -ceq 'Android' -and $Owned.deviceId -ceq $Context.deviceId -and
@@ -371,7 +378,8 @@ function Wait-FrameworkAndroidCheckpoint($Tool,$Owned,$Context,[string]$OutputDi
                 if($capture.exitCode -ne 0){continue}
                 $source=Join-Path $capture.outputDirectory 'stdout.bin'
                 $checkpoint=ConvertFrom-FrameworkJson (Read-FrameworkUtf8 $source 256KB) -ObjectOnly
-                Assert-FrameworkCheckpoint $checkpoint $Owned $attempt
+                $checkpoint=Select-FrameworkAndroidOwnedCheckpoint $checkpoint $Owned $attempt
+                if($null -eq $checkpoint){continue}
                 # 原始设备字节单独保存；只把已核对的 native attempt 绑定到持有的进程记录。
                 $copy=Join-Path $output 'native-checkpoint.json';[IO.File]::Copy($source,$copy,$false)
                 $Owned.attemptId=$attempt
