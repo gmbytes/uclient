@@ -260,6 +260,9 @@ function Assert-FrameworkUi($Case,$Definition) {
     Require-FrameworkFact ($buttons.Count -gt 0) 'E_UI_ACTION' 'Actual interactive button geometry is absent.'
     foreach($button in $buttons){Assert-FrameworkInside $button.bounds $snapshot.safeArea $button.name}
     $action=$Definition.action
+    if($action -ceq 'portrait-screen'){
+        Require-FrameworkFact ($snapshot.width -lt $snapshot.height -and $snapshot.input.focused -eq $true -and (Test-FrameworkObjectId $snapshot.selected) -and $snapshot.input.length -gt 0) 'E_PORTRAIT_INPUT' 'Configured native portrait screen must contain a real focused nonempty input.'
+    }
     if($action -in @('resize','window-drag','rotation','keyboard-rotation','inflight-rotation','keyboard','background','scroll')){
         Require-FrameworkFact (($samples.Count -ge 2) -or ($action -ceq 'resize' -and $samples.Count -ge 1 -and $stable.Count -ge 1)) 'E_UI_CONTINUITY' 'Before and confirmed-after native action observations are required.'
         $first=$samples[0].data.snapshot

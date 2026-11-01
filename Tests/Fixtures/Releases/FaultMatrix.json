@@ -588,10 +588,11 @@
       "required": true,
       "taskId": "D2.Step5",
       "id": "android-720x1280",
-      "action": "resize",
+      "action": "portrait-screen",
       "platforms": [
         "Android"
-      ]
+      ],
+      "configuration": "Set emulator pixel size before starting the owned process; verify actual native dimensions, stable layout, safe interactions and editable input."
     },
     {
       "width": 1080,
@@ -601,10 +602,11 @@
       "required": true,
       "taskId": "D2.Step5",
       "id": "android-1080x1920",
-      "action": "resize",
+      "action": "portrait-screen",
       "platforms": [
         "Android"
-      ]
+      ],
+      "configuration": "Set emulator pixel size before starting the owned process; verify actual native dimensions, stable layout, safe interactions and editable input."
     }
   ],
   "excluded": [
