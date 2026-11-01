@@ -230,6 +230,25 @@ function Assert-FrameworkKill($Case,$Evidence,$Definition) {
 function Assert-FrameworkInside($Bounds,$SafeArea,[string]$Name) {
     Require-FrameworkFact ($null -ne $Bounds -and $SafeArea.width -gt 0 -and $SafeArea.height -gt 0 -and $Bounds.right -gt $Bounds.left -and $Bounds.top -gt $Bounds.bottom -and $Bounds.left -ge $SafeArea.x-1 -and $Bounds.right -le $SafeArea.x+$SafeArea.width+1 -and $Bounds.bottom -ge $SafeArea.y-1 -and $Bounds.top -le $SafeArea.y+$SafeArea.height+1) 'E_SAFE_AREA' "$Name lies outside the observed native safe area."
 }
+function Test-FrameworkShortScrollTranslation($Before,$After) {
+    # 短内容的normalizedPosition可恒为0；改用原内容在固定视口中的一致竖向位移作第二种原生证明。
+    $delta=$After.input.bounds.top-$Before.input.bounds.top
+    if([Math]::Abs($delta) -lt 2){return $false}
+    foreach($edge in @('left','right','bottom','top')){if([Math]::Abs($Before.scrolls[0].bounds[$edge]-$After.scrolls[0].bounds[$edge]) -gt 0.5){return $false}}
+    $beforeButtons=@($Before.buttons|Where-Object active -eq $true);$afterButtons=@($After.buttons|Where-Object active -eq $true)
+    if($beforeButtons.Count -eq 0 -or $beforeButtons.Count -ne $afterButtons.Count){return $false}
+    $pairs=@(@{before=$Before.input.bounds;after=$After.input.bounds})
+    foreach($button in $beforeButtons){
+        $match=@($afterButtons|Where-Object id -eq $button.id)
+        if($match.Count -ne 1){return $false}
+        $pairs+=@{before=$button.bounds;after=$match[0].bounds}
+    }
+    foreach($pair in $pairs){
+        foreach($edge in @('left','right')){if([Math]::Abs($pair.after[$edge]-$pair.before[$edge]) -gt 0.5){return $false}}
+        foreach($edge in @('bottom','top')){if([Math]::Abs(($pair.after[$edge]-$pair.before[$edge])-$delta) -gt 0.5){return $false}}
+    }
+    return $true
+}
 function Assert-FrameworkUi($Case,$Definition) {
     Assert-FrameworkScalars $Case
     Require-FrameworkFact ($Case.attempts.Count -eq 1) 'E_UI_ATTEMPT' 'One continuous process must contain this UI action.'
@@ -270,12 +289,18 @@ function Assert-FrameworkUi($Case,$Definition) {
         foreach($sample in @($samples)+@($stable)){
             $current=$sample.data.snapshot
             Require-FrameworkFact ($current.view -eq $first.view -and $current.input.id -eq $first.input.id -and $current.input.textSha256 -ceq $first.input.textSha256 -and $current.input.length -eq $first.input.length) 'E_UI_CONTINUITY' 'View, input or text changed during the native action.'
-            # 后台平台可临时停用键盘并清空非编辑态选区；实际恢复编辑的样本及最终稳定帧必须回到原选区。
-            if($action -ne 'background' -or $current.input.focused -eq $true){Require-FrameworkFact ($current.input.caret -eq $first.input.caret -and $current.input.selectionAnchor -eq $first.input.selectionAnchor -and $current.input.selectionFocus -eq $first.input.selectionFocus) 'E_UI_CONTINUITY' 'Active editing caret or selection changed during the native action.'}
-            if($action -ne 'background'){Require-FrameworkFact ($current.selected -eq $first.selected -and $current.input.focused -eq $first.input.focused) 'E_UI_FOCUS' 'Focus changed during the native action.'}
+            # 用户确认系统返回收起IME后结束编辑；仅键盘已关闭的非编辑态允许重置光标，文本和实例仍必须保留。
+            $keyboardEnded=$action -ceq 'keyboard' -and $current.keyboardVisible -eq $false -and $current.input.focused -eq $false
+            # 后台平台可临时清空非编辑态选区；恢复编辑后仍须回到原选区。
+            if(($action -ne 'background' -or $current.input.focused -eq $true) -and -not $keyboardEnded){Require-FrameworkFact ($current.input.caret -eq $first.input.caret -and $current.input.selectionAnchor -eq $first.input.selectionAnchor -and $current.input.selectionFocus -eq $first.input.selectionFocus) 'E_UI_CONTINUITY' 'Active editing caret or selection changed during the native action.'}
+            if($action -ne 'background' -and -not $keyboardEnded){Require-FrameworkFact ($current.selected -eq $first.selected -and $current.input.focused -eq $first.input.focused) 'E_UI_FOCUS' 'Focus changed during the native action.'}
         }
-        Require-FrameworkFact ($snapshot.selected -eq $first.selected -and $snapshot.input.focused -eq $first.input.focused) 'E_UI_FOCUS' 'Original focus did not survive or restore after the native action.'
-        Require-FrameworkFact ($snapshot.input.caret -eq $first.input.caret -and $snapshot.input.selectionAnchor -eq $first.input.selectionAnchor -and $snapshot.input.selectionFocus -eq $first.input.selectionFocus) 'E_UI_CONTINUITY' 'Original final caret or selection did not restore after the native action.'
+        if($action -ceq 'keyboard'){
+            Require-FrameworkFact ($first.keyboardVisible -eq $true -and $snapshot.keyboardVisible -eq $false -and $snapshot.input.focused -eq $false) 'E_IME_END_EDITING' 'IME must open while editing and close into the user-selected non-editing state.'
+        }else{
+            Require-FrameworkFact ($snapshot.selected -eq $first.selected -and $snapshot.input.focused -eq $first.input.focused) 'E_UI_FOCUS' 'Original focus did not survive or restore after the native action.'
+            Require-FrameworkFact ($snapshot.input.caret -eq $first.input.caret -and $snapshot.input.selectionAnchor -eq $first.input.selectionAnchor -and $snapshot.input.selectionFocus -eq $first.input.selectionFocus) 'E_UI_CONTINUITY' 'Original final caret or selection did not restore after the native action.'
+        }
         Require-FrameworkFact (@(Get-FrameworkEvents $attempt 'hot.log'|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'}).Count -eq 1) 'E_PRESENTER' 'Presenter was recreated or not observed.'
     }
     if($action -in @('rotation','keyboard-rotation','inflight-rotation')){
@@ -290,7 +315,8 @@ function Assert-FrameworkUi($Case,$Definition) {
     if($action -ceq 'window-drag'){Require-FrameworkFact (@($samples|ForEach-Object {"$($_.data.snapshot.width)x$($_.data.snapshot.height)"}|Sort-Object -Unique).Count -ge 3) 'E_DRAG' 'Actual drag must expose intermediate client sizes.'}
     if($action -ceq 'scroll'){
         $before=$samples[0].data.snapshot
-        Require-FrameworkFact ($before.scrolls.Count -gt 0 -and $snapshot.scrolls.Count -eq $before.scrolls.Count -and $before.scrolls[0].id -eq $snapshot.scrolls[0].id -and [Math]::Abs($before.scrolls[0].y-$snapshot.scrolls[0].y) -gt 0.01) 'E_SCROLL' 'Actual short-form scrolling did not move the original viewport content.'
+        Require-FrameworkFact ($before.scrolls.Count -gt 0 -and $snapshot.scrolls.Count -eq $before.scrolls.Count -and $before.scrolls[0].id -eq $snapshot.scrolls[0].id) 'E_SCROLL' 'Original scroll viewport identity changed or is missing.'
+        Require-FrameworkFact ([Math]::Abs($before.scrolls[0].y-$snapshot.scrolls[0].y) -gt 0.01 -or (Test-FrameworkShortScrollTranslation $before $snapshot)) 'E_SCROLL' 'Actual short-form scrolling did not move the original viewport content.'
         $viewport=$snapshot.scrolls[0].bounds;$rect=@{x=$viewport.left;y=$viewport.bottom;width=($viewport.right-$viewport.left);height=($viewport.top-$viewport.bottom)}
         foreach($button in $buttons){Assert-FrameworkInside $button.bounds $rect 'Scrolled primary action'}
     }

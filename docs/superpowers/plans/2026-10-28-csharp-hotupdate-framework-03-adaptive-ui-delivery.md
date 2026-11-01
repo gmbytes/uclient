@@ -146,10 +146,10 @@
 **Interfaces:** `Verify-Framework.ps1 -Platform Android|Windows64 [-DeviceId <id>] -PlayerArchive <path>` 输出 `framework-result.json` 和TaskID到证据的映射；任何必测项未执行为NotRun，不能自动当Pass。
 
 - [x] **Step 1:** 先写判定器：缺平台、缺设备、旧runId证据、Playerhash变化、日志缺热更分支、required case未运行时总结果必须失败；用故意不完整fixture观察红灯。
-- [ ] **Step 2:** 每平台独立验证：干净安装离线基线→在线v2更新→完整重启执行新C#分支和新UI资源→再次无网启动；APK/EXE及native binary hash不变。验证Protobuf集合、未知字段和新增fixture Parser真实执行。
-- [ ] **Step 3:** 每平台故障矩阵：坏签名、坏hash、错PlayerBuildId、错架构、缺DLL/Bundle、坏原生版本表、磁盘预算不足、下载取消/网络中断。完整性/身份校验失败的候选在资源初始化前拒绝，旧版本可继续启动；坏原生版本表还必须覆盖合法签名/hash但GF语义损坏的独立用例：该候选根至多尝试初始化一次，保留GF失败证据、无热DLL加载/无Ready/无known-good晋升，要求完整重启后从原known-good实际启动。旧版本文件保持完整；所有计数按候选与实际选中版本区分，不在同进程二次切根。
-- [ ] **Step 4:** 在download完成前、slot改名前、状态替换前后、trial写后、热入口执行中强杀；完整重启仅选完整可用版本。ThrowOnStart必须下次启动回退；登录服务器拒绝/断线不能误判坏补丁。强杀是测试控制，不引入原生崩溃插件。
-- [ ] **Step 5:** Windows跑全部U2分辨率和窗口拖拽；Android在雷电中运行ARM64 APK，测竖→横左→竖→横右、软键盘/旋转、后台恢复、安全区和短表单滚动；保留输入/焦点、一次请求、2稳定帧内布局完成、交互区域在安全区内。记录主ABI与转译环境，真机相关项标NotRun。
+- [x] **Step 2:** 每平台独立验证：干净安装离线基线→在线v2更新→完整重启执行新C#分支和新UI资源→再次无网启动；APK/EXE及native binary hash不变。验证Protobuf集合、未知字段和新增fixture Parser真实执行。
+- [x] **Step 3:** 每平台故障矩阵：坏签名、坏hash、错PlayerBuildId、错架构、缺DLL/Bundle、坏原生版本表、磁盘预算不足、下载取消/网络中断。完整性/身份校验失败的候选在资源初始化前拒绝，旧版本可继续启动；坏原生版本表还必须覆盖合法签名/hash但GF语义损坏的独立用例：该候选根至多尝试初始化一次，保留GF失败证据、无热DLL加载/无Ready/无known-good晋升，要求完整重启后从原known-good实际启动。旧版本文件保持完整；所有计数按候选与实际选中版本区分，不在同进程二次切根。
+- [x] **Step 4:** 在download完成前、slot改名前、状态替换前后、trial写后、热入口执行中强杀；完整重启仅选完整可用版本。ThrowOnStart必须下次启动回退；真实登录服务器拒绝/断线验收按用户要求移至后续，保留接口。强杀是测试控制，不引入原生崩溃插件。
+- [ ] **Step 5:** 按用户最新范围仅验收Windows/Android竖屏720×1280、1080×1920；Android另验收软键盘、后台恢复、安全区与短表单滚动。收起IME后按用户确认结束编辑并保留文本；其他连续编辑用例保持焦点/选区要求。记录主ABI与转译环境，真实ARM硬件与iOS不计首期通过。横屏、旋转、其他尺寸和真实登录服务器验收标ExcludedByUser，接口保留。当前Windows24/24、Android27/28，滚动未通过。
 - [ ] **Step 6:** 两平台执行 `./Tool/Client/Verify-Framework.ps1 -Platform Windows64 -PlayerArchive <Windows归档>` 与 `./Tool/Client/Verify-Framework.ps1 -Platform Android -DeviceId <Android序列号> -PlayerArchive <Android归档>`；首期 Android 使用用户选择的雷电环境，预期各 `FRAMEWORK_ACCEPTANCE_PASS`。人工运行项逐条记录操作者/时间/环境/截图；真实ARM硬件和未测项不得勾选。
 - [ ] **Step 7:** 独立复核产物与结果后提交 `test(client): 完成热更新登录框架验收矩阵`。
 

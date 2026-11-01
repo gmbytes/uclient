@@ -262,3 +262,7 @@ After candidate state replacement, the complete published candidate was physical
 
 All six original strict kill assertions passed and were independently replayed from saved files in `independent-criterion-replay.json`. Matrix progress is21/31 Android required cases, installation count1; the aggregate remains incomplete. All18 setup/primary/recovery processes ended, server21952 exited0, owned18765 reverse removed and original installed APK97121e79... rechecked unchanged. Throw, session/UI, Windows34 cases and complete bundle/environment/evaluator integration remain pending.
 Android两种目标分辨率按设备配置启动验证：先设定模拟器像素尺寸，再启动拥有的原生进程，核对实际Screen尺寸、两稳定帧、安全交互边界和可编辑非空输入。此前在运行中更改wm size未改变Unity渲染尺寸的失败现场保留；不将设备物理像素配置误写为进程内实时窗口缩放。Windows原生实时缩放与编辑连续性断言保持不变。
+
+2026-11-01用户确认：系统返回关闭IME后结束编辑并保留账号文本。keyboard用例最终状态必须keyboardVisible=false且focused=false，原View/Input及文本始终不变；活动编辑中的选区仍须连续。Android正式连续数据集P-20261101T064919739Z的PID28718已按真实系统返回操作通过，安装次数1。该规则不放宽其他缩放、后台恢复或滚动用例的编辑状态要求。
+
+短内容滚动允许两种原生证据：原ScrollRect归一化位置变化，或固定原视口内原输入框与全部活动按钮一致竖向移动至少2像素、保持各控件尺寸和横向边界。后者用于uGUI短内容normalizedPosition恒为0的情况，仍检查文本、焦点、光标/选区以及主按钮的视口边界。PID30389已通过真实Android鼠标设备的滚轮输入复核；仅改输入框、仅改按钮、视口移动、按钮实例替换、输入框尺寸变化及横向移动均有拒绝测试。

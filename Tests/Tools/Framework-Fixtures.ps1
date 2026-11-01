@@ -86,7 +86,7 @@ function New-FrameworkFixtureUi([string]$Action) {
         $snapshot.orientation=$direction
         if($direction -ne 'Portrait'){$snapshot.width=1280;$snapshot.height=720;$snapshot.layout.Width=1280;$snapshot.layout.Height=720;$snapshot.layout.mode='Landscape';$snapshot.layout.safeArea.width=1280;$snapshot.layout.safeArea.height=720;$snapshot.safeArea.width=1280;$snapshot.safeArea.height=720;$snapshot.scrolls[0].bounds.right=1280;$snapshot.scrolls[0].bounds.top=720}
         if($Action -eq 'window-drag' -and $index -eq 2){$snapshot.width=1400;$snapshot.layout.Width=1400;$snapshot.safeArea.width=1400}
-        if($Action -eq 'keyboard'){$snapshot.keyboardVisible=$index -eq 1}
+        if($Action -eq 'keyboard'){$snapshot.keyboardVisible=$index -eq 0;if($index -eq 2){$snapshot.input.focused=$false;$snapshot.input.caret=0;$snapshot.input.selectionAnchor=0;$snapshot.input.selectionFocus=0}}
         if($Action -eq 'keyboard-rotation'){$snapshot.keyboardVisible=$index -gt 0}
         if($Action -eq 'scroll'){$snapshot.scrolls[0].y=1-($index/2.0)}
         if($Action -eq 'background' -and $index -eq 1){Add-FrameworkFixtureEvent $a 'application.pause' @{paused=$true;frame=$frame};$snapshot.selected=0;$snapshot.input.focused=$false}

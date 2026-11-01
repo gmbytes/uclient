@@ -167,3 +167,15 @@ Android两种竖屏设备配置720×1280、1080×1920均已原生验证通过；
 当前工具代码已通过20套366项回归，证据Builds/Tests/D2/ToolRegression-20261101T093939394Z；会话接口只做合成数据契约检查，不进行真实服务器验证。D3当前边界复核87个Framework/Game C#文件，未发现UnityEditor、绝对Windows盘符或Lua/XLua引用，官方HybridCLR以外无自研Packages程序集；证据Builds/Tests/D3/FinalBoundary-20261101T075009601Z。必要注释已覆盖启动事务、完整slot、程序集单次加载、UI/资源所有权、GF事件回主线程及后台恢复等不变量，未为注释修改已冻结运行时代码。
 
 Android实际26项的完整原始源数据已导出到E:/sgame/Builds/D2/P-20261101T064919739Z/exports/portrait-partial-20261101T113649860Z，正式Verify命令实际退出1，26项Pass、android-ime/android-short-scroll两项NotRun，正确保持整体未通过。全量资源/代码/原生哈希与一次安装约束保留，当前仍19/21 Task。
+
+## 2026-11-01 IME交互确认与原生复核
+
+用户明确选择系统返回收起软键盘后“结束编辑，保留账号文本”。验收规则只允许已关闭键盘的非编辑态复位光标；编辑中光标/选区、原View/Input实例和账号文本仍严格核对。两项预期失败先被实际复现，修正后8/8定向测试、完整21套374/374工具回归通过，源码哈希前后不变；证据为client-release-verifier/Builds/Tests/D2/ToolRegression-20261101T131527095Z。
+
+同一Android APK、安装次数1的原生PID28718/attempt309600c7a940429ab4fd4ed871c21cc7实际完成打开IME、系统返回关闭、结束编辑与保留文本，criterion-result.json为Pass，控制器和操作器均正常退出、nativeUnchanged=true。当前27/28；滚动及最终整体验收仍待完成，整体19/21不变。原先IME与滚动失败现场归档至同一数据集failed-attempts，未改写为通过。
+
+## 2026-11-01 滚动原生复核
+
+滚动判定发现uGUI短内容在Unrestricted模式下可实际位移而normalizedPosition恒为0。新增固定视口内原输入框及全部活动按钮一致竖向位移的独立证明，要求至少2像素、原实例和横向边界不变；不是仅凭操作标记通过。真实RED后8/8定向通过，完整22套382/382工具回归、源码哈希不变，证据ToolRegression-20261101T143029349Z。
+
+原生PID30389/attempt46bf89b5dec341048159b6bb31ae5696使用已观察到的Android鼠标设备REL_WHEEL/SYN_REPORT真实输入，文本、焦点、光标、选区保留，原内容一致位移且主要按钮位于原视口内；原始截图、输入命令和事件保留。操作器与控制器均退出0、nativeUnchanged=true，criterion-result.json为Pass。Android当前28/28、安装1；全量源数据导出并重导入已得到28Pass/0NotRun，正式CLI总验收与独立审查尚待完成，整体仍19/21。
