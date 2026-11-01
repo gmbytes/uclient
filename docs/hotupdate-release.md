@@ -60,7 +60,20 @@ Android 与 Windows 归档分别保存。补丁身份必须匹配原包的 Playe
 
 F8 的可执行技术证明命令、当前双平台 runId、PlayerBuildId、结果与限制见[热更新验证](verification/hotupdate.md)。它会创建独立技术基线，不能替代 D1 的最终 Player/Patch 归档或 D2 的全部故障矩阵。
 
-D1 完成后，本文还需加入实测的统一构建/补丁命令、返回的实际输出子目录、独立签名输入和最终原始归档示例。D3 需从干净 checkout 按最终 README 实际执行后才确认可复现。
+统一构建从 `client` 根目录运行，公开配置与私钥都是显式外部输入。公开配置遵守 `NativeBuildProfile` 的严格字段契约，私钥必须与其中公钥匹配；私钥不放进 Assets、Packages、Tool、Tests 或归档原生输入。默认空信任配置不会自动允许更新。
+
+```powershell
+# 先按 README 恢复依赖、准备精确版本 HybridCLR，并配置外部文件：
+# SGAME_PUBLIC_PROFILE_FILE 指向公开 profile JSON；SGAME_SIGNING_KEY_FILE 指向私钥 XML。
+$player = & ./Tool/Client/Build-Client.ps1 -Kind Player -Platform Windows64 -OutputRoot (Join-Path $PWD 'Builds/Delivery/Windows64')
+$archive = Join-Path $player.OutputDirectory 'Archive'
+# 修改允许热更的 Game 代码或 Content 后，显式选择这一原始归档：
+$patch = & ./Tool/Client/Build-Client.ps1 -Kind Patch -Platform Windows64 -PlayerArchive $archive -OutputRoot (Join-Path $PWD 'Builds/Delivery/Patches') -ReleaseId v2
+```
+
+`OutputRoot` 是父目录；以返回对象的 `OutputDirectory`、`ResultFile` 为准。新 Player 与 Patch 各产生全新 `Build_<UTC>_<id>`，补丁不能指向别的 Player 或运行目录。Android 将平台参数改为 `Android`，同时准备对应 SDK/NDK/JDK；不复用 Windows 归档。
+
+D3 Windows 独立 checkout 已实际执行依赖恢复、协议生成/测试、Unity F1 测试、标准 Player 构建和原生登录启动：`E:/sgame/Builds/D3/CleanCheckout-20261101T002117166Z/protocol-reproduction.json`。实际新目录为 `client/Builds/D3/Windows64/Build_20261101T003959852Z_edbf3ede6ac9`，PlayerBuildId `7d27b9c64e2046229fbdf31c58bc418c`，构建和登录进程均退出0、原生文件未变、登录截图已检查。复现使用显式外部开发 profile/签名文件；未将私钥复制进 checkout。D3最终边界与D2证据整合仍待完成。
 
 每次验收至少关联实际 runId、平台、PlayerBuildId、metadataSetId、清单 hash、原生文件前后 hash、真实进程 PID、启动版本、持久状态、日志和画面。必测项未执行应标 NotRun，不能只依据目录存在、构建退出0或截图判通过。D2 仍需在最终主包上补齐故障/强杀、Protobuf 新 Parser、真实开发登录及 UI/输入法矩阵。
 

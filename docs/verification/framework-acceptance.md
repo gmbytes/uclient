@@ -1,4 +1,13 @@
-# Framework acceptance — D2 preparation checkpoint
+# Framework acceptance — current execution status
+
+D2 is incomplete. The current Windows dataset `E:/sgame/Builds/D2/W-20261101T002710348Z` has 15/34 verified cases; the strong-kill stage is continuing. Its one initial installation and original native archive remain unchanged. The Android dataset `E:/sgame/Builds/D2/M-20261031T235052073Z` is historical: 22 cases were collected, then an owned APK experiment interrupted the continuous no-reinstall scope. It is explicitly frozen with `installCount=3` and cannot produce final native acceptance; a fresh complete dataset is required.
+
+The final evidence importer now validates both original D1 raw runs and every native collector source/receipt/event/process binding. The evaluator rereads the exact source bundle and immutable archive before aggregation, so caller approval flags or mutated in-memory cases cannot replace source evidence. Missing cases remain `NotRun`. The complete current tool regression is 19 suites, 350/350, in `Builds/Tests/D2/ToolRegression-20261101T003912187Z`; these are synthetic/tool checks, not 350 native acceptance cases. `Verify-Framework.ps1` remains an evidence-only command and does not launch native processes.
+
+An Android static-manifest hypothesis was tested and rejected as an incomplete explanation: runtime code already enables AutoRotation after the initial portrait frames. The experimental Editor change was reverted. Forced OS rotation could report Landscape while retaining portrait render dimensions; actual gravity commands have not yet produced the required landscape viewport. Neither diagnostic is counted as a passing rotation case. All failed attempts and package replacement receipts remain available.
+
+The material below records earlier preparation checkpoints and is historical; any statement that the importer is unconditionally closed describes that earlier checkpoint.
+## Historical D2 preparation checkpoint
 
 This checkpoint prepares file-based evaluation and command construction. It is **not D2 completion** and contains no actual Windows/Android acceptance result. `Verify-Framework.ps1` starts no Unity, Player, server or device command. Missing actual evidence remains `NotRun` and makes the aggregate fail.
 
