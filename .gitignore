@@ -1,25 +1,136 @@
-/Library/
-/Temp/
-/Logs/
-/obj/
-/UserSettings/
-/Builds/
+# Unity caches and machine-specific editor state.
+/[Ll]ibrary/
+/[Tt]emp/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Oo]bj/
+/MemoryCaptures/
+/Recordings/
+
+# Reproducible build, test and release output (root-only: Editor/Build is source).
+/[Bb]uild/
+/[Bb]uilds/
+/[Rr]elease/
+/[Rr]eleases/
+/[Aa]rtifacts/
+/[Tt]est[Rr]esults/
+/*_BurstDebugInformation_DoNotShip/
+/*_BackUpThisFolder_ButDontShipItWithYourGame/
+
+# IDE and agent-local files. Nested .csproj files under Tests remain source.
 /.superpowers/
 /.vs/
 /.idea/
 /.vscode/
 /*.csproj
 /*.sln
+/*.slnx
+/*.unityproj
+/*.booproj
+*.user
+*.userprefs
+*.suo
+*.opendb
+*.VC.db
+*.pidb
+*.pdb
+*.mdb
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Managed/Gradle intermediate output, including nested fixture projects.
+**/[Bb]in/
+**/[Oo]bj/
+**/TestResults/
+**/.gradle/
+**/xcuserdata/
+*.xcuserstate
+*.trx
+
+# Generated native baseline and temporary Unity test assets.
 /Assets/StreamingAssets/
 /Assets/StreamingAssets.meta
 /Assets/Tests/Generated/
 /Assets/Tests/Generated.meta
+
+# Legacy HybridCLR output locations. Current output is under Library/HybridCLR.
+# ProjectSettings/HybridCLRSettings.asset and pinned plugin sources stay tracked.
 /HybridCLRData/HotUpdateDlls/
+/HybridCLRData/HotUpdateDlls.meta
 /HybridCLRData/AssembliesPostIl2CppStrip/
+/HybridCLRData/AssembliesPostIl2CppStrip.meta
 /HybridCLRData/LocalIl2CppData-*/
+/HybridCLRData/LocalIl2CppData-*.meta
 /HybridCLRData/Il2CppBuildCache/
-*.user
-*.suo
-*.pdb
+/HybridCLRData/Il2CppBuildCache.meta
+/HybridCLRData.meta
+
+# Local tools, download caches and environment overrides.
+/.local/
+/.cache/
+/.tools/
+/.env
+/.env.*
+!/.env.example
+!/.env.sample
+!/.env.template
+*.local.json
+
+# Signing credentials are external build inputs, never project assets.
+*.key
+*.pem
+*.pfx
+*.p12
+*.p8
+*.keystore
+*.jks
+*.mobileprovision
+*.key.meta
+*.pem.meta
+*.pfx.meta
+*.p12.meta
+*.p8.meta
+*.keystore.meta
+*.jks.meta
+*.mobileprovision.meta
+
+# Packaged players, logs, crash reports and temporary files.
+/*.exe
+*.apk
+*.aab
+*.ipa
+*.app/
+*.unitypackage
+*.apk.meta
+*.aab.meta
+*.ipa.meta
+*.app.meta
+*.unitypackage.meta
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+*.swo
+*.dmp
+*.stackdump
+*.log.meta
+*.tmp.meta
+*.temp.meta
+*.bak.meta
+*.orig.meta
+*.dmp.meta
+*.stackdump.meta
+/sysinfo.txt
+/mono_crash.*
+
+# OS metadata.
 .DS_Store
+._*
 Thumbs.db
+Desktop.ini
+
+# Keep Unity assets/.meta files, generated C# bindings/protocol sources,
+# ProjectSettings, Packages manifests and pinned third-party DLLs in Git.
