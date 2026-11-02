@@ -31,6 +31,12 @@ dotnet test "$env:SGAME_COMM_ROOT/tools/ProtocolGen.Tests/ProtocolGen.Tests.cspr
 
 此方法调用官方 `InstallerController.InstallFromLocal`，安装结果位于忽略的 `Library/HybridCLR`。不要用 Mono 替代平台 IL2CPP 工具链。`ProjectSetup.CreateBootstrap` 是资产制作工具，会重建场景和 prefab；普通 checkout、测试和构建不需要执行它。
 
+## 编辑器直接运行
+
+打开 `Assets/Scenes/Bootstrap.unity` 后点击 Play，会使用 GF 编辑器资源模式加载现有登录页，显示“本地模拟”。无需先构建 Player，也不会连接登录服务器或修改热更新版本状态。停止 Play、卸载场景时会释放页面与资源；再次运行会重新建立独立的编辑器会话。
+
+正式主包仍由构建管线注入 `NativeClientHost`，执行原有签名、兼容、完整 slot 和热更新启动流程。Editor 直接运行用于源码开发调试，不能替代 IL2CPP 主包的热更新验收。回归入口为 `./Tool/Client/Test-Client.ps1 -Task E1 -Mode PlayMode -Graphics`。
+
 ## 验证入口
 
 从工程根目录使用 PowerShell 7：

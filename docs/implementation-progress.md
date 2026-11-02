@@ -185,3 +185,7 @@ Android实际26项的完整原始源数据已导出到E:/sgame/Builds/D2/P-20261
 原生PID30389/attempt46bf89b5dec341048159b6bb31ae5696使用已观察到的Android鼠标设备REL_WHEEL/SYN_REPORT真实输入，文本、焦点、光标、选区保留，原内容一致位移且主要按钮位于原视口内；原始截图、输入命令和事件保留。操作器与控制器均退出0、nativeUnchanged=true，criterion-result.json为Pass。Android当前28/28、安装1；全量源数据导出并重导入已得到28Pass/0NotRun，正式CLI总验收与独立审查尚待完成，整体仍19/21。
 
 Android完整28项原始源数据正式验收命令实际退出0、FRAMEWORK_ACCEPTANCE_PASS，结果为E:/sgame/Builds/D2/P-20261101T064919739Z/exports/portrait-acceptance-20261101T145023706Z/formal-verification/framework-result.json。当前仅待最终独立整体验收复核与D2/D3关闭标记；整体仍19/21。
+
+## 2026-11-02 Editor直接Play修复
+
+已完成入库Bootstrap场景的Editor本地组合，正常Play打开现有登录页并消除No cameras rendering；生命周期及启动失败后重载的回归已验证。E1专项3/3、全量Edit413/413与图形Play152/152通过、源哈希不变。实际编辑器连续两次Play显示就绪、Console警告/错误0，见[修复记录](verification/editor-play-startup.md)。本次未修改Framework/Game运行时或原生发布链。
