@@ -10,6 +10,10 @@ namespace Client.Framework.UI
     {
         [SerializeField] private ScrollRect m_Scroll;
         [SerializeField] private RectTransform m_PrimaryAction;
+        [SerializeField] private bool m_ExpandUnmeasuredWithinSafeArea;
+        /// <summary>Opt-in manual editing space for bottom-docked forms when keyboard geometry is unavailable.</summary>
+        public bool ExpandUnmeasuredWithinSafeArea
+        { get => m_ExpandUnmeasuredWithinSafeArea; set => m_ExpandUnmeasuredWithinSafeArea=value; }
         private ScreenLayoutSnapshot snapshot;
         private Vector2 baseMin,baseMax,lastMin,lastMax;
         private bool captured;
@@ -75,13 +79,42 @@ namespace Client.Framework.UI
             if(measured && pixels.height>0)
             {
                 RestoreManualFallback();
-                float covered=Mathf.Clamp(keyboardArea.yMax-pixels.yMin,0,pixels.height-1);
-                view.offsetMin=baseMin+new Vector2(0,covered*view.rect.height/pixels.height);
+                float unitsPerPixel=view.rect.height/pixels.height;
+                var parent=view.parent as RectTransform;
+                Rect parentPixels=parent!=null ? PixelRect(parent,new Vector2(value.Width,value.Height)) : value.ClampedSafeArea;
+                float availableTop=Mathf.Min(parentPixels.yMax,value.ClampedSafeArea.yMax);
+                if(keyboardArea.yMax>=pixels.yMax && availableTop-keyboardArea.yMax>1)
+                {
+                    // A bottom-docked form may be entirely covered. Move its usable viewport
+                    // into the measured safe space instead of shrinking it below the keyboard.
+                    float height=Mathf.Min(pixels.height,availableTop-keyboardArea.yMax);
+                    view.offsetMin=baseMin+new Vector2(0,(keyboardArea.yMax-pixels.yMin)*unitsPerPixel);
+                    view.offsetMax=baseMax+new Vector2(0,(keyboardArea.yMax+height-pixels.yMax)*unitsPerPixel);
+                }
+                else
+                {
+                    float covered=Mathf.Clamp(keyboardArea.yMax-pixels.yMin,0,pixels.height-1);
+                    view.offsetMin=baseMin+new Vector2(0,covered*unitsPerPixel);
+                }
                 var target=focusedTarget!=null && focusedTarget.IsChildOf(m_Scroll.content)?focusedTarget:m_PrimaryAction;
                 if(target!=null) Reveal(target);
             }
             else if(visible)
             {
+                if(m_ExpandUnmeasuredWithinSafeArea && pixels.height>0)
+                {
+                    // Expand the authored editing region, without guessing any keyboard height.
+                    var parent=view.parent as RectTransform;
+                    Rect parentPixels=parent!=null ? PixelRect(parent,new Vector2(value.Width,value.Height)) : value.ClampedSafeArea;
+                    float bottom=Mathf.Max(parentPixels.yMin,value.ClampedSafeArea.yMin);
+                    float top=Mathf.Min(parentPixels.yMax,value.ClampedSafeArea.yMax);
+                    float unitsPerPixel=view.rect.height/pixels.height;
+                    if(top>bottom)
+                    {
+                        view.offsetMin=baseMin+new Vector2(0,(bottom-pixels.yMin)*unitsPerPixel);
+                        view.offsetMax=baseMax+new Vector2(0,(top-pixels.yMax)*unitsPerPixel);
+                    }
+                }
                 AllowManualTravel();
             }
             else
@@ -99,7 +132,9 @@ namespace Client.Framework.UI
             // No guessed keyboard rectangle: keep authored geometry and permit bounded manual travel.
             m_Scroll.movementType=ScrollRect.MovementType.Unrestricted;
             float actionHeight=m_PrimaryAction!=null ? BoundsInViewport(m_PrimaryAction).size.y : 0;
-            ClampVerticalTravel(Mathf.Max(0,m_Scroll.viewport.rect.height-actionHeight));
+            bool fitsExpanded=m_ExpandUnmeasuredWithinSafeArea
+                && BoundsInViewport(m_Scroll.content).size.y<=m_Scroll.viewport.rect.height;
+            ClampVerticalTravel(fitsExpanded?0:Mathf.Max(0,m_Scroll.viewport.rect.height-actionHeight));
         }
 
         private void RestoreManualFallback()

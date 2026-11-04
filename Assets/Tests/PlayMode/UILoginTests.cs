@@ -62,11 +62,142 @@ namespace Client.Tests
         }
         static IEnumerator Await(Task task)
         {float end=Time.realtimeSinceStartup+10;while(!task.IsCompleted&&Time.realtimeSinceStartup<end)yield return null;Assert.That(task.IsCompleted,Is.True,"Operation timed out.");Assert.That(task.IsFaulted,Is.False,task.Exception?.ToString());}
+        [UnityTest, Category("L1")] public IEnumerator AgreementChoiceGatesTheNativeLoginAction()
+        {
+            var binding=view.Root.GetComponent<UIBindings>().Singles.FirstOrDefault(item=>item.Id=="AgreementToggle");
+            Assert.That(binding,Is.Not.Null,"The illustrated login must expose an agreement choice.");
+            var agreement=(Toggle)binding.Value;
+            agreement.isOn=false;
+            Control<Button>("LoginButton").onClick.Invoke();
+            Assert.That(session.Calls,Is.Zero,"A declined agreement must not start a session request.");
+            Assert.That(Control<Button>("LoginButton").interactable,Is.False);
+            agreement.isOn=true;
+            Control<Button>("LoginButton").onClick.Invoke();
+            Assert.That(session.Calls,Is.EqualTo(1));
+            session.Complete(new LoginResult(false,LoginError.Rejected,403,null,null));
+            yield return null;
+            view.Close();
+            agreement.isOn=false;
+            Assert.That(session.Subscribers,Is.Zero,"Closing the window must remove UI and session subscriptions.");
+        }
         [Test] public void OneClickCreatesOneLogin()
         {
             Control<InputField>("AccountInput").text="10001";Control<Button>("LoginButton").onClick.Invoke();Control<Button>("LoginButton").onClick.Invoke();
             Assert.That(session.Calls,Is.EqualTo(1));Assert.That(session.Input.Credential,Is.EqualTo("demo:10001"));
             Assert.That(Control<Button>("LoginButton").interactable,Is.False);Assert.That(Control<Button>("CancelButton").interactable,Is.True);
+        }
+        [Test] public void AccountIsDirectlyEditableWithoutServerExpansion()
+        {
+            var table=view.Root.GetComponent<UIBindings>();
+            var row=(RectTransform)table.Resolve("AccountRow");
+            Assert.That(row.gameObject.activeInHierarchy,Is.True,"The account input must be visible immediately.");
+            var input=Control<InputField>("AccountInput");
+            var action=(RectTransform)Control<Button>("LoginButton").transform;
+            Canvas.ForceUpdateCanvases();var before=action.position;
+            ((Button)table.Resolve("ServerButton")).onClick.Invoke();
+            Canvas.ForceUpdateCanvases();
+            Assert.That(row.gameObject.activeInHierarchy,Is.True);
+            Assert.That(action.position,Is.EqualTo(before),"The server row must not expand or collapse account controls.");
+            input.text="98765";Control<Button>("LoginButton").onClick.Invoke();
+            Assert.That(session.Input.Credential,Is.EqualTo("demo:98765"));
+        }
+        [UnityTest,Category("C1")] public IEnumerator EnterGameOpensTheMigratedCityAndReleasesItOnShutdown()
+        {
+            ClosePresenterForEntry();
+            var context=new EntryContext(service,session);
+            entry=(IHotfixEntry)Activator.CreateInstance(Type.GetType("Client.Game.Entry, Client.Game",true));
+            yield return Await(entry.InitializeAsync(context,CancellationToken.None));
+            var login=ui.GetAllLoadedUIForms().Single(form=>form.name.StartsWith("UILogin",StringComparison.Ordinal)).GetComponent<UIBindings>();
+            Assert.That(((RectTransform)login.Resolve("PasswordRow")).gameObject.activeInHierarchy,Is.True);
+            Assert.That(((Button)login.Resolve("ServerButton")).gameObject.activeInHierarchy,Is.False);
+            ((Button)login.Resolve("LoginButton")).onClick.Invoke();
+            float loginDeadline=Time.realtimeSinceStartup+5;
+            while(!((Button)login.Resolve("ServerButton")).gameObject.activeInHierarchy&&Time.realtimeSinceStartup<loginDeadline)yield return null;
+            Assert.That(((Button)login.Resolve("ServerButton")).gameObject.activeInHierarchy,Is.True);
+            Assert.That(((RectTransform)login.Resolve("AccountRow")).gameObject.activeInHierarchy,Is.False);
+            Assert.That(Object.FindObjectOfType<Client.Framework.Presentation.CityViewport>(),Is.Null,"Account login must not automatically enter the city.");
+            yield return new WaitForEndOfFrame();
+            var postLogin=ScreenCapture.CaptureScreenshotAsTexture();
+            try{Directory.CreateDirectory("Builds/MainCity");File.WriteAllBytes("Builds/MainCity/login-ready-to-enter.png",postLogin.EncodeToPNG());}
+            finally{Object.Destroy(postLogin);}
+            ((Button)login.Resolve("LoginButton")).onClick.Invoke();
+            float deadline=Time.realtimeSinceStartup+8;
+            Client.Framework.Presentation.CityViewport city=null;
+            while(city==null&&Time.realtimeSinceStartup<deadline)
+            {
+                city=Object.FindObjectOfType<Client.Framework.Presentation.CityViewport>();
+                yield return null;
+            }
+            Assert.That(city,Is.Not.Null,"Entering after a successful local login must open the real main-city window.");
+            Assert.That(city.IsReady,Is.True);
+            Assert.That(city.WorldRoot.GetComponentsInChildren<MeshRenderer>().Length,Is.GreaterThan(10));
+            Assert.That(city.ViewCamera.orthographic,Is.True);
+            yield return new WaitForEndOfFrame();yield return new WaitForEndOfFrame();
+            var screenshot=ScreenCapture.CaptureScreenshotAsTexture();
+            try{Directory.CreateDirectory("Builds/MainCity");File.WriteAllBytes("Builds/MainCity/maincity-1080x1920.png",screenshot.EncodeToPNG());}
+            finally{Object.Destroy(screenshot);}
+            city.FocusBuilding(1);
+            int clicks=0;city.BuildingSelected+=(id,name)=>{if(id==1)clicks++;};
+            var mapRect=(RectTransform)city.transform;
+            var palace=city.WorldRoot.transform.Find("MainCity/BuildingRoot/buildParent1");
+            Assert.That(palace,Is.Not.Null);
+            var palaceCenter=palace.GetComponentInChildren<MeshRenderer>().bounds.center;
+            var palaceUv=city.ViewCamera.WorldToViewportPoint(palaceCenter);
+            var point=RectTransformUtility.WorldToScreenPoint(null,mapRect.TransformPoint(new Vector3(mapRect.rect.xMin+palaceUv.x*mapRect.rect.width,mapRect.rect.yMin+palaceUv.y*mapRect.rect.height)));
+            Physics.SyncTransforms();
+            var click=new PointerEventData(EventSystem.current){pointerId=-1,position=point,button=PointerEventData.InputButton.Left};
+            ExecuteEvents.Execute(city.gameObject,click,ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(city.gameObject,click,ExecuteEvents.pointerUpHandler);
+            Assert.That(clicks,Is.EqualTo(1),"A pointer click must hit the migrated palace geometry.");
+            var cityBindings=city.GetComponentInParent<UIViewBridge>().Bindings;
+            Assert.That(((Text)cityBindings.Resolve("BuildingTitle")).text,Does.Contain("城主府"));
+            yield return new WaitForEndOfFrame();
+            var selectedFrame=ScreenCapture.CaptureScreenshotAsTexture();
+            try{File.WriteAllBytes("Builds/MainCity/maincity-building-selected.png",selectedFrame.EncodeToPNG());}
+            finally{Object.Destroy(selectedFrame);}
+            var world=city.WorldRoot;var target=city.ViewCamera.targetTexture;
+            yield return Await(entry.ShutdownAsync(CancellationToken.None));entry=null;
+            yield return null;yield return null;
+            Assert.That(world==null,Is.True);Assert.That(target==null,Is.True);
+        }
+        [UnityTest] public IEnumerator MeasuredKeyboardLiftsTheAccountControlsAboveOcclusion()
+        {
+            var bridge=view.Root.GetComponent<UIViewBridge>();
+            var table=view.Root.GetComponent<UIBindings>();
+            Assert.That(((RectTransform)table.Resolve("AccountRow")).gameObject.activeInHierarchy,Is.True);
+            var input=(RectTransform)Control<InputField>("AccountInput").transform;
+            var primary=(RectTransform)Control<Button>("LoginButton").transform;
+            var scroll=bridge.Layout.GetComponentInChildren<ScrollRect>();
+            bool visible=false;Rect keyboard=Rect.zero;
+            bridge.Keyboard.KeyboardVisibleSource=()=>visible;
+            bridge.Keyboard.KeyboardAreaSource=()=>keyboard;
+            bridge.Keyboard.FocusSource=()=>input;
+            foreach(var size in new[]{new Vector2Int(720,1280),new Vector2Int(1080,1920)})
+            {
+                var metrics=new ScreenMetrics(size.x,size.y,new Rect(0,40,size.x,size.y-80));
+                var screen=root.GetComponent<ScreenLayoutComponent>().Service;
+                screen.Evaluate(metrics);screen.FlushPending(Time.frameCount);
+                Canvas.ForceUpdateCanvases();yield return null;
+                var rootRect=(RectTransform)root.transform;
+                var baseline=RectInRoot(scroll.viewport,rootRect,metrics);
+                visible=true;keyboard=new Rect(0,0,size.x,size.y*.4f);
+                bridge.Keyboard.Apply(screen.Current,keyboard,input);
+                Canvas.ForceUpdateCanvases();yield return null;
+                var lifted=RectInRoot(scroll.viewport,rootRect,metrics);
+                Assert.That(lifted.yMin,Is.GreaterThanOrEqualTo(keyboard.yMax-.5f),"A measured keyboard must lift a fully covered form above its top edge.");
+                Assert.That(lifted.height,Is.GreaterThan(100),"The form must retain a usable viewport, not collapse to one pixel.");
+                foreach(var target in new[]{input,primary})
+                {
+                    var bounds=RectTransformUtility.CalculateRelativeRectTransformBounds(scroll.viewport,target);
+                    Assert.That(bounds.min.y,Is.GreaterThanOrEqualTo(scroll.viewport.rect.yMin-.5f));
+                    Assert.That(bounds.max.y,Is.LessThanOrEqualTo(scroll.viewport.rect.yMax+.5f));
+                }
+                visible=false;keyboard=Rect.zero;bridge.Keyboard.Apply(screen.Current,keyboard,null);
+                Canvas.ForceUpdateCanvases();
+                var restored=RectInRoot(scroll.viewport,rootRect,metrics);
+                Assert.That(restored.yMin,Is.EqualTo(baseline.yMin).Within(.5f));
+                Assert.That(restored.height,Is.EqualTo(baseline.height).Within(.5f));
+            }
         }
         [UnityTest] public IEnumerator ButtonStatesFollowSessionState()
         {
@@ -78,6 +209,34 @@ namespace Client.Tests
             Control<Button>("LoginButton").onClick.Invoke();session.Complete(new LoginResult(true,LoginError.None,0,new SessionIdentity("p","s",1,"secret",1),null));yield return null;
             Assert.That(Control<Button>("LoginButton").interactable,Is.False,"An authenticated session stays on the page without offering another active login.");Assert.That(Control<Button>("CancelButton").interactable,Is.False);
             session.Emit(SessionState.Disconnected);Assert.That(Control<Button>("LoginButton").interactable,Is.True);
+        }
+        [UnityTest] public IEnumerator UnknownKeyboardAllowsTheRealAccountActionAboveOcclusion()
+        {
+            var bridge=view.Root.GetComponent<UIViewBridge>();
+            Assert.That(Control<InputField>("AccountInput").gameObject.activeInHierarchy,Is.True);
+            var input=(RectTransform)Control<InputField>("AccountInput").transform;
+            var action=(RectTransform)Control<Button>("LoginButton").transform;
+            var scroll=bridge.Layout.GetComponentInChildren<ScrollRect>();
+            var metrics=new ScreenMetrics(720,1280,new Rect(0,40,720,1200));
+            var screen=root.GetComponent<ScreenLayoutComponent>().Service;
+            screen.Evaluate(metrics);screen.FlushPending(Time.frameCount);
+            Canvas.ForceUpdateCanvases();yield return null;
+            var rootRect=(RectTransform)root.transform;
+            var baseline=RectInRoot(scroll.viewport,rootRect,metrics);
+            bool visible=true;bridge.Keyboard.KeyboardVisibleSource=()=>visible;
+            bridge.Keyboard.KeyboardAreaSource=()=>Rect.zero;
+            bridge.Keyboard.FocusSource=()=>input;
+            bridge.Keyboard.Apply(screen.Current,Rect.zero,input);
+            scroll.OnScroll(new PointerEventData(EventSystem.current){scrollDelta=new Vector2(0,-1000)});
+            bridge.Keyboard.Apply(screen.Current,Rect.zero,input);
+            Canvas.ForceUpdateCanvases();yield return null;
+            var pixels=RectInRoot(action,rootRect,metrics);
+            Assert.That(pixels.yMin,Is.GreaterThanOrEqualTo(704f),"Manual travel must allow the real action above a test-only lower-screen occlusion.");
+            Assert.That(pixels.yMax,Is.LessThanOrEqualTo(1240f));
+            visible=false;bridge.Keyboard.Apply(screen.Current,Rect.zero,null);Canvas.ForceUpdateCanvases();
+            var restored=RectInRoot(scroll.viewport,rootRect,metrics);
+            Assert.That(restored.yMin,Is.EqualTo(baseline.yMin).Within(.5f));
+            Assert.That(restored.height,Is.EqualTo(baseline.height).Within(.5f));
         }
         [UnityTest] public IEnumerator RotateDuringLoginRetainsTextFocusAndRequest()
         {
@@ -221,8 +380,15 @@ namespace Client.Tests
             var pixels=ScreenCapture.CaptureScreenshotAsTexture();
             try
             {
-                int blue=pixels.GetPixels32().Count(pixel=>pixel.b>pixel.r+20 && pixel.b>pixel.g+20);
-                Assert.That(blue,Is.GreaterThan(500),"Actual Game-view pixels must contain the bound blue login action.");
+                var buttonRect=(RectTransform)((Button)table.Resolve("LoginButton")).transform;
+                var corners=new Vector3[4];buttonRect.GetWorldCorners(corners);
+                var minimum=RectTransformUtility.WorldToScreenPoint(null,corners[0]);
+                var maximum=RectTransformUtility.WorldToScreenPoint(null,corners[2]);
+                int red=0;
+                for(int y=Mathf.Max(0,(int)minimum.y);y<Mathf.Min(pixels.height,(int)maximum.y);y+=2)
+                for(int x=Mathf.Max(0,(int)minimum.x);x<Mathf.Min(pixels.width,(int)maximum.x);x+=2)
+                {var pixel=pixels.GetPixel(x,y);if(pixel.r>pixel.g+.12f&&pixel.r>pixel.b+.12f)red++;}
+                Assert.That(red,Is.GreaterThan(200),"Actual Game-view pixels must contain the bound vermilion login action.");
                 Directory.CreateDirectory("Builds/Tests/U5/entry-frame");File.WriteAllBytes("Builds/Tests/U5/entry-frame/local-ready.png",pixels.EncodeToPNG());
             }
             finally{Object.Destroy(pixels);}

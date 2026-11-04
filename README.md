@@ -1,6 +1,6 @@
 # C# 客户端框架
 
-> 当前状态：首期框架21/21 Task已完成并通过最终独立审查。Windows24/24、雷电Android28/28正式原生验收通过，工具回归382/382；当前PlayerBuildId与证据见[D1产物](docs/verification/d1-build-acceptance.md)和[最终交付核对](docs/verification/delivery-audit.md)。iOS、真实ARM硬件/性能、生产接入及登录美术改造仍属后续。
+> 当前状态：首期框架21/21 Task已完成并通过最终独立审查。Windows24/24、雷电Android28/28正式原生验收通过，工具回归382/382；当前PlayerBuildId与证据见[D1产物](docs/verification/d1-build-acceptance.md)和[最终交付核对](docs/verification/delivery-audit.md)。登录页已按用户插画改为1080×1920竖屏，见[登录界面](docs/login-presentation.md)；这项源码界面更新尚未重新交付正式Player。iOS、真实ARM硬件/性能及生产接入仍属后续。
 
 Unity `2022.3.25f1 (530ae0ba3889)`，目标为 Windows x64 和 Android ARM64，均使用 IL2CPP、.NET Standard 2.1。工程、协议、UI工具和登录示例已落地；D1统一构建、两平台同包热更新/回退、D2完整首期矩阵及D3干净工程复现均已完成并独立复核，当前证据见[实施进度](docs/implementation-progress.md)。
 
@@ -34,6 +34,8 @@ dotnet test "$env:SGAME_COMM_ROOT/tools/ProtocolGen.Tests/ProtocolGen.Tests.cspr
 ## 编辑器直接运行
 
 打开 `Assets/Scenes/Bootstrap.unity` 后点击 Play，会使用 GF 编辑器资源模式加载现有登录页，显示“本地模拟”。无需先构建 Player，也不会连接登录服务器或修改热更新版本状态。停止 Play、卸载场景时会释放页面与资源；再次运行会重新建立独立的编辑器会话。
+
+界面采用 1080×1920 竖屏：账号登录后再点击“进入游戏”打开可拖拽、可点击建筑的全屏 2.5D 主城。制作说明见[登录界面](docs/login-presentation.md)与[主城展示](docs/maincity-presentation.md)。
 
 正式主包仍由构建管线注入 `NativeClientHost`，执行原有签名、兼容、完整 slot 和热更新启动流程。Editor 直接运行用于源码开发调试，不能替代 IL2CPP 主包的热更新验收。回归入口为 `./Tool/Client/Test-Client.ps1 -Task E1 -Mode PlayMode -Graphics`。
 

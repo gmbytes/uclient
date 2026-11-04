@@ -53,6 +53,8 @@
 /Assets/StreamingAssets.meta
 /Assets/Tests/Generated/
 /Assets/Tests/Generated.meta
+/Assets/InitTestScene*.unity
+/Assets/InitTestScene*.unity.meta
 
 # Legacy HybridCLR output locations. Current output is under Library/HybridCLR.
 # ProjectSettings/HybridCLRSettings.asset and pinned plugin sources stay tracked.

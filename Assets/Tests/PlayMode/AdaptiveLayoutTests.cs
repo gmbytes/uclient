@@ -45,6 +45,21 @@ namespace Client.Tests
             Assert.That(type, Is.Not.Null, "U2 runtime component required: " + name);
             return type;
         }
+        internal static AdaptiveLayoutDefinition FoundationDefinition()
+        {
+            var value=ScriptableObject.CreateInstance<AdaptiveLayoutDefinition>();
+            value.Portrait=new AdaptiveLayoutProfile {
+                ReferenceResolution=new Vector2(1080,1920),BrandAnchors=new Rect(0,.75f,1,.25f),
+                FormAnchors=new Rect(0,0,1,.75f),Margins=new Vector4(48,48,48,48),
+                MaximumFormWidth=760,MinimumContentHeight=720,MinimumButtonHeight=96
+            };
+            value.Landscape=new AdaptiveLayoutProfile {
+                ReferenceResolution=new Vector2(1920,1080),BrandAnchors=new Rect(0,0,.35f,1),
+                FormAnchors=new Rect(.35f,0,.65f,1),Margins=new Vector4(48,48,48,48),
+                MaximumFormWidth=760,MinimumContentHeight=720,MinimumButtonHeight=96
+            };
+            return value;
+        }
         internal static object Call(object target, string method, params object[] args) => target.GetType().GetMethod(method).Invoke(target, args);
         internal static RectTransform Child(string name, Transform parent)
         {

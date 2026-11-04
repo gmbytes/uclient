@@ -9,6 +9,12 @@ namespace Client.Game.Login
         public global::UnityEngine.UI.Button CancelButton { get; private set; }
         public global::UnityEngine.UI.Text StatusLabel { get; private set; }
         public global::UnityEngine.UI.Text VersionLabel { get; private set; }
+        public global::UnityEngine.UI.Toggle AgreementToggle { get; private set; }
+        public global::UnityEngine.UI.Button ServerButton { get; private set; }
+        public global::UnityEngine.UI.Text ServerLabel { get; private set; }
+        public global::UnityEngine.RectTransform AccountRow { get; private set; }
+        public global::UnityEngine.UI.InputField PasswordInput { get; private set; }
+        public global::UnityEngine.RectTransform PasswordRow { get; private set; }
 
         public void BindComponents(global::Client.Framework.UI.UIBindings bindings)
         {
@@ -19,12 +25,24 @@ namespace Client.Game.Login
             var resolved3 = (global::UnityEngine.UI.Button)bindings.Resolve("CancelButton");
             var resolved4 = (global::UnityEngine.UI.Text)bindings.Resolve("StatusLabel");
             var resolved5 = (global::UnityEngine.UI.Text)bindings.Resolve("VersionLabel");
+            var resolved6 = (global::UnityEngine.UI.Toggle)bindings.Resolve("AgreementToggle");
+            var resolved7 = (global::UnityEngine.UI.Button)bindings.Resolve("ServerButton");
+            var resolved8 = (global::UnityEngine.UI.Text)bindings.Resolve("ServerLabel");
+            var resolved9 = (global::UnityEngine.RectTransform)bindings.Resolve("AccountRow");
+            var resolved10 = (global::UnityEngine.UI.InputField)bindings.Resolve("PasswordInput");
+            var resolved11 = (global::UnityEngine.RectTransform)bindings.Resolve("PasswordRow");
             this.Title = resolved0;
             this.AccountInput = resolved1;
             this.LoginButton = resolved2;
             this.CancelButton = resolved3;
             this.StatusLabel = resolved4;
             this.VersionLabel = resolved5;
+            this.AgreementToggle = resolved6;
+            this.ServerButton = resolved7;
+            this.ServerLabel = resolved8;
+            this.AccountRow = resolved9;
+            this.PasswordInput = resolved10;
+            this.PasswordRow = resolved11;
         }
 
         public void ClearBindings()
@@ -35,6 +53,12 @@ namespace Client.Game.Login
             this.CancelButton = null;
             this.StatusLabel = null;
             this.VersionLabel = null;
+            this.AgreementToggle = null;
+            this.ServerButton = null;
+            this.ServerLabel = null;
+            this.AccountRow = null;
+            this.PasswordInput = null;
+            this.PasswordRow = null;
         }
     }
 }

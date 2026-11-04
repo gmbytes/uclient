@@ -24,10 +24,12 @@ namespace Client.Tests
         }
         private GameObject root,cameraRoot;
         private RenderTexture texture;
+        private AdaptiveLayoutDefinition definition;
         [TearDown] public void Cleanup()
         {
             if(root!=null) Object.DestroyImmediate(root); if(cameraRoot!=null) Object.DestroyImmediate(cameraRoot);
             if(texture!=null) { texture.Release(); Object.DestroyImmediate(texture); }
+            if(definition!=null) Object.DestroyImmediate(definition);
         }
         [UnityTest]
         public IEnumerator EditorMatrixHasSafeInteractiveBoundsAndReachableSubmit()
@@ -52,7 +54,7 @@ namespace Client.Tests
             var image=submit.gameObject.AddComponent<Image>(); image.color=new Color(.13f,.5f,.7f); submit.gameObject.AddComponent<Button>();
             var buttonLabel=Label("Label",submit,"Primary action",32); Stretch(buttonLabel.rectTransform);
             var layout=safe.gameObject.AddComponent<AdaptiveLayout>();
-            var definition=AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>("Assets/Content/UI/Login/UILogin.Layout.asset");
+            definition=AdaptiveLayoutTests.FoundationDefinition();
             Assert.That(definition,Is.Not.Null); layout.Configure(definition,brand,viewport,scroll,content,submit); adaptive.Configure(safe,layout,null);
             var report=new MatrixReport();
             int[,] sizes={{720,1280},{1080,1920},{1080,2400},{1536,2048},{1280,720},{1920,1080},{2560,1080},{720,480}};
@@ -129,7 +131,8 @@ namespace Client.Tests
             primary.gameObject.AddComponent<Image>().color=new Color(.13f,.5f,.7f);primary.gameObject.AddComponent<Button>();
             Stretch(Label("Label",primary,"Reachable primary action",30).rectTransform);
             var layout=safe.gameObject.AddComponent<AdaptiveLayout>();
-            layout.Configure(AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>("Assets/Content/UI/Login/UILogin.Layout.asset"),brand,viewport,scroll,content,primary);
+            definition=AdaptiveLayoutTests.FoundationDefinition();
+            layout.Configure(definition,brand,viewport,scroll,content,primary);
             var keyboard=root.AddComponent<KeyboardVisibilityController>();keyboard.Configure(scroll,primary);
             bool visible=true;keyboard.KeyboardVisibleSource=()=>visible;keyboard.KeyboardAreaSource=()=>Rect.zero;keyboard.FocusSource=()=>null;
             adaptive.Configure(safe,layout,keyboard);

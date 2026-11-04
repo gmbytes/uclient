@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dfd041f07217c1a44aedb86413e27769, type: 3}
   m_Name: UILogin.Layout
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   Portrait:
     ReferenceResolution: {x: 1080, y: 1920}
     BrandAnchors:
@@ -22,29 +22,29 @@ MonoBehaviour:
       height: 0.25
     FormAnchors:
       serializedVersion: 2
-      x: 0
-      y: 0
-      width: 1
-      height: 0.75
-    Margins: {x: 48, y: 48, z: 48, w: 48}
-    MaximumFormWidth: 760
-    MinimumContentHeight: 720
+      x: 0.1
+      y: 0.008
+      width: 0.8
+      height: 0.29
+    Margins: {x: 0, y: 0, z: 0, w: 0}
+    MaximumFormWidth: 850
+    MinimumContentHeight: 552
     MinimumButtonHeight: 96
   Landscape:
-    ReferenceResolution: {x: 1920, y: 1080}
+    ReferenceResolution: {x: 1080, y: 1920}
     BrandAnchors:
       serializedVersion: 2
       x: 0
-      y: 0
-      width: 0.35
-      height: 1
+      y: 0.75
+      width: 1
+      height: 0.25
     FormAnchors:
       serializedVersion: 2
-      x: 0.35
-      y: 0
-      width: 0.65
-      height: 1
-    Margins: {x: 48, y: 48, z: 48, w: 48}
-    MaximumFormWidth: 760
-    MinimumContentHeight: 720
+      x: 0.1
+      y: 0.008
+      width: 0.8
+      height: 0.29
+    Margins: {x: 0, y: 0, z: 0, w: 0}
+    MaximumFormWidth: 850
+    MinimumContentHeight: 552
     MinimumButtonHeight: 96

@@ -108,9 +108,9 @@ namespace Client.Editor.Build
             var profile=AssetDatabase.LoadAssetAtPath<LoginPresentationProfile>("Assets/Settings/Environment/LocalSimulationProfile.asset");
             profile.Version=version=="v1"?"F8 resource v1":"F8 resource v2";EditorUtility.SetDirty(profile);AssetDatabase.SaveAssets();
             var collection=configuration.CreateCollection();
-            string[] assets={"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/Common/UIViewDefinitions.asset","Assets/Settings/Environment/LocalSimulationProfile.asset"};
+            string[] assets={"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/Common/UIViewDefinitions.asset","Assets/Content/UI/MainCity/UIMainCity.prefab","Assets/Settings/Environment/LocalSimulationProfile.asset"};
             if(!collection.AddResource("f8/ui",null,null,LoadType.LoadFromFile,true)||!collection.AddResource("f8/profile",null,null,LoadType.LoadFromFile,true))throw new BuildFailedException("Native resources failed.");
-            for(int i=0;i<assets.Length;i++){string name=i<2?"f8/ui":"f8/profile";if(!collection.AssignAsset(AssetDatabase.AssetPathToGUID(assets[i]),name,null))throw new BuildFailedException("Native collection failed.");}
+            for(int i=0;i<assets.Length;i++){string name=i<3?"f8/ui":"f8/profile";if(!collection.AssignAsset(AssetDatabase.AssetPathToGUID(assets[i]),name,null))throw new BuildFailedException("Native collection failed.");}
             if(!collection.Save())throw new BuildFailedException("Native collection save failed.");
             var builder=configuration.CreateBuilder();builder.Platforms=target==BuildTarget.Android?Platform.Android:Platform.Windows64;builder.InternalResourceVersion=version=="v1"?1:2;builder.OutputDirectory=Path.Combine(root,"NativePackage",version);builder.OutputPackageSelected=true;builder.OutputFullSelected=false;builder.OutputPackedSelected=false;builder.ForceRebuildAssetBundleSelected=true;
             Directory.CreateDirectory(builder.OutputDirectory);if(!builder.BuildResources())throw new BuildFailedException("Real GF Package build failed.");

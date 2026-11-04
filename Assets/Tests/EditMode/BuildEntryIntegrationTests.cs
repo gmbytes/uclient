@@ -111,7 +111,7 @@ namespace Client.Tests.EditMode
                 {
                     typeof(PlayerBuilder).GetMethod("ApplySettings",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{new BuildRequest(BuildKind.Player,BuildPlatform.Windows64,"Builds"),profile});
                     Assert.That(PlayerSettings.defaultScreenWidth,Is.EqualTo(720));Assert.That(PlayerSettings.defaultScreenHeight,Is.EqualTo(1280));Assert.That(PlayerSettings.resizableWindow,Is.True);Assert.That(PlayerSettings.fullScreenMode,Is.EqualTo(FullScreenMode.Windowed));
-                    Assert.That(PlayerSettings.defaultInterfaceOrientation,Is.EqualTo(UIOrientation.Portrait));Assert.That(PlayerSettings.allowedAutorotateToPortrait&&PlayerSettings.allowedAutorotateToLandscapeLeft&&PlayerSettings.allowedAutorotateToLandscapeRight,Is.True);Assert.That(PlayerSettings.allowedAutorotateToPortraitUpsideDown,Is.False);Assert.That(PlayerSettings.Android.forceInternetPermission,Is.True);
+                    Assert.That(PlayerSettings.defaultInterfaceOrientation,Is.EqualTo(UIOrientation.Portrait));Assert.That(PlayerSettings.allowedAutorotateToPortrait,Is.True);Assert.That(PlayerSettings.allowedAutorotateToLandscapeLeft||PlayerSettings.allowedAutorotateToLandscapeRight,Is.False);Assert.That(PlayerSettings.allowedAutorotateToPortraitUpsideDown,Is.False);Assert.That(PlayerSettings.Android.forceInternetPermission,Is.True);
                     Assert.That(EditorUserBuildSettings.development||EditorUserBuildSettings.buildScriptsOnly||EditorUserBuildSettings.buildAppBundle||EditorUserBuildSettings.exportAsGoogleAndroidProject,Is.False);
                     AssetDatabase.SaveAssets();
                 }

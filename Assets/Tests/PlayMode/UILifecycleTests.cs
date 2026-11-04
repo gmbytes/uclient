@@ -22,6 +22,7 @@ namespace Client.Tests
     public sealed class UILifecycleTests
     {
         private const string PrefabPath = "Assets/Tests/U3WindowFixture.prefab";
+        private const string LayoutPath = "Assets/Tests/U3WindowFixture.Layout.asset";
         private GameObject host, root;
         private object service, catalog;
         private UIComponent ui;
@@ -44,6 +45,8 @@ namespace Client.Tests
             Required("UIService"); Required("UIViewBridge"); Required("UIBindings");
             GameEntry.Shutdown(ShutdownType.None);
             yield return null;
+            var fixtureLayout=AdaptiveLayoutTests.FoundationDefinition();
+            AssetDatabase.CreateAsset(fixtureLayout,LayoutPath);
             var prefab = new GameObject("UIWindow", typeof(RectTransform));
             var node = new GameObject("UINode", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup), typeof(GraphicRaycaster));
             node.transform.SetParent(prefab.transform,false); Stretch((RectTransform)node.transform);
@@ -59,7 +62,7 @@ namespace Client.Tests
             var scroll = viewport.gameObject.AddComponent<ScrollRect>(); scroll.viewport = viewport; scroll.content = content;
             scroll.inertia = false; scroll.scrollSensitivity = 100;
             var layout = localSafe.gameObject.AddComponent<AdaptiveLayout>();
-            layout.Configure(AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>("Assets/Content/UI/Login/UILogin.Layout.asset"), brand, viewport, scroll, content, action);
+            layout.Configure(fixtureLayout, brand, viewport, scroll, content, action);
             var keyboard = localSafe.gameObject.AddComponent<KeyboardVisibilityController>(); keyboard.Configure(scroll, action);
             var mask = new GameObject("Mask", typeof(RectTransform), typeof(Image), typeof(Button));
             mask.GetComponent<Image>().color=Color.clear; mask.transform.SetParent(node.transform, false); mask.transform.SetSiblingIndex(1); Stretch((RectTransform)mask.transform);
@@ -99,7 +102,7 @@ namespace Client.Tests
         {
             var value = Activator.CreateInstance(Required("UIViewDefinition"));
             Field(value, "ViewID", id); Field(value, "PrefabAddress", PrefabPath); Field(value, "Group", group);
-            Field(value, "LayoutDefinition", AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>("Assets/Content/UI/Login/UILogin.Layout.asset"));
+            Field(value, "LayoutDefinition", AssetDatabase.LoadAssetAtPath<AdaptiveLayoutDefinition>(LayoutPath));
             Field(value, "Modal", modal); Field(value, "CloseOnMask", closeOnMask); return value;
         }
 
@@ -112,6 +115,7 @@ namespace Client.Tests
             if (catalog is Object asset) Object.Destroy(asset);
             yield return null;
             AssetDatabase.DeleteAsset(PrefabPath);
+            AssetDatabase.DeleteAsset(LayoutPath);
         }
 
         private Task Open(string id = "Page", CancellationToken token = default) => (Task)Call(service, "OpenAsync", id, token);

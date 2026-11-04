@@ -1,0 +1,668 @@
+{
+  "source": "Assets/KOK/Offline/OfflineMainCity.prefab",
+  "destination": "Assets/Content/Prefabs/MainCity/MainCity.prefab",
+  "stripped_mono_behaviours": 15,
+  "stripped_colliders": 15,
+  "asset_count": 88,
+  "total_asset_bytes": 28775624,
+  "types": {
+    ".prefab": 1,
+    ".shader": 2,
+    ".mat": 41,
+    ".fbx": 1,
+    ".png": 41,
+    ".asset": 1,
+    ".cginc": 1
+  },
+  "unresolved_guids": [],
+  "builtin_guids": [
+    "0000000000000000f000000000000000"
+  ],
+  "builtin_shader_includes": [
+    "UnityCG.cginc"
+  ],
+  "guid_conflicts": [],
+  "reused_assets": [],
+  "assets": [
+    {
+      "source": "Assets/KOK/Offline/OfflineMainCity.prefab",
+      "destination": "Assets/Content/Prefabs/MainCity/MainCity.prefab",
+      "bytes": 376829,
+      "previous_destination": "Assets/Content/MainCity/MainCity.prefab",
+      "guid": "4743e6b7c81f4974abab4e27dde77c71"
+    },
+    {
+      "source": "Assets/CoolapeFrame/NGUI_Enhance/Resources/Shaders/Unlit - Transparent Colored.shader",
+      "destination": "Assets/Content/Shaders/MainCity/Unlit - Transparent Colored.shader",
+      "bytes": 1497,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/CoolapeFrame/NGUI_Enhance/Resources/Shaders/Unlit - Transparent Colored.shader",
+      "guid": "e75727d9555d9d14ca51d91908c681bc"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/08d61b3f76a8e45dfb82d3a37712123c_3003.mat",
+      "destination": "Assets/Content/Materials/MainCity/08d61b3f76a8e45dfb82d3a37712123c_3003.mat",
+      "bytes": 2253,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/08d61b3f76a8e45dfb82d3a37712123c_3003.mat",
+      "guid": "810258f818eda0e4ebd2b10acaca67e8"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/1500285ac6a2f4702a36fa4e48506145_3012.mat",
+      "destination": "Assets/Content/Materials/MainCity/1500285ac6a2f4702a36fa4e48506145_3012.mat",
+      "bytes": 2249,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/1500285ac6a2f4702a36fa4e48506145_3012.mat",
+      "guid": "945af4c262e45d8479f5b50e9a3662cc"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/16efd0ea61bbf47f2acbfccdf4adb6f8_4016.mat",
+      "destination": "Assets/Content/Materials/MainCity/16efd0ea61bbf47f2acbfccdf4adb6f8_4016.mat",
+      "bytes": 2251,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/16efd0ea61bbf47f2acbfccdf4adb6f8_4016.mat",
+      "guid": "82964c117a875ad4da593c1dacd8bbcb"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/18a525e7f280b43159508dfff8b16c1d_4003.mat",
+      "destination": "Assets/Content/Materials/MainCity/18a525e7f280b43159508dfff8b16c1d_4003.mat",
+      "bytes": 2254,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/18a525e7f280b43159508dfff8b16c1d_4003.mat",
+      "guid": "621f18f7ac234264f86a82f58cc72cf7"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/23fa91240cf9a4fbeb7d73c6a4c19ab9_3050.mat",
+      "destination": "Assets/Content/Materials/MainCity/23fa91240cf9a4fbeb7d73c6a4c19ab9_3050.mat",
+      "bytes": 2623,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/23fa91240cf9a4fbeb7d73c6a4c19ab9_3050.mat",
+      "guid": "1f2fe8a8be2869a4e9dab108769dd435"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/2928122f4f43c4b3ba28f3246c641bf1_3010.mat",
+      "destination": "Assets/Content/Materials/MainCity/2928122f4f43c4b3ba28f3246c641bf1_3010.mat",
+      "bytes": 2254,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/2928122f4f43c4b3ba28f3246c641bf1_3010.mat",
+      "guid": "3a63d7438df9f264da9aa5b9dbc57f38"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/2bf38234e3c964ccfbf3b2f154a344a0_3002.mat",
+      "destination": "Assets/Content/Materials/MainCity/2bf38234e3c964ccfbf3b2f154a344a0_3002.mat",
+      "bytes": 2253,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/2bf38234e3c964ccfbf3b2f154a344a0_3002.mat",
+      "guid": "4b906b26380cb1b4cbda9613599c2b37"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/311b9cdd35f424b55a91788e493412d4_3002.mat",
+      "destination": "Assets/Content/Materials/MainCity/311b9cdd35f424b55a91788e493412d4_3002.mat",
+      "bytes": 2253,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/311b9cdd35f424b55a91788e493412d4_3002.mat",
+      "guid": "24f666f053d5fc84285b4b8e27d6b3fa"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/3200f36ea6a774a0bb9636b731fbbe97_1910.mat",
+      "destination": "Assets/Content/Materials/MainCity/3200f36ea6a774a0bb9636b731fbbe97_1910.mat",
+      "bytes": 901,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/3200f36ea6a774a0bb9636b731fbbe97_1910.mat",
+      "guid": "823c61ba073793c4f9eb0cdaa5963813"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/3c0077f9d65214c8194c6475e435886d_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/3c0077f9d65214c8194c6475e435886d_3000.mat",
+      "bytes": 2248,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/3c0077f9d65214c8194c6475e435886d_3000.mat",
+      "guid": "bc88281d2a44b1641b02dcb14e88acab"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/3c0077f9d65214c8194c6475e435886d_3010.mat",
+      "destination": "Assets/Content/Materials/MainCity/3c0077f9d65214c8194c6475e435886d_3010.mat",
+      "bytes": 2248,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/3c0077f9d65214c8194c6475e435886d_3010.mat",
+      "guid": "c8f0cb1e313792a45be175ef1c3e4f21"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/4001c8eb43c5b48d7a31f7917f6ee18a_3001.mat",
+      "destination": "Assets/Content/Materials/MainCity/4001c8eb43c5b48d7a31f7917f6ee18a_3001.mat",
+      "bytes": 2249,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/4001c8eb43c5b48d7a31f7917f6ee18a_3001.mat",
+      "guid": "0bec54d9492ff304fafef32ef6528996"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/42e80ef9babed4ee0b8473256e5c6df7_1800.mat",
+      "destination": "Assets/Content/Materials/MainCity/42e80ef9babed4ee0b8473256e5c6df7_1800.mat",
+      "bytes": 2224,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/42e80ef9babed4ee0b8473256e5c6df7_1800.mat",
+      "guid": "2b05c7085127a9c49a9923dd0aed5b76"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/461ac8ce563f4462ba831d48607f5975_4009.mat",
+      "destination": "Assets/Content/Materials/MainCity/461ac8ce563f4462ba831d48607f5975_4009.mat",
+      "bytes": 902,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/461ac8ce563f4462ba831d48607f5975_4009.mat",
+      "guid": "998a852cc7ff25348a89b0edd8558c64"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/50742dbaff67b40399612bebfb171560_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/50742dbaff67b40399612bebfb171560_3000.mat",
+      "bytes": 2440,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/50742dbaff67b40399612bebfb171560_3000.mat",
+      "guid": "339d52e74a361604d8c34a261f3f49d5"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/5422aafe93be54d519c43bbca0c80e8f_3150.mat",
+      "destination": "Assets/Content/Materials/MainCity/5422aafe93be54d519c43bbca0c80e8f_3150.mat",
+      "bytes": 908,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/5422aafe93be54d519c43bbca0c80e8f_3150.mat",
+      "guid": "9496efe9744b8c54e9bf17fd0ef6a987"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/5cd67e64aca504759814893245f35305_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/5cd67e64aca504759814893245f35305_3000.mat",
+      "bytes": 2250,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/5cd67e64aca504759814893245f35305_3000.mat",
+      "guid": "675433d61574ac34d80773aae4971fb3"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/618f758ffe91843db96c1306d778c8a6_3002.mat",
+      "destination": "Assets/Content/Materials/MainCity/618f758ffe91843db96c1306d778c8a6_3002.mat",
+      "bytes": 2252,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/618f758ffe91843db96c1306d778c8a6_3002.mat",
+      "guid": "850fe78a63c012a42b232c56f6c4d859"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/68027aedae29e48268fef2998028aafa_3150.mat",
+      "destination": "Assets/Content/Materials/MainCity/68027aedae29e48268fef2998028aafa_3150.mat",
+      "bytes": 2248,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/68027aedae29e48268fef2998028aafa_3150.mat",
+      "guid": "71ac275a37c498e4a96edfcc4bcf3c84"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/6812780f9011c42f8bf1d0e62d206631_3001.mat",
+      "destination": "Assets/Content/Materials/MainCity/6812780f9011c42f8bf1d0e62d206631_3001.mat",
+      "bytes": 2252,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/6812780f9011c42f8bf1d0e62d206631_3001.mat",
+      "guid": "542c8dbc8ad2aae449426e792074932a"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/7263f9bf0868f44b5bf449f3cd33cb78_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/7263f9bf0868f44b5bf449f3cd33cb78_3000.mat",
+      "bytes": 2254,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/7263f9bf0868f44b5bf449f3cd33cb78_3000.mat",
+      "guid": "13b30947004059c4e9b54663b5a716dd"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/781be68a7f27d4c2990f26f675ce635c_3150.mat",
+      "destination": "Assets/Content/Materials/MainCity/781be68a7f27d4c2990f26f675ce635c_3150.mat",
+      "bytes": 900,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/781be68a7f27d4c2990f26f675ce635c_3150.mat",
+      "guid": "b299a2bb403467341bca0ae036141901"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/7dde263a7dccf47a390152286b9f55c0_4000.mat",
+      "destination": "Assets/Content/Materials/MainCity/7dde263a7dccf47a390152286b9f55c0_4000.mat",
+      "bytes": 2255,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/7dde263a7dccf47a390152286b9f55c0_4000.mat",
+      "guid": "1c3637804063c9d4286cefeae786f1f6"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/7fa5519c846774b278e2d2cc4ae8d554_3002.mat",
+      "destination": "Assets/Content/Materials/MainCity/7fa5519c846774b278e2d2cc4ae8d554_3002.mat",
+      "bytes": 900,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/7fa5519c846774b278e2d2cc4ae8d554_3002.mat",
+      "guid": "d90b76f96b8d4ec43a0795e3ad2f216c"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/82ef81c9af1b04c82a2cb618a89030ba_3009.mat",
+      "destination": "Assets/Content/Materials/MainCity/82ef81c9af1b04c82a2cb618a89030ba_3009.mat",
+      "bytes": 901,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/82ef81c9af1b04c82a2cb618a89030ba_3009.mat",
+      "guid": "cc443305da1ab074dbaaaeec1140e7ef"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/877f1b9c4cffa45669e24e4f98f40f49_3016.mat",
+      "destination": "Assets/Content/Materials/MainCity/877f1b9c4cffa45669e24e4f98f40f49_3016.mat",
+      "bytes": 2250,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/877f1b9c4cffa45669e24e4f98f40f49_3016.mat",
+      "guid": "86e6d760766907d489a9fe3f51e84e8c"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/8ed185044c08043389d570275ab7bbac_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/8ed185044c08043389d570275ab7bbac_3000.mat",
+      "bytes": 2253,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/8ed185044c08043389d570275ab7bbac_3000.mat",
+      "guid": "e7fe07aba648bd44189c0226d73d9b02"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/9678a0e14a204407ba720e39962f6fdc_1910.mat",
+      "destination": "Assets/Content/Materials/MainCity/9678a0e14a204407ba720e39962f6fdc_1910.mat",
+      "bytes": 902,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/9678a0e14a204407ba720e39962f6fdc_1910.mat",
+      "guid": "15956113b01004b4ca1cf66c9745164d"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/9c26520ed0de8455e97f15601523c28b_3007.mat",
+      "destination": "Assets/Content/Materials/MainCity/9c26520ed0de8455e97f15601523c28b_3007.mat",
+      "bytes": 2255,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/9c26520ed0de8455e97f15601523c28b_3007.mat",
+      "guid": "a601192cddd4beb40b6588779f326d45"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/9c2ce24161e2a408cbcf158f69918a7f_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/9c2ce24161e2a408cbcf158f69918a7f_3000.mat",
+      "bytes": 2248,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/9c2ce24161e2a408cbcf158f69918a7f_3000.mat",
+      "guid": "a8b745ff52b802a48b725fa0741500c4"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/9c2ce24161e2a408cbcf158f69918a7f_3160.mat",
+      "destination": "Assets/Content/Materials/MainCity/9c2ce24161e2a408cbcf158f69918a7f_3160.mat",
+      "bytes": 2248,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/9c2ce24161e2a408cbcf158f69918a7f_3160.mat",
+      "guid": "201bfb20509506d45937591a4ae6f753"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/a46fd5459e78f4c969ae155d6665cd72_3012.mat",
+      "destination": "Assets/Content/Materials/MainCity/a46fd5459e78f4c969ae155d6665cd72_3012.mat",
+      "bytes": 2250,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/a46fd5459e78f4c969ae155d6665cd72_3012.mat",
+      "guid": "8c694ed4471bc6a4c968504e7d0f4d0b"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/bed70ac5fa3204838bae204a9d050bed_4001.mat",
+      "destination": "Assets/Content/Materials/MainCity/bed70ac5fa3204838bae204a9d050bed_4001.mat",
+      "bytes": 2250,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/bed70ac5fa3204838bae204a9d050bed_4001.mat",
+      "guid": "c7191c2f331e0014eb035bf4f7c0dd25"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/c435b16f15f784441965b39f527ba4aa_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/c435b16f15f784441965b39f527ba4aa_3000.mat",
+      "bytes": 2248,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/c435b16f15f784441965b39f527ba4aa_3000.mat",
+      "guid": "c0ed5cd8abc189a4fa8263635f9cd183"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/cc971f571dc384109869b267e927e7c7_4010.mat",
+      "destination": "Assets/Content/Materials/MainCity/cc971f571dc384109869b267e927e7c7_4010.mat",
+      "bytes": 2255,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/cc971f571dc384109869b267e927e7c7_4010.mat",
+      "guid": "061bc7e4bfe3ecc45b58f2e9e02dcda8"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/cd9f422f5329641ab96d705791c63161_3000.mat",
+      "destination": "Assets/Content/Materials/MainCity/cd9f422f5329641ab96d705791c63161_3000.mat",
+      "bytes": 2257,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/cd9f422f5329641ab96d705791c63161_3000.mat",
+      "guid": "5f4a9c92028bbbc498e02ad5ee726c90"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/d123ce09602a44543910c3acd9b2bd8c_3150.mat",
+      "destination": "Assets/Content/Materials/MainCity/d123ce09602a44543910c3acd9b2bd8c_3150.mat",
+      "bytes": 904,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/d123ce09602a44543910c3acd9b2bd8c_3150.mat",
+      "guid": "befb0300b0218d240b4668fe903065a0"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/d15e9df54fc2b4a3180323548269ffce_4000.mat",
+      "destination": "Assets/Content/Materials/MainCity/d15e9df54fc2b4a3180323548269ffce_4000.mat",
+      "bytes": 904,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/d15e9df54fc2b4a3180323548269ffce_4000.mat",
+      "guid": "e5192225042c35844a3412a880e11cb3"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/d855496e32d2b49e79a1df54a8b20c42_1920.mat",
+      "destination": "Assets/Content/Materials/MainCity/d855496e32d2b49e79a1df54a8b20c42_1920.mat",
+      "bytes": 2269,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/d855496e32d2b49e79a1df54a8b20c42_1920.mat",
+      "guid": "3a56c861f26b6674bb365c2d71f2ab1f"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/ee288451c7810409099bff956696ba52_1920.mat",
+      "destination": "Assets/Content/Materials/MainCity/ee288451c7810409099bff956696ba52_1920.mat",
+      "bytes": 2248,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/ee288451c7810409099bff956696ba52_1920.mat",
+      "guid": "cf394d69c0fd13940985071e733e6cfc"
+    },
+    {
+      "source": "Assets/KOK/Offline/Materials/f1533b8772928401190601885c4304be_3002.mat",
+      "destination": "Assets/Content/Materials/MainCity/f1533b8772928401190601885c4304be_3002.mat",
+      "bytes": 2252,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/Offline/Materials/f1533b8772928401190601885c4304be_3002.mat",
+      "guid": "d9ee96a85e5c94e4fb13e60532823abd"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/model/worldMap/Panel.FBX",
+      "destination": "Assets/Content/Models/MainCity/Panel.FBX",
+      "bytes": 13616,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/model/worldMap/Panel.FBX",
+      "guid": "7c232bbd4c47447a385f899eb18ad6d3"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/01CityMasterHome.png",
+      "destination": "Assets/Content/Textures/MainCity/01CityMasterHome.png",
+      "bytes": 1564993,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/01CityMasterHome.png",
+      "guid": "91296e06f77034ada9df5aac39920adf"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/02SpyCenter-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/02SpyCenter-TOP2.png",
+      "bytes": 138742,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/02SpyCenter-TOP2.png",
+      "guid": "30bfe4818ceb54094812597da93c2c2f"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/02SpyCenter.png",
+      "destination": "Assets/Content/Textures/MainCity/02SpyCenter.png",
+      "bytes": 507584,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/02SpyCenter.png",
+      "guid": "ca3b8110aecc94e74955ba3065b82f10"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/03GeneralHouse-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/03GeneralHouse-TOP2.png",
+      "bytes": 123790,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/03GeneralHouse-TOP2.png",
+      "guid": "6c5d8a62dc3224e5ca387e3abca6c6e6"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/03GeneralHouse.png",
+      "destination": "Assets/Content/Textures/MainCity/03GeneralHouse.png",
+      "bytes": 454391,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/03GeneralHouse.png",
+      "guid": "249b13e31436e45229a0abc0754f452d"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/04Hospital.png",
+      "destination": "Assets/Content/Textures/MainCity/04Hospital.png",
+      "bytes": 339739,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/04Hospital.png",
+      "guid": "08f06ce99604246e9bc90aa157e44979"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/05Barrack-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/05Barrack-TOP2.png",
+      "bytes": 187284,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/05Barrack-TOP2.png",
+      "guid": "b2d815e216cfe4509ac6d9f66e2a193d"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/05Barrack.png",
+      "destination": "Assets/Content/Textures/MainCity/05Barrack.png",
+      "bytes": 745952,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/05Barrack.png",
+      "guid": "e9651a9f454664dc6aaba6a87bc87e7d"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/06LookTower-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/06LookTower-TOP2.png",
+      "bytes": 108670,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/06LookTower-TOP2.png",
+      "guid": "7b6b46b08d61949ca86ff2159d5714c8"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/06LookTower.png",
+      "destination": "Assets/Content/Textures/MainCity/06LookTower.png",
+      "bytes": 196321,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/06LookTower.png",
+      "guid": "6cd4d946742a144cbaa7176c2bdf8fd6"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/07MFA.png",
+      "destination": "Assets/Content/Textures/MainCity/07MFA.png",
+      "bytes": 712825,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/07MFA.png",
+      "guid": "71f4ffd2d51e9461fa2a6f63c17865d9"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/08Store-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/08Store-TOP2.png",
+      "bytes": 126939,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/08Store-TOP2.png",
+      "guid": "1b3f5e8a1255b47b6ba76809a6e070f4"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/08Store.png",
+      "destination": "Assets/Content/Textures/MainCity/08Store.png",
+      "bytes": 426383,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/08Store.png",
+      "guid": "80fa6e4ba94a94031a261c8b11681129"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/09PeopleHouse-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/09PeopleHouse-TOP2.png",
+      "bytes": 100524,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/09PeopleHouse-TOP2.png",
+      "guid": "db9843082b6ee46448b2ba432e8ac1f9"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/09PeopleHouse.png",
+      "destination": "Assets/Content/Textures/MainCity/09PeopleHouse.png",
+      "bytes": 478342,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/09PeopleHouse.png",
+      "guid": "134495bda65ee4646a04b12d72e7ac48"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/10IronFactory.png",
+      "destination": "Assets/Content/Textures/MainCity/10IronFactory.png",
+      "bytes": 287564,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/10IronFactory.png",
+      "guid": "8848965f7e1134e0e8f286c9e71aba09"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/11BlackSimth-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/11BlackSimth-TOP2.png",
+      "bytes": 152776,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/11BlackSimth-TOP2.png",
+      "guid": "695b7e683145a40428673fd2d7f9e657"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/11BlackSimth.png",
+      "destination": "Assets/Content/Textures/MainCity/11BlackSimth.png",
+      "bytes": 422153,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/11BlackSimth.png",
+      "guid": "f5326b87155534515bc92d0020b2c71b"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/12WoodCut.png",
+      "destination": "Assets/Content/Textures/MainCity/12WoodCut.png",
+      "bytes": 262557,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/12WoodCut.png",
+      "guid": "1e0dd2e16df1c4552a2d042052dacaad"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/13Farm.png",
+      "destination": "Assets/Content/Textures/MainCity/13Farm.png",
+      "bytes": 470347,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/13Farm.png",
+      "guid": "117e14fc832b9428d805db10b99b1128"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/14Sacrifice-TOP2.png",
+      "destination": "Assets/Content/Textures/MainCity/14Sacrifice-TOP2.png",
+      "bytes": 70692,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/14Sacrifice-TOP2.png",
+      "guid": "85a686ff8ca0944ae95b52a710f1581a"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/14Sacrifice.png",
+      "destination": "Assets/Content/Textures/MainCity/14Sacrifice.png",
+      "bytes": 585204,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/14Sacrifice.png",
+      "guid": "8772d50a0bbe240d5a22db9e079880c2"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-1WallDoor.png",
+      "destination": "Assets/Content/Textures/MainCity/15-1WallDoor.png",
+      "bytes": 275026,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-1WallDoor.png",
+      "guid": "fd3b4e5c049fc49bfb65d16d3d5f2bf2"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-2Wall-Front.png",
+      "destination": "Assets/Content/Textures/MainCity/15-2Wall-Front.png",
+      "bytes": 82505,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-2Wall-Front.png",
+      "guid": "2e5e7a9c4aa78445f88c8b78280fe0d9"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-3Wall-Back.png",
+      "destination": "Assets/Content/Textures/MainCity/15-3Wall-Back.png",
+      "bytes": 61919,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-3Wall-Back.png",
+      "guid": "7ef4bbad4b4b24fe9ac1abad9fca8616"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-4.png",
+      "destination": "Assets/Content/Textures/MainCity/15-4.png",
+      "bytes": 75139,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-4.png",
+      "guid": "9cc706209a6564d769612292fec3f8a4"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-5.png",
+      "destination": "Assets/Content/Textures/MainCity/15-5.png",
+      "bytes": 71784,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-5.png",
+      "guid": "a0f14785820144522ac0d885bccf4731"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-6.png",
+      "destination": "Assets/Content/Textures/MainCity/15-6.png",
+      "bytes": 160526,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-6.png",
+      "guid": "a52472ef580e84d1eaf5a2534af99fa1"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-7.png",
+      "destination": "Assets/Content/Textures/MainCity/15-7.png",
+      "bytes": 70048,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/15-7.png",
+      "guid": "9a602714a4c89449b88f92a4bf299db1"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/chuan.png",
+      "destination": "Assets/Content/Textures/MainCity/chuan.png",
+      "bytes": 159177,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/chuan.png",
+      "guid": "c30ebbc0e08554b5dbb0857829fa0233"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/CityBack2048-1.png",
+      "destination": "Assets/Content/Textures/MainCity/CityBack2048-1.png",
+      "bytes": 8282467,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/CityBack2048-1.png",
+      "guid": "de329cdc8862440008dd9be9a81a1d46"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/CityBack2048-2.png",
+      "destination": "Assets/Content/Textures/MainCity/CityBack2048-2.png",
+      "bytes": 9334873,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/CityBack2048-2.png",
+      "guid": "6e5e2c0e300784ad0ba6504757ff9363"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/HuaBiao-Color.png",
+      "destination": "Assets/Content/Textures/MainCity/HuaBiao-Color.png",
+      "bytes": 10676,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/HuaBiao-Color.png",
+      "guid": "e15da59ce7be04c3482126c48da0852f"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/TaLou-Cut.png",
+      "destination": "Assets/Content/Textures/MainCity/TaLou-Cut.png",
+      "bytes": 22963,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/TaLou-Cut.png",
+      "guid": "fad1a6175995a497ea400549ca16487b"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/Tree1.png",
+      "destination": "Assets/Content/Textures/MainCity/Tree1.png",
+      "bytes": 137130,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/Tree1.png",
+      "guid": "0b0e5aa13d767466aa94c4c2b97accb3"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/Wall-Door.png",
+      "destination": "Assets/Content/Textures/MainCity/Wall-Door.png",
+      "bytes": 175309,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/Wall-Door.png",
+      "guid": "f38ab8e081a824c63bc70d2e154cdbf3"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/windWheel.png",
+      "destination": "Assets/Content/Textures/MainCity/windWheel.png",
+      "bytes": 243885,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/windWheel.png",
+      "guid": "7293d4508c28642aa9dc90d324b95e0a"
+    },
+    {
+      "source": "Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/ZCDM.png",
+      "destination": "Assets/Content/Textures/MainCity/ZCDM.png",
+      "bytes": 133224,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/KOK/upgradeRes4Dev/other/Textures/mainCity/ZCDM.png",
+      "guid": "5830149fde1a449bf908173fd6cec8f9"
+    },
+    {
+      "source": "Assets/MobileOcean/Meshes/WaterS1W20.asset",
+      "destination": "Assets/Content/Models/MainCity/WaterS1W20.asset",
+      "bytes": 3339,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/MobileOcean/Meshes/WaterS1W20.asset",
+      "guid": "25b3b5369803e4e2398ae81e6f611391"
+    },
+    {
+      "source": "Assets/MobileOcean/Resources/Shaders/Includes/OceanShoreLineInclude.cginc",
+      "destination": "Assets/Content/Shaders/MainCity/OceanShoreLineInclude.cginc",
+      "bytes": 3615,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/MobileOcean/Resources/Shaders/Includes/OceanShoreLineInclude.cginc",
+      "guid": "905b51ca63d3242169edd9a66bf4e6e2"
+    },
+    {
+      "source": "Assets/MobileOcean/Resources/Shaders/OceanLow.shader",
+      "destination": "Assets/Content/Shaders/MainCity/OceanLow.shader",
+      "bytes": 2858,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/MobileOcean/Resources/Shaders/OceanLow.shader",
+      "guid": "49e3481e26ccb41ecb88716871eac4d4"
+    },
+    {
+      "source": "Assets/MobileOcean/Textures/OceanTextures/foam.png",
+      "destination": "Assets/Content/Textures/MainCity/foam.png",
+      "bytes": 86334,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/MobileOcean/Textures/OceanTextures/foam.png",
+      "guid": "9bb41021296684c00bcd7fbfa8b4d1a5"
+    },
+    {
+      "source": "Assets/MobileOcean/Textures/OceanTextures/wave1.png",
+      "destination": "Assets/Content/Textures/MainCity/wave1.png",
+      "bytes": 291909,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/MobileOcean/Textures/OceanTextures/wave1.png",
+      "guid": "cb24ba6eaf7ff4392b28777f6be8377e"
+    },
+    {
+      "source": "Assets/MobileOcean/Textures/OceanTextures/wave2.png",
+      "destination": "Assets/Content/Textures/MainCity/wave2.png",
+      "bytes": 154489,
+      "previous_destination": "Assets/Content/MainCity/Imported/Assets/MobileOcean/Textures/OceanTextures/wave2.png",
+      "guid": "b07d1dad6964e4ded916de1aaaa8d3be"
+    }
+  ],
+  "adaptations": [
+    "Removed all legacy MonoBehaviour and physics components from the city prefab.",
+    "Ocean shader include changed to a relative path after relocation.",
+    "Ocean shader exposes opacity and disables reflection passes that depended on old runtime components.",
+    "Original map has no BuildingRoot/buildParent6; all other buildParent1..16 nodes are retained.",
+    "Resources reorganized into Client Prefabs/Models/Textures/Materials/Shaders categories; Ocean include updated for the flat shader directory."
+  ],
+  "resource_roots": [
+    "Assets/Content/Prefabs/MainCity",
+    "Assets/Content/Models/MainCity",
+    "Assets/Content/Textures/MainCity",
+    "Assets/Content/Materials/MainCity",
+    "Assets/Content/Shaders/MainCity"
+  ],
+  "layout": "Client category directories; no legacy KOK asset directory hierarchy is retained.",
+  "static_validation": {
+    "unresolved_guids": 0,
+    "resource_guid_collisions": 0,
+    "missing_shader_includes": 0,
+    "legacy_script_components": 0,
+    "missing_prefab_component_ids": 0,
+    "resource_count": 88,
+    "metadata_guids_preserved": true
+  }
+}

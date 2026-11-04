@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Client.Contracts;
 using Client.Framework.UI;
 using Client.Game.Login;
+using Client.Game.MainCity;
 
 namespace Client.Game
 {
@@ -19,6 +20,12 @@ namespace Client.Game
         UILogin presenter;
         LocalSimulationSession localSession;
         bool started;
+        IClientContext context;
+        IViewHandle cityView;
+        UIMainCity cityPresenter;
+        ISessionClient activeSession;
+        bool cityOpening;
+        long navigationEpoch;
 
         public Entry():this(LocalSimulationProfilePath) { }
         public Entry(string profilePath)
@@ -32,6 +39,7 @@ namespace Client.Game
             if(context==null)throw new ArgumentNullException(nameof(context));
             if(started)throw new InvalidOperationException("An entry instance initializes only once.");
             started=true;ownerContext=SynchronizationContext.Current;
+            this.context=context;
             context.Log?.Write(ClientLogLevel.Info,"CLIENT_ENTRY_EXECUTING","Client.Game.Entry");
             lifetime=CancellationTokenSource.CreateLinkedTokenSource(context.Lifetime,token);
             var launchToken=lifetime.Token;
@@ -50,10 +58,13 @@ namespace Client.Game
                 ISessionClient session;
                 if(mode==LoginPresentationMode.LocalSimulation)session=localSession=new LocalSimulationSession();
                 else session=context.Session??throw new InvalidOperationException("Tok development requires the host session.");
+                activeSession=session;
+                activeSession.StateChanged+=OnSessionState;
                 var opened=await context.UI.OpenAsync("UILogin",launchToken);
                 view=opened;
                 launchToken.ThrowIfCancellationRequested();
                 presenter=new UILogin();presenter.ConfigurePresentation(label,version);presenter.Bind(opened,session);
+                presenter.EnterGameRequested+=EnterCity;
                 context.Log?.Write(ClientLogLevel.Info,"CLIENT_VIEW",Newtonsoft.Json.JsonConvert.SerializeObject(new {view=opened.Root.GetInstanceID(),presenter=System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(presenter),version,mode=mode.ToString()}));
                 await UIFirstFrame.WaitAsync(opened,launchToken);
                 launchToken.ThrowIfCancellationRequested();
@@ -72,6 +83,42 @@ namespace Client.Game
         public Task ShutdownAsync(CancellationToken token)
         {Cleanup();return Task.CompletedTask;}
 
+        async void EnterCity()
+        {
+            if(cityOpening||cityView!=null||lifetime==null||lifetime.IsCancellationRequested)return;
+            var cityToken=lifetime.Token;
+            long expectedEpoch=navigationEpoch;
+            cityOpening=true;IViewHandle opened=null;
+            try
+            {
+                opened=await context.UI.OpenAsync("UIMainCity",cityToken);
+                cityToken.ThrowIfCancellationRequested();
+                if(expectedEpoch!=navigationEpoch)throw new OperationCanceledException(cityToken);
+                var city=new UIMainCity();city.Bind(opened,ReturnToLogin);
+                cityPresenter=city;cityView=opened;opened=null;
+            }
+            catch(OperationCanceledException){opened?.Close();}
+            catch(Exception error)
+            {
+                opened?.Close();
+                context?.Log?.Write(ClientLogLevel.Error,"CITY_OPEN_FAILED",error.Message);
+                if(presenter?.StatusLabel!=null)presenter.StatusLabel.text="主城加载失败，请重试";
+            }
+            finally{cityOpening=false;}
+        }
+        void ReturnToLogin()
+        {
+            var city=cityPresenter;cityPresenter=null;
+            var window=cityView;cityView=null;
+            city?.Unbind();window?.Close();activeSession?.Disconnect();
+        }
+        void OnSessionState(SessionState state)
+        {
+            if(state!=SessionState.Disconnected)return;
+            navigationEpoch++;
+            if(cityView!=null)ReturnToLogin();
+        }
+
         void OnCancelled()
         {
             if(ownerContext!=null && !ReferenceEquals(SynchronizationContext.Current,ownerContext))ownerContext.Post(_=>Cleanup(),null);
@@ -81,15 +128,21 @@ namespace Client.Game
         void Cleanup()
         {
             var registration=cancelled;cancelled=default;
+            navigationEpoch++;
+            if(activeSession!=null)activeSession.StateChanged-=OnSessionState;
+            activeSession=null;
             var source=lifetime;lifetime=null;
             var login=presenter;presenter=null;
+            if(login!=null)login.EnterGameRequested-=EnterCity;
+            var city=cityPresenter;cityPresenter=null;
+            var cityWindow=cityView;cityView=null;
             var window=view;view=null;
             var simulation=localSession;localSession=null;
             registration.Dispose();
             try{source?.Cancel();}
             finally
             {
-                try{login?.Unbind();}
+                try{city?.Unbind();cityWindow?.Close();login?.Unbind();}
                 finally
                 {
                     try{window?.Close();}

@@ -73,6 +73,11 @@ client/
 │  │     ├─ GameRoot.prefab                 资源与UI组件根节点
 │  │     └─ UIUpdate.prefab                 更新进度、错误和重试界面
 │  ├─ Content/                         通过GF资源包更新的内容
+│  │  ├─ Models/MainCity/                  主城FBX与网格
+│  │  ├─ Textures/MainCity/                主城贴图
+│  │  ├─ Materials/MainCity/               主城材质
+│  │  ├─ Shaders/MainCity/                 主城Shader与include
+│  │  ├─ Prefabs/MainCity/                 无旧脚本依赖的主城美术Prefab
 │  │  └─ UI/
 │  │     ├─ Common/                        公共UI根、窗口定义和基础控件
 │  │     └─ Login/                         登录Prefab、布局和文案资产
@@ -148,6 +153,8 @@ Game目录名称本身不提供热更新隔离。Client.Game和Client.Game.Proto
 | 新业务Protobuf生成类 | Scripts/Game/Protocol/Generated | 由comm工具生成，禁止手改 |
 | 固定Frame生成代码 | Scripts/Framework/Protocol/Envelope/Generated | 单独AOT程序集，固定源hash |
 | 页面Prefab、布局和文案 | Content/UI/<功能> | 资源包更新；仅序列化稳定AOT Bridge |
+| 主城模型、贴图、材质与Shader | Content/Models、Textures、Materials、Shaders下的MainCity | 按新客户端资源类别归档，不复制旧工程目录层级 |
+| 主城美术Prefab | Content/Prefabs/MainCity | 通过GUID关联分类资源，不带旧Lua/网络/MonoBehaviour |
 | 启动必需Prefab/组件 | Prefabs/App与Scripts/Framework/Bootstrap | 随主包；不引用热更类型和热更资源 |
 | 项目配置资产 | Settings对应目录 | 示例配置进Git；凭据/个人覆盖不进Git |
 | Unity测试 | Assets/Tests/EditMode或PlayMode | 带独立测试asmdef与Task Category |
