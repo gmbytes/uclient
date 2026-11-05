@@ -16,7 +16,7 @@ namespace Client.Editor.UI
         static readonly Color Gold=new Color(.88f,.75f,.43f);
         static readonly Color Ink=new Color(.035f,.095f,.085f,.95f);
         public static void PrepareAndBuild()
-        {Client.Editor.City.MainCityAssetBuilder.PrepareResources();Build();LoginArtworkBuilder.Apply();}
+        {Client.Editor.City.MainCityAssetBuilder.PrepareResources();Build();}
         [InitializeOnLoadMethod]
         static void PrepareRequestedResources()
         {
@@ -62,21 +62,10 @@ namespace Client.Editor.UI
                 map.ConfigureFillViewport(true);
                 var hud=(RectTransform)safe.Find("Static");Stretch(hud);
                 safe.Find("Dynamic").gameObject.SetActive(false);
-                var tasks=Panel("Tasks",hud,new Rect(.02f,.73f,.48f,.16f));
-                var taskText=Label("TaskText",tasks,font,"第一章  ·  初建城池\n\n前往城主府，巡视领地\n点击建筑查看详情",25,Gold);
-                Stretch(taskText.rectTransform,18,12);taskText.alignment=TextAnchor.UpperLeft;
-                var mode=Label("Mode",hud,font,"本地主城展示",20,new Color(.75f,.82f,.72f));Anchors(mode.rectTransform,new Rect(.68f,.86f,.29f,.035f));
-                var back=Button("ReturnButton",hud,font,"返回登录");Anchors((RectTransform)back.transform,new Rect(.72f,.81f,.25f,.045f));
-                var hint=Label("Hint",hud,font,"拖拽巡视城池  ·  滚轮或双指缩放  ·  点击建筑",20,new Color(.85f,.88f,.76f));
-                Anchors(hint.rectTransform,new Rect(.04f,.10f,.92f,.032f));
-                var detail=Panel("BuildingDetails",hud,new Rect(.04f,.145f,.92f,.18f));
-                var title=Label("BuildingTitle",detail,font,"城主府  ·  1级",32,Gold);Anchors(title.rectTransform,new Rect(.04f,.73f,.75f,.22f));title.alignment=TextAnchor.MiddleLeft;
-                var desc=Label("BuildingDescription",detail,font,"点击建筑查看详情",24,new Color(.89f,.91f,.83f));Anchors(desc.rectTransform,new Rect(.04f,.25f,.9f,.46f));desc.alignment=TextAnchor.UpperLeft;
-                var close=Button("CloseDetails",detail,font,"关闭");Anchors((RectTransform)close.transform,new Rect(.78f,.75f,.18f,.19f));
-                var focus=Button("FocusBuilding",detail,font,"定位建筑");Anchors((RectTransform)focus.transform,new Rect(.62f,.035f,.34f,.22f));
-                detail.gameObject.SetActive(false);
+                var cityDetailBindings=CityHallDetailUIBuilder.Attach(root,font);
+                var mainUIBindings=MainCityHudUIBuilder.Attach(root,font);
                 var bindings=root.GetComponent<UIBindings>();
-                bindings.Configure(new[]{Binding("Map",map),Binding("BuildingTitle",title),Binding("BuildingDescription",desc),Binding("BuildingDetails",detail),Binding("ReturnButton",back),Binding("CloseDetails",close),Binding("FocusBuilding",focus)},null);
+                bindings.Configure(new[]{Binding("Map",map)}.Concat(cityDetailBindings).Concat(mainUIBindings).ToArray(),null);
                 var staticLayout=safe.GetComponent<AdaptiveLayout>();
                 staticLayout.Configure(definition.LayoutDefinition,null,null,null,null,null);
                 root.GetComponent<UIViewBridge>().Configure(node.GetComponent<Canvas>(),node.GetComponent<CanvasGroup>(),bindings,staticLayout,null,null,safe.GetComponent<SafeAreaRoot>());

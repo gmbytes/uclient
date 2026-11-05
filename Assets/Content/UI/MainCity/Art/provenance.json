@@ -1,0 +1,56 @@
+{
+  "background": "User-supplied portrait palace image, codex-clipboard-f91b9460-1c63-438b-b836-6aa585ff1187.png",
+  "icons_and_frame_art": "Original local client UI assets under E:/msg/editor_Ui/uidata; copied/extracted into this project",
+  "source_templates": [
+    "ui_upgrade",
+    "sg_comm_close",
+    "sg_comm_bottom",
+    "sg_comm_button",
+    "sg_comm_resource"
+  ],
+  "refined_ui": {
+    "generation_tool": "built-in image_gen",
+    "assets": [
+      "Refined/Panel.png",
+      "Refined/Upgrade.png",
+      "Refined/Alliance.png",
+      "Refined/Territory.png"
+    ],
+    "prompt_manifest": "Refined/generation-prompts.json",
+    "processing": "Original generated PNGs are preserved; Unity sprite import rectangles trim connected alpha bounds. Native utility shapes and gradients are authored by the UI builder."
+  },
+  "generated_utility_texture": "DetailShade.png is authored by CityHallDetailUIBuilder",
+  "original_reference_files_modified": false,
+  "building_detail_theme": {
+    "tool": "built-in image_gen",
+    "asset": "Refined/BuildingDetailTheme.png",
+    "prompt_manifest": "Refined/building-detail-theme-prompt.json",
+    "references": "User supplied login, main city and outdoor screenshots on 2026-11-05",
+    "processing": "Original generated PNG preserved; Unity stretches the near-9:16 artwork to the full-screen canvas."
+  },
+  "main_ui": {
+    "portrait": "Refined/PlayerPortrait.png",
+    "portrait_source": "E:/msg/editor_Ui/uidata/uiview/图片/角色头像/小头像/S_role_2/resource/S_role_2.png",
+    "source_preserved": true,
+    "fade": [
+      "Refined/MainUITopFade.png",
+      "Refined/MainUIBottomFade.png",
+      "Refined/ResourceTopFade.png"
+    ],
+    "other_assets": "Existing main-city resource icons and jade/gold utility sprites reused",
+    "fade_author": "Native UGUI texture generation in the UI builders; matches city roof/forest colors"
+  },
+  "cloud_inlay": {
+    "tool": "built-in image_gen",
+    "asset": "Refined/CloudFrameCorner.png",
+    "prompt_manifest": "Refined/cloud-frame-corner-prompt.json",
+    "processing": "Original transparent PNG preserved. Unity imports the compact top-left region as a sprite; four mirrored corners join native adaptive thin lines.",
+    "active": false
+  },
+  "borderless_theme": {
+    "tool": "built-in image_gen",
+    "source": "Refined/BuildingDetailTheme.png",
+    "asset": "Refined/BuildingDetailThemeBorderless.png",
+    "prompt_manifest": "Refined/borderless-theme-prompt.json"
+  }
+}

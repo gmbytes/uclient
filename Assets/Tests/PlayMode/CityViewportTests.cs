@@ -59,7 +59,7 @@ namespace Client.Tests
         }
 
         [Test]
-        public void PointerClickSelectsTheBuildingAndCreatesVisibleOutline()
+        public void PointerClickSelectsTheBuildingWithoutAnOutline()
         {
             int selected = 0; string name = null;
             viewport.BuildingSelected += (id, label) => { selected = id; name = label; };
@@ -69,7 +69,7 @@ namespace Client.Tests
             ExecuteEvents.Execute(region.gameObject, pointer, ExecuteEvents.pointerUpHandler);
             Assert.That(selected, Is.EqualTo(1)); Assert.That(name, Is.EqualTo("城主府"));
             Assert.That(viewport.SelectedBuildingId, Is.EqualTo(1));
-            Assert.That(viewport.WorldRoot.GetComponentInChildren<LineRenderer>().enabled, Is.True);
+            Assert.That(viewport.WorldRoot.GetComponentInChildren<LineRenderer>(), Is.Null);
         }
 
         [Test]

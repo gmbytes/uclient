@@ -60,9 +60,7 @@ namespace Client.Framework.Presentation
         private RawImage output;
         private Texture previousTexture;
         private RenderTexture texture;
-        private Material outlineMaterial;
         private Scene renderScene;
-        private LineRenderer outline;
         private Vector3 center;
         private float initialZoom, cameraDistance, previousPinchDistance;
         private int sceneGeneration;
@@ -73,6 +71,33 @@ namespace Client.Framework.Presentation
         public Camera ViewCamera { get; private set; }
         public GameObject WorldRoot { get; private set; }
         public Bounds CityBounds { get; private set; }
+        public readonly struct ViewState
+        {
+            public readonly Vector3 Center;
+            public readonly float OrthographicSize;
+            public ViewState(Vector3 center,float size){Center=center;OrthographicSize=size;}
+        }
+        public ViewState CaptureView()=>new ViewState(center,IsReady?ViewCamera.orthographicSize:0);
+        public bool TryGetBuildingCenter(int id,out Vector3 value)
+        {
+            foreach(var building in buildings)if(building.Id==id){value=building.Bounds.center;return true;}
+            value=default;return false;
+        }
+        public void ApplyView(ViewState value)
+        {
+            if(!IsReady)return;
+            center=value.Center;ViewCamera.orthographicSize=Mathf.Clamp(value.OrthographicSize,MinimumZoom,MaximumZoom);UpdateCamera();
+        }
+        public bool TryGetFocusView(int id,out ViewState value)
+        {
+            foreach(var building in buildings)
+                if(building.Id==id)
+                {
+                    float zoom=Mathf.Clamp(Mathf.Max(building.Bounds.extents.z,building.Bounds.extents.x/ViewCamera.aspect)*1.8f,MinimumZoom,Mathf.Min(initialZoom,MaximumZoom));
+                    value=new ViewState(building.Bounds.center,zoom);return true;
+                }
+            value=default;return false;
+        }
 
         public void Configure(GameObject prefab, RectTransform region)
         {
@@ -132,7 +157,6 @@ namespace Client.Framework.Presentation
             ViewCamera.nearClipPlane = .1f;
             ViewCamera.farClipPlane = cameraDistance * 4;
             CollectBuildings(framing);
-            CreateOutline();
             ResizeTexture();
             ResetView();
         }
@@ -176,29 +200,6 @@ namespace Client.Framework.Presentation
                 else bounds.Encapsulate(renderer.bounds);
             }
             return bounds;
-        }
-
-        private void CreateOutline()
-        {
-            var node = new GameObject("CityViewport.Selection");
-            node.layer = CityLayer;
-            node.transform.SetParent(WorldRoot.transform, false);
-            outline = node.AddComponent<LineRenderer>();
-            outline.useWorldSpace = true;
-            outline.positionCount = 4;
-            outline.loop = true;
-            outline.startColor = outline.endColor = new Color(1, .82f, .2f, 1);
-            outline.numCornerVertices = 3;
-            outline.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            outline.receiveShadows = false;
-            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color") ?? Shader.Find("UI/Default");
-            if (shader != null)
-            {
-                outlineMaterial = new Material(shader) { name = "CityViewport.Selection.Material", hideFlags = HideFlags.DontSave };
-                if (outlineMaterial.HasProperty("_Color")) outlineMaterial.color = new Color(1, .82f, .2f, 1);
-                outline.sharedMaterial = outlineMaterial;
-            }
-            outline.enabled = false;
         }
 
         private void LateUpdate()
@@ -372,15 +373,6 @@ namespace Client.Framework.Presentation
         private void ShowSelection(Building selected)
         {
             SelectedBuildingId = selected.Id;
-            var bounds = selected.Bounds;
-            var padding = Mathf.Max(.05f, Mathf.Min(bounds.size.x, bounds.size.z) * .05f);
-            float y = bounds.max.y + Mathf.Max(.05f, bounds.size.y * .02f);
-            outline.startWidth = outline.endWidth = Mathf.Max(.035f, Mathf.Min(bounds.size.x, bounds.size.z) * .025f);
-            outline.SetPosition(0, new Vector3(bounds.min.x - padding, y, bounds.min.z - padding));
-            outline.SetPosition(1, new Vector3(bounds.max.x + padding, y, bounds.min.z - padding));
-            outline.SetPosition(2, new Vector3(bounds.max.x + padding, y, bounds.max.z + padding));
-            outline.SetPosition(3, new Vector3(bounds.min.x - padding, y, bounds.max.z + padding));
-            outline.enabled = true;
             var label=selected.Id<buildingNames.Length&&!string.IsNullOrEmpty(buildingNames[selected.Id])?buildingNames[selected.Id]:"建筑 "+selected.Id;
             BuildingSelected?.Invoke(selected.Id, label);
         }
@@ -392,10 +384,9 @@ namespace Client.Framework.Presentation
             if (output != null && output.texture == texture) output.texture = previousTexture;
             if (texture != null) { texture.Release(); DestroyOwned(texture); }
             if (WorldRoot != null) { WorldRoot.SetActive(false); DestroyOwned(WorldRoot); }
-            if (outlineMaterial != null) DestroyOwned(outlineMaterial);
             if (Application.isPlaying && renderScene.IsValid() && renderScene.isLoaded) SceneManager.UnloadSceneAsync(renderScene);
             renderScene = default;
-            ViewCamera = null; WorldRoot = null; texture = null; outlineMaterial = null; outline = null;
+            ViewCamera = null; WorldRoot = null; texture = null;
             output = null; previousTexture = null; initialZoom = 0;
         }
 

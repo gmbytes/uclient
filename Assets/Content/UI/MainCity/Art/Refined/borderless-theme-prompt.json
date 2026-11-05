@@ -1,0 +1,6 @@
+{
+  "tool": "built-in image_gen",
+  "source": "BuildingDetailTheme.png",
+  "asset": "BuildingDetailThemeBorderless.png",
+  "prompt": "Edit the supplied background image. Remove ONLY ALL the decorative golden border lines and cloud-scroll / key-fret gold ornaments from the four corners and every outer edge. Seamlessly reconstruct the scenery or parchment that should be underneath each removed gold line and corner. Preserve the original composition, portrait aspect ratio, mountains, ancient city on the upper left, pine branches, mist, distant towers and flag, lower rocks, low-contrast warm parchment center, lighting and exact muted grey-jade / ivory color palette as closely as possible. Preserve the existing large empty central and lower areas for UI. Do not add any new objects, building, border, panel, text, characters, buttons, icons or watermark. This must remain one clean, full-bleed production background for a Three Kingdoms building details game screen. No frame at all, no gold edging anywhere. Background opaque."
+}

@@ -4,41 +4,221 @@ namespace Client.Game.MainCity
     public sealed partial class UIMainCity
     {
         public global::Client.Framework.Presentation.CityViewport Map { get; private set; }
-        public global::UnityEngine.UI.Text BuildingTitle { get; private set; }
-        public global::UnityEngine.UI.Text BuildingDescription { get; private set; }
-        public global::UnityEngine.RectTransform BuildingDetails { get; private set; }
-        public global::UnityEngine.UI.Button ReturnButton { get; private set; }
-        public global::UnityEngine.UI.Button CloseDetails { get; private set; }
-        public global::UnityEngine.UI.Button FocusBuilding { get; private set; }
+        public global::UnityEngine.RectTransform CityDetailPage { get; private set; }
+        public global::UnityEngine.RectTransform CityDetailBackdrop { get; private set; }
+        public global::UnityEngine.RectTransform CityHud { get; private set; }
+        public global::UnityEngine.RectTransform DetailResourceFrame { get; private set; }
+        public global::Client.Framework.Presentation.BuildingDetailTransition DetailTransition { get; private set; }
+        public global::UnityEngine.UI.Text DetailName { get; private set; }
+        public global::UnityEngine.UI.Text DetailLevel { get; private set; }
+        public global::UnityEngine.UI.Text DetailDescription { get; private set; }
+        public global::UnityEngine.UI.Text DetailBenefits { get; private set; }
+        public global::Client.Framework.Presentation.BuildingPreviewViewport BuildingPreview { get; private set; }
+        public global::UnityEngine.RectTransform MineCounter { get; private set; }
+        public global::UnityEngine.RectTransform CampCounter { get; private set; }
+        public global::UnityEngine.UI.Text DetailGoldStock { get; private set; }
+        public global::UnityEngine.UI.Text DetailSilverStock { get; private set; }
+        public global::UnityEngine.UI.Text DetailIronStock { get; private set; }
+        public global::UnityEngine.UI.Text DetailWoodStock { get; private set; }
+        public global::UnityEngine.UI.Text DetailFoodStock { get; private set; }
+        public global::UnityEngine.UI.Button CloseCityDetails { get; private set; }
+        public global::UnityEngine.UI.Button AllianceButton { get; private set; }
+        public global::UnityEngine.UI.Button TerritoryButton { get; private set; }
+        public global::UnityEngine.UI.Button UpgradeCityHall { get; private set; }
+        public global::UnityEngine.RectTransform CityDetailDialog { get; private set; }
+        public global::UnityEngine.UI.Text CityDialogTitle { get; private set; }
+        public global::UnityEngine.UI.Text CityDialogBody { get; private set; }
+        public global::UnityEngine.UI.Button DismissCityDialog { get; private set; }
+        public global::UnityEngine.RectTransform MainUI { get; private set; }
+        public global::UnityEngine.RectTransform MainUIResourceFrame { get; private set; }
+        public global::UnityEngine.RectTransform MainUIPlayerFrame { get; private set; }
+        public global::UnityEngine.UI.Button MainUIPlayerButton { get; private set; }
+        public global::UnityEngine.UI.Image MainUIAvatar { get; private set; }
+        public global::UnityEngine.UI.Text MainUILevel { get; private set; }
+        public global::UnityEngine.UI.Text MainUINoble { get; private set; }
+        public global::UnityEngine.UI.Text MainUIName { get; private set; }
+        public global::UnityEngine.UI.Text MainUIPower { get; private set; }
+        public global::UnityEngine.UI.Image MainUIExperienceFill { get; private set; }
+        public global::UnityEngine.UI.Text MainUIExperience { get; private set; }
+        public global::UnityEngine.UI.Button MainUIFunctions { get; private set; }
+        public global::UnityEngine.UI.Text MainUIGold { get; private set; }
+        public global::UnityEngine.UI.Text MainUISilver { get; private set; }
+        public global::UnityEngine.UI.Text MainUIIron { get; private set; }
+        public global::UnityEngine.UI.Text MainUIWood { get; private set; }
+        public global::UnityEngine.UI.Text MainUIFood { get; private set; }
+        public global::UnityEngine.UI.Button MainUIHeroes { get; private set; }
+        public global::UnityEngine.UI.Button MainUIBag { get; private set; }
+        public global::UnityEngine.UI.Button MainUIAlliance { get; private set; }
+        public global::UnityEngine.UI.Button MainUITerritory { get; private set; }
+        public global::UnityEngine.RectTransform MainUIFunctionsMenu { get; private set; }
+        public global::UnityEngine.UI.Text MainUIDialogTitle { get; private set; }
+        public global::UnityEngine.UI.Text MainUIDialogBody { get; private set; }
+        public global::UnityEngine.UI.Button MainUIDialogClose { get; private set; }
+        public global::UnityEngine.RectTransform MainUIDialog { get; private set; }
 
         public void BindComponents(global::Client.Framework.UI.UIBindings bindings)
         {
             if (bindings == null) throw new global::System.ArgumentNullException(nameof(bindings));
             var resolved0 = (global::Client.Framework.Presentation.CityViewport)bindings.Resolve("Map");
-            var resolved1 = (global::UnityEngine.UI.Text)bindings.Resolve("BuildingTitle");
-            var resolved2 = (global::UnityEngine.UI.Text)bindings.Resolve("BuildingDescription");
-            var resolved3 = (global::UnityEngine.RectTransform)bindings.Resolve("BuildingDetails");
-            var resolved4 = (global::UnityEngine.UI.Button)bindings.Resolve("ReturnButton");
-            var resolved5 = (global::UnityEngine.UI.Button)bindings.Resolve("CloseDetails");
-            var resolved6 = (global::UnityEngine.UI.Button)bindings.Resolve("FocusBuilding");
+            var resolved1 = (global::UnityEngine.RectTransform)bindings.Resolve("CityDetailPage");
+            var resolved2 = (global::UnityEngine.RectTransform)bindings.Resolve("CityDetailBackdrop");
+            var resolved3 = (global::UnityEngine.RectTransform)bindings.Resolve("CityHud");
+            var resolved4 = (global::UnityEngine.RectTransform)bindings.Resolve("DetailResourceFrame");
+            var resolved5 = (global::Client.Framework.Presentation.BuildingDetailTransition)bindings.Resolve("DetailTransition");
+            var resolved6 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailName");
+            var resolved7 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailLevel");
+            var resolved8 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailDescription");
+            var resolved9 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailBenefits");
+            var resolved10 = (global::Client.Framework.Presentation.BuildingPreviewViewport)bindings.Resolve("BuildingPreview");
+            var resolved11 = (global::UnityEngine.RectTransform)bindings.Resolve("MineCounter");
+            var resolved12 = (global::UnityEngine.RectTransform)bindings.Resolve("CampCounter");
+            var resolved13 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailGoldStock");
+            var resolved14 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailSilverStock");
+            var resolved15 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailIronStock");
+            var resolved16 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailWoodStock");
+            var resolved17 = (global::UnityEngine.UI.Text)bindings.Resolve("DetailFoodStock");
+            var resolved18 = (global::UnityEngine.UI.Button)bindings.Resolve("CloseCityDetails");
+            var resolved19 = (global::UnityEngine.UI.Button)bindings.Resolve("AllianceButton");
+            var resolved20 = (global::UnityEngine.UI.Button)bindings.Resolve("TerritoryButton");
+            var resolved21 = (global::UnityEngine.UI.Button)bindings.Resolve("UpgradeCityHall");
+            var resolved22 = (global::UnityEngine.RectTransform)bindings.Resolve("CityDetailDialog");
+            var resolved23 = (global::UnityEngine.UI.Text)bindings.Resolve("CityDialogTitle");
+            var resolved24 = (global::UnityEngine.UI.Text)bindings.Resolve("CityDialogBody");
+            var resolved25 = (global::UnityEngine.UI.Button)bindings.Resolve("DismissCityDialog");
+            var resolved26 = (global::UnityEngine.RectTransform)bindings.Resolve("MainUI");
+            var resolved27 = (global::UnityEngine.RectTransform)bindings.Resolve("MainUIResourceFrame");
+            var resolved28 = (global::UnityEngine.RectTransform)bindings.Resolve("MainUIPlayerFrame");
+            var resolved29 = (global::UnityEngine.UI.Button)bindings.Resolve("MainUIPlayerButton");
+            var resolved30 = (global::UnityEngine.UI.Image)bindings.Resolve("MainUIAvatar");
+            var resolved31 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUILevel");
+            var resolved32 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUINoble");
+            var resolved33 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIName");
+            var resolved34 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIPower");
+            var resolved35 = (global::UnityEngine.UI.Image)bindings.Resolve("MainUIExperienceFill");
+            var resolved36 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIExperience");
+            var resolved37 = (global::UnityEngine.UI.Button)bindings.Resolve("MainUIFunctions");
+            var resolved38 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIGold");
+            var resolved39 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUISilver");
+            var resolved40 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIIron");
+            var resolved41 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIWood");
+            var resolved42 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIFood");
+            var resolved43 = (global::UnityEngine.UI.Button)bindings.Resolve("MainUIHeroes");
+            var resolved44 = (global::UnityEngine.UI.Button)bindings.Resolve("MainUIBag");
+            var resolved45 = (global::UnityEngine.UI.Button)bindings.Resolve("MainUIAlliance");
+            var resolved46 = (global::UnityEngine.UI.Button)bindings.Resolve("MainUITerritory");
+            var resolved47 = (global::UnityEngine.RectTransform)bindings.Resolve("MainUIFunctionsMenu");
+            var resolved48 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIDialogTitle");
+            var resolved49 = (global::UnityEngine.UI.Text)bindings.Resolve("MainUIDialogBody");
+            var resolved50 = (global::UnityEngine.UI.Button)bindings.Resolve("MainUIDialogClose");
+            var resolved51 = (global::UnityEngine.RectTransform)bindings.Resolve("MainUIDialog");
             this.Map = resolved0;
-            this.BuildingTitle = resolved1;
-            this.BuildingDescription = resolved2;
-            this.BuildingDetails = resolved3;
-            this.ReturnButton = resolved4;
-            this.CloseDetails = resolved5;
-            this.FocusBuilding = resolved6;
+            this.CityDetailPage = resolved1;
+            this.CityDetailBackdrop = resolved2;
+            this.CityHud = resolved3;
+            this.DetailResourceFrame = resolved4;
+            this.DetailTransition = resolved5;
+            this.DetailName = resolved6;
+            this.DetailLevel = resolved7;
+            this.DetailDescription = resolved8;
+            this.DetailBenefits = resolved9;
+            this.BuildingPreview = resolved10;
+            this.MineCounter = resolved11;
+            this.CampCounter = resolved12;
+            this.DetailGoldStock = resolved13;
+            this.DetailSilverStock = resolved14;
+            this.DetailIronStock = resolved15;
+            this.DetailWoodStock = resolved16;
+            this.DetailFoodStock = resolved17;
+            this.CloseCityDetails = resolved18;
+            this.AllianceButton = resolved19;
+            this.TerritoryButton = resolved20;
+            this.UpgradeCityHall = resolved21;
+            this.CityDetailDialog = resolved22;
+            this.CityDialogTitle = resolved23;
+            this.CityDialogBody = resolved24;
+            this.DismissCityDialog = resolved25;
+            this.MainUI = resolved26;
+            this.MainUIResourceFrame = resolved27;
+            this.MainUIPlayerFrame = resolved28;
+            this.MainUIPlayerButton = resolved29;
+            this.MainUIAvatar = resolved30;
+            this.MainUILevel = resolved31;
+            this.MainUINoble = resolved32;
+            this.MainUIName = resolved33;
+            this.MainUIPower = resolved34;
+            this.MainUIExperienceFill = resolved35;
+            this.MainUIExperience = resolved36;
+            this.MainUIFunctions = resolved37;
+            this.MainUIGold = resolved38;
+            this.MainUISilver = resolved39;
+            this.MainUIIron = resolved40;
+            this.MainUIWood = resolved41;
+            this.MainUIFood = resolved42;
+            this.MainUIHeroes = resolved43;
+            this.MainUIBag = resolved44;
+            this.MainUIAlliance = resolved45;
+            this.MainUITerritory = resolved46;
+            this.MainUIFunctionsMenu = resolved47;
+            this.MainUIDialogTitle = resolved48;
+            this.MainUIDialogBody = resolved49;
+            this.MainUIDialogClose = resolved50;
+            this.MainUIDialog = resolved51;
         }
 
         public void ClearBindings()
         {
             this.Map = null;
-            this.BuildingTitle = null;
-            this.BuildingDescription = null;
-            this.BuildingDetails = null;
-            this.ReturnButton = null;
-            this.CloseDetails = null;
-            this.FocusBuilding = null;
+            this.CityDetailPage = null;
+            this.CityDetailBackdrop = null;
+            this.CityHud = null;
+            this.DetailResourceFrame = null;
+            this.DetailTransition = null;
+            this.DetailName = null;
+            this.DetailLevel = null;
+            this.DetailDescription = null;
+            this.DetailBenefits = null;
+            this.BuildingPreview = null;
+            this.MineCounter = null;
+            this.CampCounter = null;
+            this.DetailGoldStock = null;
+            this.DetailSilverStock = null;
+            this.DetailIronStock = null;
+            this.DetailWoodStock = null;
+            this.DetailFoodStock = null;
+            this.CloseCityDetails = null;
+            this.AllianceButton = null;
+            this.TerritoryButton = null;
+            this.UpgradeCityHall = null;
+            this.CityDetailDialog = null;
+            this.CityDialogTitle = null;
+            this.CityDialogBody = null;
+            this.DismissCityDialog = null;
+            this.MainUI = null;
+            this.MainUIResourceFrame = null;
+            this.MainUIPlayerFrame = null;
+            this.MainUIPlayerButton = null;
+            this.MainUIAvatar = null;
+            this.MainUILevel = null;
+            this.MainUINoble = null;
+            this.MainUIName = null;
+            this.MainUIPower = null;
+            this.MainUIExperienceFill = null;
+            this.MainUIExperience = null;
+            this.MainUIFunctions = null;
+            this.MainUIGold = null;
+            this.MainUISilver = null;
+            this.MainUIIron = null;
+            this.MainUIWood = null;
+            this.MainUIFood = null;
+            this.MainUIHeroes = null;
+            this.MainUIBag = null;
+            this.MainUIAlliance = null;
+            this.MainUITerritory = null;
+            this.MainUIFunctionsMenu = null;
+            this.MainUIDialogTitle = null;
+            this.MainUIDialogBody = null;
+            this.MainUIDialogClose = null;
+            this.MainUIDialog = null;
         }
     }
 }

@@ -1,0 +1,13 @@
+{
+  "tool": "built-in image_gen",
+  "asset": "BuildingDetailTheme.png",
+  "prompt": "Use case: stylized-concept. Asset type: production-ready full-screen background texture for the BUILDING DETAILS screen of a Chinese Three Kingdoms mobile strategy game, portrait 1080 x 1920, exact 9:16 composition. Generate ONE BACKGROUND ONLY, no finished UI mockup. Visual direction based on the user's references: heroic realistic painted Three Kingdoms login art with antique gold and deep green, detailed isometric grey-stone Chinese city with teal roofs and red timbers, and muted jade-green outdoor strategy map. Make these styles feel coherent. Elegant restrained historical Chinese game illustration, subtle painterly realistic material textures, refined bronze and jade accents, atmospheric depth, high craft. Composition must support native UI layered later: top 0-18 percent quiet pale jade-grey mist for a dark title and close button; middle 18-53 percent VERY CLEAN lightly lit stone-grey / warm ivory negative space for a separately rendered isometric building, no building baked into it; lower 53-94 percent smooth warm pale parchment-stone surface for dark upgrade text, costs and red action button; bottom 94-100 percent quiet light surface for resource numbers. Scenic detail only on extreme perimeter: misty dark-jade mountains and a few distant ancient roof silhouettes at upper corners, soft pine boughs, worn bronze hairline corner ornaments with tiny traditional geometric cloud motif, subtle shadowy flag silhouette far on one side. Blend all into a continuous calm pale interior using soft mist, no hard rectangular panel or horizontal divider. Center and lower area must remain luminous and low contrast so dark text is easily readable. Restrained gold, weathered bronze, grey green, rice-paper ivory, slight red-brown wood accents; no bright blue sky. Avoid excessive ornamentation, ornate heavy border, bevelled UI panels, tiled repeating patterns, busy map lines, strong gradients, floor perspective lines. NO characters, people, central building, weapons, text, letters, Chinese characters, logos, game icons, buttons, resources, watermark, screenshot chrome. Full bleed artwork, opaque background.",
+  "source_dimensions": [
+    941,
+    1672
+  ],
+  "target_canvas": [
+    1080,
+    1920
+  ]
+}
