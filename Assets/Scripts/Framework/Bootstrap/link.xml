@@ -5,4 +5,7 @@
   <assembly fullname="HybridCLR.Runtime" preserve="all" />
   <assembly fullname="Client.Framework" preserve="all" />
   <assembly fullname="Client.Bootstrap" preserve="all" />
+  <assembly fullname="UnityEngine.TextRenderingModule">
+    <type fullname="UnityEngine.TextMesh" preserve="all" />
+  </assembly>
 </linker>

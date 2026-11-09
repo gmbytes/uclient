@@ -5,6 +5,7 @@ using Client.Contracts;
 using Client.Framework.UI;
 using Client.Game.Login;
 using Client.Game.MainCity;
+using Client.Game.CityOutskirts;
 
 namespace Client.Game
 {
@@ -26,6 +27,9 @@ namespace Client.Game
         ISessionClient activeSession;
         bool cityOpening;
         long navigationEpoch;
+        CancellationTokenSource outskirtsLoad;
+        IViewHandle outskirtsView;
+        UICityOutskirts outskirtsPresenter;
 
         public Entry():this(LocalSimulationProfilePath) { }
         public Entry(string profilePath)
@@ -95,6 +99,7 @@ namespace Client.Game
                 cityToken.ThrowIfCancellationRequested();
                 if(expectedEpoch!=navigationEpoch)throw new OperationCanceledException(cityToken);
                 var city=new UIMainCity();city.Bind(opened,ReturnToLogin);
+                city.OutskirtsRequested += EnterOutskirts;
                 cityPresenter=city;cityView=opened;opened=null;
             }
             catch(OperationCanceledException){opened?.Close();}
@@ -106,8 +111,72 @@ namespace Client.Game
             }
             finally{cityOpening=false;}
         }
+        async void EnterOutskirts()
+        {
+            var city = cityPresenter;
+            if (city == null || outskirtsLoad != null || outskirtsView != null || lifetime == null) return;
+            var load = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+            outskirtsLoad = load;
+            var token = load.Token;
+            IViewHandle opened = null;
+            bool suspended = false;
+            try
+            {
+                IOutskirtsDataSource source = new LocalOutskirtsDataSource(context.Resources);
+                var snapshot = await source.LoadAsync(token);
+                token.ThrowIfCancellationRequested();
+                opened = await context.UI.OpenAsync("UICityOutskirts", token);
+                token.ThrowIfCancellationRequested();
+                // Keep the previous full-screen page covering login until the new page has rendered.
+                await UIFirstFrame.WaitAsync(opened, token);
+                token.ThrowIfCancellationRequested();
+                if (!ReferenceEquals(city, cityPresenter)) throw new OperationCanceledException(token);
+                city.SuspendForOutskirts();
+                suspended = true;
+                outskirtsPresenter = new UICityOutskirts(opened, snapshot, ReturnFromOutskirts);
+                outskirtsView = opened;
+                opened = null;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                opened?.Close();
+            }
+            catch (Exception error)
+            {
+                opened?.Close();
+                context?.Log?.Write(ClientLogLevel.Error, "OUTSKIRTS_OPEN_FAILED", error.Message);
+                if (!token.IsCancellationRequested && ReferenceEquals(city, cityPresenter))
+                {
+                    if (suspended) city.ResumeFromOutskirts();
+                    city.SetOutskirtsRetry(true);
+                }
+            }
+            finally
+            {
+                outskirtsLoad = null;
+                load.Dispose();
+            }
+        }
+
+        void ReturnFromOutskirts()
+        {
+            cityPresenter?.ResumeFromOutskirts();
+            CloseOutskirts();
+        }
+
+        void CloseOutskirts()
+        {
+            outskirtsLoad?.Cancel();
+            outskirtsPresenter?.Dispose();
+            outskirtsPresenter = null;
+            var window = outskirtsView;
+            outskirtsView = null;
+            window?.Close();
+        }
+
         void ReturnToLogin()
         {
+            CloseOutskirts();
             var city=cityPresenter;cityPresenter=null;
             var window=cityView;cityView=null;
             city?.Unbind();window?.Close();activeSession?.Disconnect();
@@ -127,6 +196,7 @@ namespace Client.Game
 
         void Cleanup()
         {
+            CloseOutskirts();
             var registration=cancelled;cancelled=default;
             navigationEpoch++;
             if(activeSession!=null)activeSession.StateChanged-=OnSessionState;

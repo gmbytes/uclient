@@ -64,6 +64,7 @@ namespace Client.Editor.UI
                 safe.Find("Dynamic").gameObject.SetActive(false);
                 var cityDetailBindings=CityHallDetailUIBuilder.Attach(root,font);
                 var mainUIBindings=MainCityHudUIBuilder.Attach(root,font);
+                CityOutskirtsUIBuilder.AttachEntry(root);
                 var bindings=root.GetComponent<UIBindings>();
                 bindings.Configure(new[]{Binding("Map",map)}.Concat(cityDetailBindings).Concat(mainUIBindings).ToArray(),null);
                 var staticLayout=safe.GetComponent<AdaptiveLayout>();

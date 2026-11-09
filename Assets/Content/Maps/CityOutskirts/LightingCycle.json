@@ -1,0 +1,102 @@
+{
+  "source": "HYGD/WorldMapLightingDayNight + Map_World_04/ColorLookupData",
+  "startHour": 6,
+  "phases": [
+    {
+      "name": "Dawn",
+      "durationSeconds": 21600,
+      "sunColor": {
+        "r": 1.0,
+        "g": 0.80778587,
+        "b": 0.5707547,
+        "a": 1.0
+      },
+      "sunIntensity": 2.5,
+      "sunRotation": {
+        "x": 0.5656665,
+        "y": 0.13538176,
+        "z": -0.80794835,
+        "w": 0.094406635
+      },
+      "ambientColor": {
+        "r": 0.28235295,
+        "g": 0.4862745,
+        "b": 0.7607843,
+        "a": 1
+      },
+      "lightmapScale": 0.5
+    },
+    {
+      "name": "Day",
+      "durationSeconds": 14400,
+      "sunColor": {
+        "r": 1.0,
+        "g": 0.8870086,
+        "b": 0.7216981,
+        "a": 1.0
+      },
+      "sunIntensity": 1.8,
+      "sunRotation": {
+        "x": 0.7251723,
+        "y": 0.23986231,
+        "z": -0.6192834,
+        "w": 0.18187726
+      },
+      "ambientColor": {
+        "r": 0.54901963,
+        "g": 0.65882355,
+        "b": 0.8156863,
+        "a": 1
+      },
+      "lightmapScale": 0
+    },
+    {
+      "name": "Dusk",
+      "durationSeconds": 14400,
+      "sunColor": {
+        "r": 1.0,
+        "g": 0.7767076,
+        "b": 0.57254905,
+        "a": 1.0
+      },
+      "sunIntensity": 2.5,
+      "sunRotation": {
+        "x": 0.7807792,
+        "y": -0.14462331,
+        "z": 0.5802558,
+        "w": 0.18102792
+      },
+      "ambientColor": {
+        "r": 0.3764706,
+        "g": 0.44705883,
+        "b": 0.6784314,
+        "a": 1
+      },
+      "lightmapScale": 0.5
+    },
+    {
+      "name": "Night",
+      "durationSeconds": 36000,
+      "sunColor": {
+        "r": 0.4392157,
+        "g": 0.5803922,
+        "b": 1.0,
+        "a": 1.0
+      },
+      "sunIntensity": 3.0,
+      "sunRotation": {
+        "x": 0.85718787,
+        "y": 0.057402622,
+        "z": 0.39442778,
+        "w": 0.32612988
+      },
+      "ambientColor": {
+        "r": 0.21960786,
+        "g": 0.41176474,
+        "b": 0.67058825,
+        "a": 1
+      },
+      "lightmapScale": 1
+    }
+  ]
+}

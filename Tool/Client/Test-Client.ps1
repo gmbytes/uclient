@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidatePattern('^[A-Z][0-9]+$')][string] $Task,
+    [Parameter(Mandatory)][ValidatePattern('^[A-Za-z][A-Za-z0-9]*$')][string] $Task,
     [ValidateSet('EditMode', 'PlayMode')][string] $Mode = 'PlayMode',
     [string] $UnityEditor,
     [switch] $Graphics

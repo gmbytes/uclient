@@ -1,0 +1,130 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: FX_WorldMap_Build_Fire_dahuo_18
+  m_Shader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 0
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _AlphaTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DissolveTexR:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: 3d6848f573c74e844b9e9c597d0c32ba, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTextureA:
+        m_Texture: {fileID: 2800000, guid: 3d6848f573c74e844b9e9c597d0c32ba, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskTexR:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 0.5, y: 0.5}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseTexR:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RemapTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - PixelSnap: 0
+    - _AlphaCutoff: 0.5
+    - _Blend: 1
+    - _BlendOp: 0
+    - _BumpScale: 1
+    - _CameraFadingEnabled: 0
+    - _CameraFarFadeDistance: 2
+    - _CameraNearFadeDistance: 1
+    - _ColorMode: 0
+    - _Cull: 2
+    - _CullMode: 0
+    - _Cutoff: 0.5
+    - _DissRota: 0
+    - _DissSpeed_U: 0
+    - _DissSpeed_V: 0
+    - _DistortionBlend: 0.5
+    - _DistortionEnabled: 0
+    - _DistortionStrength: 1
+    - _DistortionStrengthScaled: 0
+    - _DstBlend: 0
+    - _Edge: 0.03
+    - _EmissionEnabled: 0
+    - _EnableExternalAlpha: 0
+    - _ErosionSoft: 0.514
+    - _FlipbookMode: 0
+    - _LightingEnabled: 0
+    - _MainClampU: 0
+    - _MainClampV: 0
+    - _MainRota: 1
+    - _MainSpeed_U: 0
+    - _MainSpeed_V: 0
+    - _MainTexChannelA: 1
+    - _MainTexUV: 0
+    - _MaskClampU: 0
+    - _MaskClampV: 0
+    - _MaskDis: 1
+    - _MaskDis_Intensity: 1
+    - _MaskDis_Power: 1
+    - _MaskRota: 0
+    - _MaskSpeed_U: 0
+    - _MaskSpeed_V: 0
+    - _MaskUV: 0
+    - _Mode: 0
+    - _NoisRota: 0
+    - _NoisSpeed_U: 0.5
+    - _NoisSpeed_V: 0.5
+    - _NoisVar: 0.75
+    - _RemaTexRota: 0
+    - _SoftParticlesEnabled: 0
+    - _SoftParticlesFarFadeDistance: 1
+    - _SoftParticlesNearFadeDistance: 0
+    - _SrcBlend: 1
+    - _UseDissolveCustom1W: 0
+    - _UseMask: 0
+    - _UseNoiseCustom1Z: 0
+    - _ZWrite: 1
+    - _ZtestAlways: 8
+    m_Colors:
+    - _CameraFadeParams: {r: 0, g: Infinity, b: 0, a: 0}
+    - _Color: {r: 3.890196, g: 2.4627452, b: 0.9411765, a: 0.99}
+    - _ColorAddSubDiff: {r: 0, g: 0, b: 0, a: 0}
+    - _EdgeColor: {r: 1, g: 1, b: 1, a: 0}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Flip: {r: 1, g: 1, b: 1, a: 1}
+    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SoftParticleFadeParams: {r: 0, g: 0, b: 0, a: 0}
+  m_BuildTextureStacks: []

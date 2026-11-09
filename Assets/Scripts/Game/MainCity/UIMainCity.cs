@@ -13,6 +13,9 @@ namespace Client.Game.MainCity
         CityViewport map;
         BuildingDetailPresenter details;
         MainCityHudPresenter hud;
+        Button outskirtsButton;
+        CityViewport.ViewState savedView;
+        public event Action OutskirtsRequested;
         MainCityPlayerInfo playerInfo=new MainCityPlayerInfo();
         public void Bind(IViewHandle handle,Action onReturn)
         {
@@ -22,9 +25,37 @@ namespace Client.Game.MainCity
             map.BuildingSelected+=Selected;
             details=new BuildingDetailPresenter(bindings);
             hud=new MainCityHudPresenter(bindings);hud.Apply(playerInfo);
+            outskirtsButton = handle.Root.transform.Find("UINode/SafeArea/Static/OutskirtsButton")?.GetComponent<Button>();
+            if (outskirtsButton != null) outskirtsButton.onClick.AddListener(OpenOutskirts);
+        }
+
+        void OpenOutskirts() => OutskirtsRequested?.Invoke();
+
+        public void SuspendForOutskirts()
+        {
+            savedView = map.CaptureView();
+            view.Root.transform.Find("UINode").gameObject.SetActive(false);
+        }
+
+        public void ResumeFromOutskirts()
+        {
+            if (view == null) return;
+            view.Root.transform.Find("UINode").gameObject.SetActive(true);
+            Canvas.ForceUpdateCanvases();
+            map.ApplyView(savedView);
+            SetOutskirtsRetry(false);
+        }
+
+        public void SetOutskirtsRetry(bool retry)
+        {
+            if (outskirtsButton != null)
+                outskirtsButton.GetComponentInChildren<Text>().text = retry ? "城外 · 重试" : "城外";
         }
         public void Unbind()
         {
+            if (outskirtsButton != null) outskirtsButton.onClick.RemoveListener(OpenOutskirts);
+            outskirtsButton = null;
+            OutskirtsRequested = null;
             hud?.Dispose();hud=null;details?.Dispose();details=null;
             if(map!=null)map.BuildingSelected-=Selected;
             view=null;map=null;

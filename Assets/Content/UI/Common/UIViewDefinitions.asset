@@ -25,3 +25,9 @@ MonoBehaviour:
     Modal: 0
     CloseOnMask: 0
     LayoutDefinition: {fileID: 11400000, guid: f75b980034eac8f41aa75cffff283609, type: 2}
+  - ViewID: UICityOutskirts
+    PrefabAddress: Assets/Content/UI/CityOutskirts/UICityOutskirts.prefab
+    Group: Page
+    Modal: 0
+    CloseOnMask: 0
+    LayoutDefinition: {fileID: 11400000, guid: 1002c24930bfb8f408cfedbfa8aae0f4, type: 2}

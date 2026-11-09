@@ -23,6 +23,59 @@ namespace Client.Framework.Presentation
         [SerializeField] private string[] buildingNames=Array.Empty<string>();
         [SerializeField] private float defaultZoomRatio=.62f;
         [SerializeField] private bool fillViewport;
+        [SerializeField] private bool pickGround;
+        [SerializeField] private Vector3 groundFocus;
+        [SerializeField] private Bounds groundBounds;
+        [SerializeField] private Material postProcessMaterial;
+
+        public void ConfigurePostProcessing(Material value) => postProcessMaterial = value;
+        private IOutskirtsClock clock;
+        public void SetClock(IOutskirtsClock value)
+        {
+            clock = value ?? throw new ArgumentNullException(nameof(value));
+            if (WorldRoot != null) WorldRoot.GetComponentInChildren<OutskirtsLightingCycle>()?.SetClock(clock);
+        }
+
+        public event Action<Vector3> GroundClicked;
+
+        public void ConfigureGroundView(Vector3 focus, Bounds bounds)
+        {
+            pickGround = true;
+            groundFocus = focus;
+            groundBounds = bounds;
+        }
+
+        public void ShowOverview()
+        {
+            if (!IsReady) return;
+            center = CityBounds.center;
+            ViewCamera.orthographicSize = initialZoom;
+            UpdateCamera();
+            if (pickGround)
+            {
+                // Perspective enlarges the nearest row; include the whole ground rectangle.
+                for (int attempt = 0; attempt < 8; attempt++)
+                {
+                    bool fits = true;
+                    for (int x = 0; x < 2; x++)
+                    for (int z = 0; z < 2; z++)
+                    {
+                        var corner = new Vector3(x == 0 ? CityBounds.min.x : CityBounds.max.x,
+                            WorldRoot.transform.position.y, z == 0 ? CityBounds.min.z : CityBounds.max.z);
+                        var point = ViewCamera.WorldToViewportPoint(corner);
+                        fits &= point.z > 0 && point.x >= .025f && point.x <= .975f && point.y >= .025f && point.y <= .975f;
+                    }
+                    if (fits) break;
+                    float next = Mathf.Min(MaximumZoom, ViewCamera.orthographicSize * 1.1f);
+                    if (Mathf.Approximately(next, ViewCamera.orthographicSize)) break;
+                    ViewCamera.orthographicSize = next;
+                    UpdateCamera();
+                }
+            }
+        }
+
+        private const float GroundPitch = 42f;
+        private float GroundDepthScale => pickGround ? 1f / Mathf.Sin(GroundPitch * Mathf.Deg2Rad) : 1f;
         public void ConfigureFillViewport(bool value)
         {
             fillViewport=value;
@@ -134,10 +187,13 @@ namespace Client.Framework.Presentation
             var city = Instantiate(cityPrefab, WorldRoot.transform, false);
             city.name = cityPrefab.name;
             city.SetActive(true);
+            if (clock != null) city.GetComponent<OutskirtsLightingCycle>()?.SetClock(clock);
             foreach (var item in WorldRoot.GetComponentsInChildren<Transform>(true)) item.gameObject.layer = CityLayer;
             var framing = city.transform.Find("BuildingRoot") ?? city.transform;
             CityBounds = RendererBounds(framing, out var found);
             if (!found) CityBounds = new Bounds(WorldRoot.transform.position, Vector3.one * 10);
+            if (pickGround && groundBounds.size.sqrMagnitude > 0)
+                CityBounds = new Bounds(WorldRoot.transform.TransformPoint(groundBounds.center), groundBounds.size);
 
             var cameraObject = new GameObject("CityViewport.Camera");
             cameraObject.transform.SetParent(WorldRoot.transform, false);
@@ -145,18 +201,23 @@ namespace Client.Framework.Presentation
 #if UNITY_EDITOR
             ViewCamera.scene = renderScene;
 #endif
-            ViewCamera.orthographic = true;
-            // These assets are flat 2.5D artwork authored for a straight-down camera.
-            ViewCamera.transform.rotation = Quaternion.Euler(90, 0, 0);
+            ViewCamera.orthographic = !pickGround;
+            ViewCamera.fieldOfView = 29.5f;
+            // HYGD's world map uses perspective; the legacy main-city artwork stays orthographic.
+            ViewCamera.transform.rotation = Quaternion.Euler(pickGround ? GroundPitch : 90, 0, 0);
             ViewCamera.cullingMask = 1 << CityLayer;
             ViewCamera.clearFlags = CameraClearFlags.SolidColor;
             ViewCamera.backgroundColor = new Color(.07f, .11f, .12f, 1);
-            ViewCamera.allowHDR = false;
+            ViewCamera.allowHDR = pickGround && postProcessMaterial != null;
+            if (ViewCamera.allowHDR)
+                cameraObject.AddComponent<OutskirtsPostProcess>().Configure(postProcessMaterial);
             ViewCamera.allowMSAA = false;
-            cameraDistance = Mathf.Max(CityBounds.size.magnitude * 2, 100);
+            cameraDistance = pickGround ? Mathf.Max(CityBounds.size.magnitude * 1.45f, 14) :
+                Mathf.Max(CityBounds.size.magnitude * 2, 100);
             ViewCamera.nearClipPlane = .1f;
             ViewCamera.farClipPlane = cameraDistance * 4;
-            CollectBuildings(framing);
+            if (!pickGround) CollectBuildings(framing);
+            foreach (var light in city.GetComponentsInChildren<Light>()) light.cullingMask = 1 << CityLayer;
             ResizeTexture();
             ResetView();
         }
@@ -223,7 +284,9 @@ namespace Client.Framework.Presentation
             if (texture != null && texture.width == width && texture.height == height) return;
             var zoomRatio = initialZoom > 0 ? ViewCamera.orthographicSize / initialZoom : 1;
             var oldTexture = texture;
-            texture = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32)
+            var format = pickGround && postProcessMaterial != null && SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGBHalf)
+                ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB32;
+            texture = new RenderTexture(width, height, 24, format)
             {
                 name = "CityViewport.Texture." + GetInstanceID(), hideFlags = HideFlags.DontSave
             };
@@ -241,7 +304,7 @@ namespace Client.Framework.Presentation
         public void ResetView()
         {
             if (!IsReady) return;
-            center = CityBounds.center;
+            center = pickGround ? WorldRoot.transform.TransformPoint(groundFocus) : CityBounds.center;
             ViewCamera.orthographicSize = fillViewport ? MaximumZoom * .9f : initialZoom*defaultZoomRatio;
             UpdateCamera();
         }
@@ -288,8 +351,11 @@ namespace Client.Framework.Presentation
             {
                 var previous = Uv(before, state.EventCamera);
                 var current = Uv(eventData.position, state.EventCamera);
-                center += new Vector3((previous.x - current.x) * ViewCamera.orthographicSize * 2 * ViewCamera.aspect, 0,
-                    (previous.y - current.y) * ViewCamera.orthographicSize * 2);
+                if (pickGround && TryGroundPoint(previous, out var from) && TryGroundPoint(current, out var to))
+                    center += from - to;
+                else
+                    center += new Vector3((previous.x - current.x) * ViewCamera.orthographicSize * 2 * ViewCamera.aspect, 0,
+                        (previous.y - current.y) * ViewCamera.orthographicSize * 2 * GroundDepthScale);
                 UpdateCamera();
             }
         }
@@ -332,10 +398,19 @@ namespace Client.Framework.Presentation
 
         private void Zoom(float ratio, Vector2 position, Camera eventCamera)
         {
-            var uv = Uv(position, eventCamera) - Vector2.one * .5f;
+            var pointerUv = Uv(position, eventCamera);
+            var uv = pointerUv - Vector2.one * .5f;
             var oldSize = ViewCamera.orthographicSize;
             var newSize = Mathf.Clamp(oldSize * ratio, MinimumZoom, MaximumZoom);
-            center += new Vector3(uv.x * (oldSize - newSize) * 2 * ViewCamera.aspect, 0, uv.y * (oldSize - newSize) * 2);
+            if (pickGround && TryGroundPoint(pointerUv, out var anchor))
+            {
+                ViewCamera.orthographicSize = newSize;
+                UpdateCamera();
+                if (TryGroundPoint(pointerUv, out var after)) center += anchor - after;
+                UpdateCamera();
+                return;
+            }
+            center += new Vector3(uv.x * (oldSize - newSize) * 2 * ViewCamera.aspect, 0, uv.y * (oldSize - newSize) * 2 * GroundDepthScale);
             ViewCamera.orthographicSize = newSize;
             UpdateCamera();
         }
@@ -344,10 +419,28 @@ namespace Client.Framework.Presentation
         {
             var halfHeight = ViewCamera.orthographicSize;
             var halfWidth = halfHeight * ViewCamera.aspect;
-            center.x = ClampAxis(center.x, CityBounds.min.x, CityBounds.max.x, halfWidth);
-            center.z = ClampAxis(center.z, CityBounds.min.z, CityBounds.max.z, halfHeight);
-            center.y = CityBounds.center.y;
-            ViewCamera.transform.position = center - ViewCamera.transform.forward * cameraDistance;
+            center.x = pickGround ? Mathf.Clamp(center.x, CityBounds.min.x, CityBounds.max.x) :
+                ClampAxis(center.x, CityBounds.min.x, CityBounds.max.x, halfWidth);
+            center.z = pickGround ? Mathf.Clamp(center.z, CityBounds.min.z, CityBounds.max.z) :
+                ClampAxis(center.z, CityBounds.min.z, CityBounds.max.z, halfHeight * GroundDepthScale);
+            center.y = pickGround ? WorldRoot.transform.position.y : CityBounds.center.y;
+            float distance = pickGround ? halfHeight / Mathf.Tan(ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad) : cameraDistance;
+            ViewCamera.transform.position = center - ViewCamera.transform.forward * distance;
+            if (pickGround) ViewCamera.farClipPlane = Mathf.Max(cameraDistance * 4, distance * 4);
+        }
+
+        private bool TryGroundPoint(Vector2 uv, out Vector3 point)
+        {
+            // Inverse view-projection loses precision at the isolated render scene's Y=-10000.
+            // Build the perspective direction in camera space before adding its world origin.
+            float tangent = Mathf.Tan(ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad);
+            var direction = new Vector3((uv.x * 2 - 1) * tangent * ViewCamera.aspect,
+                (uv.y * 2 - 1) * tangent, 1);
+            var ray = new Ray(ViewCamera.transform.position, ViewCamera.transform.TransformDirection(direction));
+            var ground = new Plane(Vector3.up, WorldRoot.transform.position);
+            if (ground.Raycast(ray, out var distance)) { point = ray.GetPoint(distance); return true; }
+            point = default;
+            return false;
         }
 
         private static float ClampAxis(float value, float min, float max, float extent)
@@ -357,6 +450,12 @@ namespace Client.Framework.Presentation
 
         private void SelectAt(Vector2 uv)
         {
+            if (pickGround)
+            {
+                if (TryGroundPoint(uv, out var point))
+                    GroundClicked?.Invoke(WorldRoot.transform.InverseTransformPoint(point));
+                return;
+            }
             // Collider.Raycast plus an explicit ownership list cannot select scene/HUD objects.
             Physics.SyncTransforms();
             var ray = ViewCamera.ViewportPointToRay(uv);

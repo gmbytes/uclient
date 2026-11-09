@@ -26,6 +26,10 @@ namespace Client.Tests
         GameObject host,root,events; UIService service; IViewHandle view; object presenter;UIComponent ui;
         ControlledSession session;
         IHotfixEntry entry;
+        private sealed class OutskirtsTestClock : Client.Framework.Presentation.IOutskirtsClock
+        {
+            public DateTimeOffset GameTime { get; set; }
+        }
         static Type PresenterType
         {
             get {var type=Type.GetType("Client.Game.Login.UILogin, Client.Game");Assert.That(type,Is.Not.Null,"U5 requires the plain login presenter.");return type;}
@@ -150,7 +154,7 @@ namespace Client.Tests
             ExecuteEvents.Execute(city.gameObject,click,ExecuteEvents.pointerUpHandler);
             Assert.That(clicks,Is.EqualTo(1),"A pointer click must hit the migrated palace geometry.");
             var cityBindings=city.GetComponentInParent<UIViewBridge>().Bindings;
-            Assert.That(((Text)cityBindings.Resolve("BuildingTitle")).text,Does.Contain("城主府"));
+            Assert.That(((Text)cityBindings.Resolve("DetailName")).text,Does.Contain("城主府"));
             yield return new WaitForEndOfFrame();
             var selectedFrame=ScreenCapture.CaptureScreenshotAsTexture();
             try{File.WriteAllBytes("Builds/MainCity/maincity-building-selected.png",selectedFrame.EncodeToPNG());}
@@ -160,6 +164,167 @@ namespace Client.Tests
             yield return null;yield return null;
             Assert.That(world==null,Is.True);Assert.That(target==null,Is.True);
         }
+        [UnityTest, Category("CityOutskirts")]
+        public IEnumerator OutskirtsUsesTheBeginnerMapAndRestoresTheMainCity()
+        {
+            ClosePresenterForEntry();
+            var transitionUI = new DelayedOutskirtsUI(service);
+            var context = new EntryContext(transitionUI, session);
+            entry = (IHotfixEntry)Activator.CreateInstance(Type.GetType("Client.Game.Entry, Client.Game", true));
+            yield return Await(entry.InitializeAsync(context, CancellationToken.None));
+            var login = ui.GetAllLoadedUIForms().Single().GetComponent<UIBindings>();
+            var action = (Button)login.Resolve("LoginButton");
+            action.onClick.Invoke();
+            float deadline = Time.realtimeSinceStartup + 5;
+            while (!((Button)login.Resolve("ServerButton")).gameObject.activeInHierarchy && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(((Button)login.Resolve("ServerButton")).gameObject.activeInHierarchy, Is.True);
+            action.onClick.Invoke();
+            GameObject cityRoot = null;
+            deadline = Time.realtimeSinceStartup + 5;
+            while (cityRoot == null && Time.realtimeSinceStartup < deadline)
+            {
+                cityRoot = ui.GetAllLoadedUIForms().FirstOrDefault(form => form.name.StartsWith("UIMainCity", StringComparison.Ordinal))?.gameObject;
+                yield return null;
+            }
+            Assert.That(cityRoot, Is.Not.Null);
+            var cityMap = (Client.Framework.Presentation.CityViewport)cityRoot.GetComponent<UIBindings>().Resolve("Map");
+            var saved = cityMap.CaptureView();
+            cityRoot.transform.Find("UINode/SafeArea/Static/OutskirtsButton").GetComponent<Button>().onClick.Invoke();
+            Assert.That(transitionUI.OpenRequested, Is.True);
+            for (int frame = 0; frame < 6; frame++)
+            {
+                Assert.That(cityRoot.transform.Find("UINode").gameObject.activeInHierarchy, Is.True,
+                    "The main city must cover login while outskirts is still loading.");
+                Assert.That(cityMap.IsReady, Is.True);
+                yield return null;
+            }
+            // Preserve the last displayed city view, after layout has settled during the delayed load.
+            saved = cityMap.CaptureView();
+            transitionUI.Release();
+            UIForm mapForm = null;
+            deadline = Time.realtimeSinceStartup + 5;
+            while ((mapForm == null || cityMap.IsReady) && Time.realtimeSinceStartup < deadline)
+            {
+                mapForm = ui.GetAllLoadedUIForms().FirstOrDefault(form => form.name.StartsWith("UICityOutskirts", StringComparison.Ordinal));
+                yield return null;
+            }
+            Assert.That(mapForm, Is.Not.Null);
+            Assert.That(cityMap.IsReady, Is.False);
+            var bindings = mapForm.GetComponent<UIBindings>();
+            var map = (Client.Framework.Presentation.CityViewport)bindings.Resolve("Map");
+            Assert.That(map.IsReady, Is.True);
+            Assert.That(map.WorldRoot.transform.Find("BeginnerOutskirts/BuildingRoot").childCount, Is.EqualTo(45));
+            var area = map.WorldRoot.transform.Find("BeginnerOutskirts/BuildingRoot");
+            AssertNativeModelHeight(area.Find("Tile_20/ReferenceHome"),
+                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Content/Prefabs/CityOutskirts/ReferenceHome.prefab"),
+                map.WorldRoot.transform.position.y);
+            Assert.That(area.Find("Tile_9").localPosition.z, Is.GreaterThan(area.Find("Tile_5").localPosition.z));
+            Assert.That(area.Find("Tile_10").localPosition.x, Is.EqualTo(1f).Within(.001f));
+            Assert.That(area.Find("Tile_37").localPosition.x, Is.EqualTo(4f).Within(.001f));
+            Assert.That(area.Find("Tile_17/LandLevel").GetComponent<TextMesh>().text, Is.EqualTo("6"));
+            for (int position = 1; position <= Client.Framework.Presentation.OutskirtsHex.Count; position++)
+                Assert.That(Client.Framework.Presentation.OutskirtsHex.Pick(
+                    Client.Framework.Presentation.OutskirtsHex.Center(position)), Is.EqualTo(position));
+            Assert.That(Client.Framework.Presentation.OutskirtsHex.Pick(Vector3.left * 2), Is.Zero);
+            Assert.That(context.ResourcesImpl.Live, Is.Zero);
+            Assert.That(map.ViewCamera.orthographic, Is.False);
+            Assert.That(map.ViewCamera.fieldOfView, Is.EqualTo(29.5f).Within(.001f));
+            Assert.That(map.ViewCamera.allowHDR, Is.True);
+            Assert.That(map.ViewCamera.GetComponent<Client.Framework.Presentation.OutskirtsPostProcess>(), Is.Not.Null);
+            yield return null;
+            var mapState = map.CaptureView();
+            var inputRect = (RectTransform)map.transform;
+            Func<Vector2, Vector2> screenForUv = value => RectTransformUtility.WorldToScreenPoint(null,
+                inputRect.TransformPoint(new Vector3(inputRect.rect.xMin + value.x * inputRect.rect.width,
+                    inputRect.rect.yMin + value.y * inputRect.rect.height)));
+            Func<Vector3, Vector2> uvForWorld = value =>
+            {
+                var projected = map.ViewCamera.WorldToViewportPoint(value);
+                return new Vector2(projected.x, projected.y);
+            };
+            var anchoredGround = map.WorldRoot.transform.TransformPoint(Client.Framework.Presentation.OutskirtsHex.Center(20));
+            var startUv = uvForWorld(anchoredGround);
+            var endUv = new Vector2(.55f, .53f);
+            var dragEvent = new PointerEventData(EventSystem.current)
+            { pointerId = -1, position = screenForUv(startUv), button = PointerEventData.InputButton.Left };
+            ExecuteEvents.Execute(map.gameObject, dragEvent, ExecuteEvents.pointerDownHandler);
+            dragEvent.position = screenForUv(endUv);
+            ExecuteEvents.Execute(map.gameObject, dragEvent, ExecuteEvents.dragHandler);
+            ExecuteEvents.Execute(map.gameObject, dragEvent, ExecuteEvents.pointerUpHandler);
+            Assert.That(Vector2.Distance(uvForWorld(anchoredGround), endUv), Is.LessThan(.001f), "Dragging must keep the grabbed terrain under the pointer.");
+            map.ApplyView(mapState);
+            anchoredGround = map.WorldRoot.transform.TransformPoint(Client.Framework.Presentation.OutskirtsHex.Center(20) + new Vector3(.5f, 0, .3f));
+            var zoomUv = uvForWorld(anchoredGround);
+            var scrollEvent = new PointerEventData(EventSystem.current)
+            { position = screenForUv(zoomUv), scrollDelta = Vector2.up };
+            ExecuteEvents.Execute(map.gameObject, scrollEvent, ExecuteEvents.scrollHandler);
+            Assert.That(map.CaptureView().OrthographicSize, Is.LessThan(mapState.OrthographicSize));
+            Assert.That(Vector2.Distance(uvForWorld(anchoredGround), zoomUv), Is.LessThan(.001f), "Zooming must preserve its ground anchor.");
+            map.ApplyView(mapState);
+            yield return new WaitForEndOfFrame();
+            Directory.CreateDirectory("Builds/CityOutskirts");
+            var near = ScreenCapture.CaptureScreenshotAsTexture();
+            try { File.WriteAllBytes("Builds/CityOutskirts/near.png", near.EncodeToPNG()); }
+            finally { Object.Destroy(near); }
+            var phaseNames = new[] { "dawn", "day", "dusk", "night" };
+            var phaseHours = new[] { 9, 13, 17, 21 };
+            for (int phaseIndex = 0; phaseIndex < phaseHours.Length; phaseIndex++)
+            {
+                map.SetClock(new OutskirtsTestClock
+                {
+                    GameTime = new DateTimeOffset(2026, 11, 7, phaseHours[phaseIndex], 0, 0, TimeSpan.FromHours(8))
+                });
+                yield return new WaitForEndOfFrame();
+                var phaseImage = ScreenCapture.CaptureScreenshotAsTexture();
+                try { File.WriteAllBytes("Builds/CityOutskirts/" + phaseNames[phaseIndex] + ".png", phaseImage.EncodeToPNG()); }
+                finally { Object.Destroy(phaseImage); }
+            }
+            map.SetClock(new Client.Framework.Presentation.LocalOutskirtsClock());
+            ((Button)bindings.Resolve("Overview")).onClick.Invoke();
+            for (int id = 1; id <= Client.Framework.Presentation.OutskirtsHex.Count; id++)
+            for (int edge = 0; edge < 6; edge++)
+            {
+                float angle = (30 + edge * 60) * Mathf.Deg2Rad;
+                var corner = Client.Framework.Presentation.OutskirtsHex.Center(id) +
+                    new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * Client.Framework.Presentation.OutskirtsHex.Radius;
+                var projected = map.ViewCamera.WorldToViewportPoint(map.WorldRoot.transform.TransformPoint(corner));
+                Assert.That(projected.z, Is.GreaterThan(0));
+                Assert.That(projected.x, Is.InRange(.001f, .999f), "Overview must include every hex corner.");
+                Assert.That(projected.y, Is.InRange(.001f, .999f), "Overview must include every hex corner.");
+            }
+            var rect = (RectTransform)map.transform;
+            var town = Client.Framework.Presentation.OutskirtsHex.Center(34);
+            var uv = map.ViewCamera.WorldToViewportPoint(map.WorldRoot.transform.TransformPoint(town));
+            var point = RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(
+                new Vector3(rect.rect.xMin + uv.x * rect.rect.width, rect.rect.yMin + uv.y * rect.rect.height)));
+            var click = new PointerEventData(EventSystem.current) { pointerId = -1, position = point, button = PointerEventData.InputButton.Left };
+            ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerUpHandler);
+            Assert.That(((Text)bindings.Resolve("Detail")).text, Does.Contain("县城").And.Contain("34"));
+            uv = map.ViewCamera.WorldToViewportPoint(map.WorldRoot.transform.TransformPoint(Client.Framework.Presentation.OutskirtsHex.Center(17)));
+            point = RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(
+                new Vector3(rect.rect.xMin + uv.x * rect.rect.width, rect.rect.yMin + uv.y * rect.rect.height)));
+            click.position = point;
+            ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerUpHandler);
+            Assert.That(((Text)bindings.Resolve("Detail")).text, Does.Contain("石料地").And.Contain("第 17 格").And.Contain("等级 6"));
+            yield return new WaitForEndOfFrame();
+            var screenshot = ScreenCapture.CaptureScreenshotAsTexture();
+            try
+            {
+                Directory.CreateDirectory("Builds/CityOutskirts");
+                File.WriteAllBytes("Builds/CityOutskirts/overview.png", screenshot.EncodeToPNG());
+            }
+            finally { Object.Destroy(screenshot); }
+            ((Button)bindings.Resolve("Back")).onClick.Invoke();
+            yield return null;
+            Assert.That(map.IsReady, Is.False);
+            Assert.That(cityMap.IsReady, Is.True);
+            Assert.That(cityMap.CaptureView().OrthographicSize, Is.EqualTo(saved.OrthographicSize).Within(.02f));
+            Assert.That(session.Calls, Is.Zero, "Local navigation must not use the host session.");
+        }
+
         [UnityTest] public IEnumerator MeasuredKeyboardLiftsTheAccountControlsAboveOcclusion()
         {
             var bridge=view.Root.GetComponent<UIViewBridge>();
@@ -445,6 +610,40 @@ namespace Client.Tests
                 Assert.That(init.IsFaulted,Is.True);Assert.That(init.Exception.InnerException,Is.TypeOf<InvalidOperationException>());Assert.That(context.Ready,Is.Zero);Assert.That(context.ResourcesImpl.Live,Is.Zero);Assert.That(ui.GetAllLoadedUIForms(),Is.Empty);
             }
             finally{Object.Destroy(profile);}
+        }
+        static void AssertNativeModelHeight(Transform wrapper, GameObject nativePrefab, float mapOriginY)
+        {
+            var expected = nativePrefab.GetComponentsInChildren<MeshRenderer>(true)
+                .Where(renderer => renderer.sharedMaterials.Any(material => material != null &&
+                    material.HasProperty("_HeightLightEnabled") && material.GetFloat("_HeightLightEnabled") > .5f))
+                .OrderByDescending(renderer => renderer.bounds.max.y).First();
+            string path = AnimationUtility.CalculateTransformPath(expected.transform, nativePrefab.transform);
+            var visual = wrapper.GetChild(0);
+            var actual = (string.IsNullOrEmpty(path) ? visual : visual.Find(path)).GetComponent<MeshRenderer>();
+            var properties = new MaterialPropertyBlock();
+            actual.GetPropertyBlock(properties);
+            float reconstructed = (actual.bounds.max.y - mapOriginY) * properties.GetFloat("_NativeHeightScale") +
+                properties.GetFloat("_NativeHeightOffset");
+            Assert.That(reconstructed, Is.EqualTo(expected.bounds.max.y).Within(.02f),
+                "Height lighting must retain native model height after fitting and offscreen-scene isolation.");
+        }
+        sealed class DelayedOutskirtsUI : IUIService
+        {
+            private readonly IUIService inner;
+            private readonly TaskCompletionSource<bool> gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public bool OpenRequested { get; private set; }
+            public DelayedOutskirtsUI(IUIService inner) => this.inner = inner;
+            public void Release() => gate.TrySetResult(true);
+            public async Task<IViewHandle> OpenAsync(string viewId, CancellationToken token)
+            {
+                if (viewId == "UICityOutskirts")
+                {
+                    OpenRequested = true;
+                    using (token.Register(() => gate.TrySetCanceled(token))) await gate.Task;
+                    token.ThrowIfCancellationRequested();
+                }
+                return await inner.OpenAsync(viewId, token);
+            }
         }
         sealed class EntryContext:IClientContext
         {
