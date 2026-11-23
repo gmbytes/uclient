@@ -27,9 +27,9 @@
 
 ## 制作与预览
 
-Unity 菜单 Game/UI/Apply Three Kingdoms Login 在原 Prefab 中更新美术布局，不重建场景或 GF 启动根。生成绑定仍由 UIBindingGenerator 产生，禁止手改。
+登录美术生成方法保留在 LoginArtworkBuilder.Apply，专项菜单入口已移除。日常布局直接编辑登录Prefab，绑定代码由UIBindingGenerator生成。
 
-菜单 Game/UI/Capture Three Kingdoms Login 通过现有 UIPreviewSession 导出预览到 Builds/LoginUI。该输出是编辑器预览，不代替真实图形首帧验证。
+LoginArtworkBuilder.Capture仍可通过编辑器脚本调用，预览输出到Builds/LoginUI。日常预览使用Game/UI/Preview。
 
 ## 本次验证
 

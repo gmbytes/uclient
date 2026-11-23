@@ -4,7 +4,7 @@ param([string]$UnityEditor)
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $commRoot = if($null -ne $env:SGAME_COMM_ROOT) { if([string]::IsNullOrWhiteSpace($env:SGAME_COMM_ROOT)){throw 'SGAME_COMM_ROOT is explicitly empty.'}; [IO.Path]::GetFullPath($env:SGAME_COMM_ROOT) } else { [IO.Path]::GetFullPath((Join-Path $projectRoot '../comm')) }
 if(-not (Test-Path -LiteralPath (Join-Path $commRoot 'proto/protocol.lock.json'))) { throw 'A valid shared comm root is required; set SGAME_COMM_ROOT for an isolated worktree.' }
-$generated = Join-Path $projectRoot 'Tests/Fixtures/HotfixAotProbe/Generated'
+$generated = Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixAotProbe/Generated'
 $manifest = Get-Content -LiteralPath (Join-Path $generated 'Pristine/protocol-manifest.json') -Raw | ConvertFrom-Json
 foreach($property in $manifest.generated_sha256.PSObject.Properties) { if((Get-FileHash -LiteralPath (Join-Path (Join-Path $generated 'Pristine') $property.Name)).Hash.ToLowerInvariant() -cne $property.Value) {throw 'Pristine generated fixture differs from the generator manifest.'} }
 foreach($property in $manifest.source_sha256.PSObject.Properties) {
@@ -23,8 +23,8 @@ $key = [Security.Cryptography.RSA]::Create(2048)
 $keyPath = Join-Path $runRoot 'ephemeral-test-key.xml'
 [IO.File]::WriteAllText($keyPath, $key.ToXmlString($true))
 $public = $key.ExportParameters($false)
-$runtime = (Get-Content -LiteralPath (Join-Path $projectRoot 'Tests/Fixtures/HotfixAotProbe/RuntimeProbe.cs.txt') -Raw).Replace('__MODULUS__',[Convert]::ToBase64String($public.Modulus)).Replace('__EXPONENT__',[Convert]::ToBase64String($public.Exponent))
-$factory = (Get-Content -LiteralPath (Join-Path $projectRoot 'Tests/Fixtures/HotfixAotProbe/TestVerifier.cs.txt') -Raw).Replace('__MODULUS__',[Convert]::ToBase64String($public.Modulus)).Replace('__EXPONENT__',[Convert]::ToBase64String($public.Exponent))
+$runtime = (Get-Content -LiteralPath (Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixAotProbe/RuntimeProbe.cs.txt') -Raw).Replace('__MODULUS__',[Convert]::ToBase64String($public.Modulus)).Replace('__EXPONENT__',[Convert]::ToBase64String($public.Exponent))
+$factory = (Get-Content -LiteralPath (Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixAotProbe/TestVerifier.cs.txt') -Raw).Replace('__MODULUS__',[Convert]::ToBase64String($public.Modulus)).Replace('__EXPONENT__',[Convert]::ToBase64String($public.Exponent))
 $key.Dispose()
 $temporary = @('Assets/Scripts/Framework/Bootstrap/F6RuntimeProbe.cs','Assets/Scripts/Game/F6Entry.cs','Assets/Scripts/Game/Protocol/F6ProtocolProbe.cs','Assets/Scripts/Framework/HotUpdate/F6TestVerifier.cs','Assets/Scripts/Game/Protocol/F6GeneratedMessage.cs','Assets/Scripts/Game/Protocol/F6GeneratedRegistry.cs')
 foreach($path in $temporary) { if(Test-Path -LiteralPath (Join-Path $projectRoot $path)) { throw "Temporary F6 fixture exists: $path" } }
@@ -40,8 +40,8 @@ $exitCode = -1
 try {
     [IO.File]::WriteAllText((Join-Path $projectRoot $temporary[0]), $runtime)
     [IO.File]::WriteAllText((Join-Path $projectRoot $temporary[3]), $factory)
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'Tests/Fixtures/HotfixAotProbe/Entry.cs.txt') -Destination (Join-Path $projectRoot $temporary[1])
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'Tests/Fixtures/HotfixAotProbe/ProtocolProbe.cs.txt') -Destination (Join-Path $projectRoot $temporary[2])
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixAotProbe/Entry.cs.txt') -Destination (Join-Path $projectRoot $temporary[1])
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixAotProbe/ProtocolProbe.cs.txt') -Destination (Join-Path $projectRoot $temporary[2])
     Copy-Item -LiteralPath (Join-Path $generated 'Pristine/AotProbe.cs') -Destination (Join-Path $projectRoot $temporary[4])
     Copy-Item -LiteralPath (Join-Path $generated 'AdaptedRegistry.cs.txt') -Destination (Join-Path $projectRoot $temporary[5])
     foreach($path in $asmdefs) { $absolute = Join-Path $projectRoot $path; $json = Get-Content -LiteralPath $absolute -Raw | ConvertFrom-Json; $json.references += 'Client.Protocol.Envelope'; $json | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $absolute -Encoding utf8 }

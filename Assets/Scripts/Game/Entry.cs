@@ -5,7 +5,7 @@ using Client.Contracts;
 using Client.Framework.UI;
 using Client.Game.Login;
 using Client.Game.MainCity;
-using Client.Game.CityOutskirts;
+using Client.Game.Outskirts;
 
 namespace Client.Game
 {
@@ -29,7 +29,7 @@ namespace Client.Game
         long navigationEpoch;
         CancellationTokenSource outskirtsLoad;
         IViewHandle outskirtsView;
-        UICityOutskirts outskirtsPresenter;
+        UIOutskirts outskirtsPresenter;
 
         public Entry():this(LocalSimulationProfilePath) { }
         public Entry(string profilePath)
@@ -125,7 +125,7 @@ namespace Client.Game
                 IOutskirtsDataSource source = new LocalOutskirtsDataSource(context.Resources);
                 var snapshot = await source.LoadAsync(token);
                 token.ThrowIfCancellationRequested();
-                opened = await context.UI.OpenAsync("UICityOutskirts", token);
+                opened = await context.UI.OpenAsync("UIOutskirts", token);
                 token.ThrowIfCancellationRequested();
                 // Keep the previous full-screen page covering login until the new page has rendered.
                 await UIFirstFrame.WaitAsync(opened, token);
@@ -133,7 +133,7 @@ namespace Client.Game
                 if (!ReferenceEquals(city, cityPresenter)) throw new OperationCanceledException(token);
                 city.SuspendForOutskirts();
                 suspended = true;
-                outskirtsPresenter = new UICityOutskirts(opened, snapshot, ReturnFromOutskirts);
+                outskirtsPresenter = new UIOutskirts(opened, snapshot, ReturnFromOutskirts);
                 outskirtsView = opened;
                 opened = null;
             }

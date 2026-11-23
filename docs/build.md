@@ -96,7 +96,7 @@ Patch恢复原生公开配置/编译输入，执行官方AOT兼容检查，要�
 
 每个releaseId对应不可变完整快照；修订内容使用新ID。资源根在进程中只能初始化一次，热程序集不能原地卸载；新补丁在完整重启后的新进程执行。
 
-D1验收使用隔离fixture覆盖层，普通构建不需要它：V1为`-HotfixOverlay Tests/Fixtures/Delivery/V1`，V2为`.../V2`。可编辑proto只在`../comm/proto/tests/fixtures/delivery`；客户端fixture保留生成C#与来源记录，正式业务准入仍为空。
+D1验收使用隔离fixture覆盖层，普通构建不需要它：V1为`-HotfixOverlay Tool/Client/Fixtures/Delivery/V1`，V2为`.../V2`。可编辑proto只在`../comm/proto/tests/fixtures/delivery`；客户端fixture保留生成C#与来源记录，正式业务准入仍为空。
 
 ## Editor菜单
 
@@ -112,7 +112,7 @@ D1验收使用隔离fixture覆盖层，普通构建不需要它：V1为`-HotfixO
   "SigningKeyPath": "<absolute private signer path>",
   "LinkerPolicyPath": "<client>/Builds/LinkerPolicy/policy.json",
   "ReleaseId": "v2-menu",
-  "HotfixOverlay": "<client>/Tests/Fixtures/Delivery/V2"
+  "HotfixOverlay": "<client>/Tool/Client/Fixtures/Delivery/V2"
 }
 ```
 

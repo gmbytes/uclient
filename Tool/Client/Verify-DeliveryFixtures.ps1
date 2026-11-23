@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot/Unity-Common.ps1"
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-$fixture=Join-Path $project 'Tests/Fixtures/Delivery'
+$fixture=Join-Path $project 'Tool/Client/Fixtures/Delivery'
 $CommRoot=[IO.Path]::GetFullPath($CommRoot)
 $OutputDirectory=[IO.Path]::GetFullPath($OutputDirectory)
 function Within([string]$Path,[string]$Root){$Path.Equals($Root,[StringComparison]::OrdinalIgnoreCase)-or$Path.StartsWith($Root.TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)}

@@ -1,7 +1,7 @@
 #requires -Version 7.0
 # Pure evidence evaluation. This file does not launch processes, mutate native state, or contact a device.
 function Get-FrameworkMatrix {
-    Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Tests/Fixtures/Releases/FaultMatrix.json') -Raw | ConvertFrom-Json -AsHashtable
+    Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Tool/Client/Fixtures/Releases/FaultMatrix.json') -Raw | ConvertFrom-Json -AsHashtable
 }
 function Require-FrameworkFact($Condition,[string]$Code,[string]$Message) {
     if(-not $Condition){throw [IO.InvalidDataException]::new($Code+': '+$Message)}
@@ -92,7 +92,7 @@ function Assert-FrameworkThrow($Case,$Evidence) {
     $results=@(Get-FrameworkEvents $first 'launch.result');Require-FrameworkFact ($results.Count -eq 1) 'E_THROW_RESULT' 'Actual throwing launch result is required.'
     $result=$results[0].data;$selection=$result.selection
     Require-FrameworkFact ($selection.ReleaseId -ceq $Case.candidate -and $selection.Epoch -gt 0 -and $selection.ManifestSha256 -ceq $Evidence.releases[$Case.candidate].manifestSha256 -and $result.ready -eq $false -and $result.restartRequired -eq $true -and $result.state.KnownGood -ceq $Case.knownGood -and $Case.candidate -cin $result.state.BadReleaseIds) 'E_THROW_SELECTION' 'Throw must quarantine the selected candidate without promotion.'
-    $contract=Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Tests/Fixtures/Delivery/throw-provenance.json') -Raw|ConvertFrom-Json -AsHashtable
+    $contract=Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Tool/Client/Fixtures/Delivery/throw-provenance.json') -Raw|ConvertFrom-Json -AsHashtable
     $markers=@(Get-FrameworkEvents $first 'hot.log'|Where-Object {$_.data.code -ceq $contract.markerCode -and $_.data.message -ceq $contract.markerMessage})
     $views=@(Get-FrameworkEvents $first 'hot.log'|Where-Object {$_.data.code -ceq 'CLIENT_VIEW'})
     Require-FrameworkFact ($markers.Count -eq 1 -and $views.Count -eq 1 -and $views[0].sequence -lt $markers[0].sequence -and $markers[0].sequence -lt $results[0].sequence) 'E_THROW_MARKER' 'Actual Delivery marker after the real View and before failure is required.'

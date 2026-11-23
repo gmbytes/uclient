@@ -57,7 +57,6 @@ namespace Client.Editor.UI
             // 启动页没有场景相机，必须由不透明背景覆盖上一帧，状态文字更新时才不会残留旧画面。
             image.color=new Color(.035f,.055f,.09f,1);image.raycastTarget=false;
         }
-        [MenuItem("Game/UI/Upgrade Startup Background")]
         public static void UpgradeStartupBackground()
         {
             var startup=PrefabUtility.LoadPrefabContents("Assets/Prefabs/App/UIUpdate.prefab");

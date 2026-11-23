@@ -34,7 +34,7 @@ if(-not$ReleaseId){$ReleaseId=if($Kind-eq'Player'){'v1'}else{'v2'}}
 $editor=Resolve-UnityEditor $UnityEditor
 Set-ClientBuildEnvironment -ProjectRoot $project -UnityEditor $editor -HybridClrSource $HybridClrSource
 $protoc=Join-Path $project 'Builds/tools/protoc/36.2/bin/protoc.exe';NoReparse $protoc
-$expected=(Get-Content (Join-Path $project 'Tests/Fixtures/Delivery/provenance.json') -Raw|ConvertFrom-Json).protocSha256
+$expected=(Get-Content (Join-Path $project 'Tool/Client/Fixtures/Delivery/provenance.json') -Raw|ConvertFrom-Json).protocSha256
 if(-not(Test-Path -LiteralPath $protoc)){if([string]::IsNullOrWhiteSpace($ProtocSource)){throw "Pinned protoc is missing. Run '$env:SGAME_COMM_ROOT/tools/Dependencies/Restore-Dependencies.ps1 -ClientRoot $project' or supply an explicit pinned -ProtocSource."};if((Get-FileHash -LiteralPath $ProtocSource -Algorithm SHA256).Hash.ToLowerInvariant()-cne$expected){throw 'Pinned protoc source bytes differ.'};New-Item -ItemType Directory -Force (Split-Path -Parent $protoc)|Out-Null;Copy-Item -LiteralPath $ProtocSource -Destination $protoc}
 if((Get-FileHash -LiteralPath $protoc -Algorithm SHA256).Hash.ToLowerInvariant()-cne$expected){throw 'Owned protoc cache differs from the pinned input.'}
 if(-not$LinkerPolicy){& "$PSScriptRoot/Build-LinkerPolicy.ps1" -UnityEditor $editor;if($LASTEXITCODE-ne0){throw 'Linker policy producer failed.'};$LinkerPolicy=Join-Path $project 'Builds/LinkerPolicy/policy.json'}else{$LinkerPolicy=Full $LinkerPolicy}

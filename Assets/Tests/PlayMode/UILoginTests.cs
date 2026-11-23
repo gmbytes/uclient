@@ -164,7 +164,7 @@ namespace Client.Tests
             yield return null;yield return null;
             Assert.That(world==null,Is.True);Assert.That(target==null,Is.True);
         }
-        [UnityTest, Category("CityOutskirts")]
+        [UnityTest, Category("Outskirts")]
         public IEnumerator OutskirtsUsesTheBeginnerMapAndRestoresTheMainCity()
         {
             ClosePresenterForEntry();
@@ -206,7 +206,7 @@ namespace Client.Tests
             deadline = Time.realtimeSinceStartup + 5;
             while ((mapForm == null || cityMap.IsReady) && Time.realtimeSinceStartup < deadline)
             {
-                mapForm = ui.GetAllLoadedUIForms().FirstOrDefault(form => form.name.StartsWith("UICityOutskirts", StringComparison.Ordinal));
+                mapForm = ui.GetAllLoadedUIForms().FirstOrDefault(form => form.name.StartsWith("UIOutskirts", StringComparison.Ordinal));
                 yield return null;
             }
             Assert.That(mapForm, Is.Not.Null);
@@ -216,20 +216,61 @@ namespace Client.Tests
             Assert.That(map.IsReady, Is.True);
             Assert.That(map.WorldRoot.transform.Find("BeginnerOutskirts/BuildingRoot").childCount, Is.EqualTo(45));
             var area = map.WorldRoot.transform.Find("BeginnerOutskirts/BuildingRoot");
-            AssertNativeModelHeight(area.Find("Tile_20/ReferenceHome"),
-                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Content/Prefabs/CityOutskirts/ReferenceHome.prefab"),
-                map.WorldRoot.transform.position.y);
+            var resourceSprites = map.WorldRoot.GetComponentsInChildren<SpriteRenderer>(true).Where(sprite => sprite.name == "ResourceSprite").ToArray();
+            Assert.That(resourceSprites, Is.Not.Empty);
+            Assert.That(resourceSprites.All(sprite => sprite.transform.IsChildOf(area)), Is.True, "Resources must exist only inside the 45 gameplay cells.");
+            var nativeForests = Enumerable.Range(0, area.childCount).Select(i => area.GetChild(i).Find("ResourceModel")).Where(node => node != null).ToArray();
+            Assert.That(nativeForests.Length, Is.EqualTo(7));
+            Assert.That(nativeForests.All(node => node.GetComponentsInChildren<MeshRenderer>().Any(renderer => renderer.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off)), Is.True);
+            Assert.That(resourceSprites.Length + nativeForests.Length, Is.EqualTo(45));
+            var ground = map.WorldRoot.transform.Find("BeginnerOutskirts/Landscape/GroundTile_9_21");
+            File.WriteAllLines("Builds/Outskirts/ground-material-diagnostic.txt", ground.GetComponentsInChildren<MeshRenderer>().SelectMany(renderer => renderer.sharedMaterials).Select(material => material == null ? "NULL" : material.name + " shader=" + material.shader.name + " asset=" + UnityEditor.AssetDatabase.GetAssetPath(material) + " terrain=" + (material.HasProperty("_Terrain") ? material.GetFloat("_Terrain").ToString() : "missing")));
+            var groundMaterial = ground.GetComponentsInChildren<MeshRenderer>().SelectMany(renderer => renderer.sharedMaterials)
+                .First(material => material != null && material.HasProperty("_Terrain") && material.GetFloat("_Terrain") > .5f);
+            Assert.That(groundMaterial.GetFloat("_NormalStrength"), Is.EqualTo(.855f).Within(.001f));
+            Assert.That(groundMaterial.GetFloat("_Layer2NormalStrength"), Is.EqualTo(.611f).Within(.001f));
+            Assert.That(groundMaterial.GetFloat("_Layer3NormalStrength"), Is.EqualTo(.719f).Within(.001f));
+            Assert.That(groundMaterial.GetFloat("_MacroNormalStrength"), Is.EqualTo(.877f).Within(.001f));
+            Assert.That(groundMaterial.GetFloat("_TerrainFlattenScale"), Is.InRange(.000001f, 1f));
+            Assert.That(groundMaterial.GetFloat("_LocalGrassland"), Is.Zero, "Use HYGD's authored terrain layer mask.");
+            Assert.That(groundMaterial.GetColor("_Color"), Is.EqualTo(Color.white));
+            Assert.That(groundMaterial.HasProperty("_TerrainDetailContrast"), Is.False, "No artificial mip-blur mix should replace the HYGD ground texture.");
+            foreach (var sprite in resourceSprites)
+            {
+                var size = sprite.sprite.bounds.size;
+                var right = sprite.transform.TransformPoint(new Vector3(size.x * .5f, 0, 0));
+                var left = sprite.transform.TransformPoint(new Vector3(-size.x * .5f, 0, 0));
+                var top = sprite.transform.TransformPoint(new Vector3(0, size.y * .5f, 0));
+                var bottom = sprite.transform.TransformPoint(new Vector3(0, -size.y * .5f, 0));
+                float width = Vector3.Distance(map.ViewCamera.WorldToScreenPoint(right), map.ViewCamera.WorldToScreenPoint(left));
+                float height = Vector3.Distance(map.ViewCamera.WorldToScreenPoint(top), map.ViewCamera.WorldToScreenPoint(bottom));
+                Assert.That(height / width, Is.EqualTo(size.y / size.x).Within(.01f), "Pre-rendered sprites must retain their image proportions.");
+            }
+            Assert.That(resourceSprites.All(sprite => sprite.sprite.texture.width >= 128), Is.True, "All visible cells must have a valid imported texture, including the four original nature sprites.");
+            Assert.That(resourceSprites.All(sprite => Mathf.Abs(sprite.transform.localEulerAngles.x - 42f) < .01f), Is.True, "Sprites and camera must share one projection angle.");
+            Assert.That(area.Find("Tile_34").GetComponent<Client.Framework.Presentation.OutskirtsResourceIdentity>().ResourceKey, Is.EqualTo("S_map_1_1"));
+            Assert.That(area.Find("Tile_17").GetComponent<Client.Framework.Presentation.OutskirtsResourceIdentity>().ResourceKey, Is.EqualTo("S_map_1_1"));
+            Assert.That(area.Find("Tile_37/ResourceSprite").GetComponent<SpriteRenderer>().sprite.name, Is.EqualTo("S_map_4_1"));
+            for (int cell = 0; cell < area.childCount; cell++)
+                Assert.That(area.GetChild(cell).Find("FX_WorldMap_Occupy_10"), Is.Not.Null, "Every gameplay cell must display its hex outline.");
             Assert.That(area.Find("Tile_9").localPosition.z, Is.GreaterThan(area.Find("Tile_5").localPosition.z));
             Assert.That(area.Find("Tile_10").localPosition.x, Is.EqualTo(1f).Within(.001f));
             Assert.That(area.Find("Tile_37").localPosition.x, Is.EqualTo(4f).Within(.001f));
-            Assert.That(area.Find("Tile_17/LandLevel").GetComponent<TextMesh>().text, Is.EqualTo("6"));
+            var labels = area.GetComponentsInChildren<TextMesh>(true);
+            Assert.That(labels.Length, Is.EqualTo(1));
+            Assert.That(labels[0].text, Is.EqualTo("我的主城"));
+            Assert.That(labels[0].transform.parent.name, Is.EqualTo("Tile_20"));
             for (int position = 1; position <= Client.Framework.Presentation.OutskirtsHex.Count; position++)
                 Assert.That(Client.Framework.Presentation.OutskirtsHex.Pick(
                     Client.Framework.Presentation.OutskirtsHex.Center(position)), Is.EqualTo(position));
             Assert.That(Client.Framework.Presentation.OutskirtsHex.Pick(Vector3.left * 2), Is.Zero);
             Assert.That(context.ResourcesImpl.Live, Is.Zero);
             Assert.That(map.ViewCamera.orthographic, Is.False);
+            Assert.That(map.ViewCamera.transform.eulerAngles.x, Is.EqualTo(42f).Within(.01f));
             Assert.That(map.ViewCamera.fieldOfView, Is.EqualTo(29.5f).Within(.001f));
+            Assert.That(map.ViewCamera.orthographicSize / Mathf.Tan(map.ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad),
+                Is.EqualTo(10.2f).Within(.01f), "Match HYGD's CameraOffset 40 and DefaultView -11 at one-fifth map scale.");
+            Assert.That(map.ViewCamera.GetComponent<Client.Framework.Presentation.OutskirtsShadowQuality>(), Is.Not.Null);
             Assert.That(map.ViewCamera.allowHDR, Is.True);
             Assert.That(map.ViewCamera.GetComponent<Client.Framework.Presentation.OutskirtsPostProcess>(), Is.Not.Null);
             yield return null;
@@ -263,24 +304,51 @@ namespace Client.Tests
             Assert.That(Vector2.Distance(uvForWorld(anchoredGround), zoomUv), Is.LessThan(.001f), "Zooming must preserve its ground anchor.");
             map.ApplyView(mapState);
             yield return new WaitForEndOfFrame();
-            Directory.CreateDirectory("Builds/CityOutskirts");
+            Directory.CreateDirectory("Builds/Outskirts");
             var near = ScreenCapture.CaptureScreenshotAsTexture();
-            try { File.WriteAllBytes("Builds/CityOutskirts/near.png", near.EncodeToPNG()); }
+            Assert.That(near.GetPixels32().Count(pixel => pixel.r > 220 && pixel.g < 40 && pixel.b > 220),
+                Is.LessThan(near.width * near.height / 100), "The terrain must not render as shader-error magenta.");
+            try { File.WriteAllBytes("Builds/Outskirts/near.png", near.EncodeToPNG()); }
             finally { Object.Destroy(near); }
             var phaseNames = new[] { "dawn", "day", "dusk", "night" };
+            var treeMaterial = nativeForests[0].GetComponentsInChildren<MeshRenderer>().SelectMany(renderer => renderer.sharedMaterials)
+                .First(material => material != null && material.name.IndexOf("tree", StringComparison.OrdinalIgnoreCase) >= 0);
+            var timeSettings = JsonUtility.FromJson<Client.Framework.Presentation.OutskirtsLightingSettings>(File.ReadAllText("Assets/Content/Maps/Outskirts/LightingCycle.json"));
             var phaseHours = new[] { 9, 13, 17, 21 };
+            var timeIds = new[] { "TimeDawn", "TimeDay", "TimeDusk", "TimeNight" };
+            var expectedPhases = new[] { "Dawn", "Day", "Dusk", "Night" };
             for (int phaseIndex = 0; phaseIndex < phaseHours.Length; phaseIndex++)
             {
-                map.SetClock(new OutskirtsTestClock
-                {
-                    GameTime = new DateTimeOffset(2026, 11, 7, phaseHours[phaseIndex], 0, 0, TimeSpan.FromHours(8))
-                });
+                ((Button)bindings.Resolve(timeIds[phaseIndex])).onClick.Invoke();
+                Assert.That(treeMaterial.GetColor("_VegetationTint"), Is.EqualTo(timeSettings.phases[phaseIndex].vegetationTint));
+                Assert.That(map.WorldRoot.GetComponentInChildren<Client.Framework.Presentation.OutskirtsLightingCycle>().CurrentPhase,
+                    Is.EqualTo(expectedPhases[phaseIndex]));
                 yield return new WaitForEndOfFrame();
                 var phaseImage = ScreenCapture.CaptureScreenshotAsTexture();
-                try { File.WriteAllBytes("Builds/CityOutskirts/" + phaseNames[phaseIndex] + ".png", phaseImage.EncodeToPNG()); }
+                try { File.WriteAllBytes("Builds/Outskirts/" + phaseNames[phaseIndex] + ".png", phaseImage.EncodeToPNG()); }
                 finally { Object.Destroy(phaseImage); }
+                area.gameObject.SetActive(false);
+                yield return new WaitForEndOfFrame();
+                var target = map.ViewCamera.targetTexture;
+                var previousTarget = RenderTexture.active;
+                var groundImage = new Texture2D(target.width, target.height, TextureFormat.RGBA32, false);
+                try
+                {
+                    RenderTexture.active = target;
+                    groundImage.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0);
+                    groundImage.Apply();
+                    File.WriteAllBytes("Builds/Outskirts/ground-" + phaseNames[phaseIndex] + ".png", groundImage.EncodeToPNG());
+                }
+                finally
+                {
+                    RenderTexture.active = previousTarget;
+                    Object.Destroy(groundImage);
+                    area.gameObject.SetActive(true);
+                }
+                yield return null;
             }
-            map.SetClock(new Client.Framework.Presentation.LocalOutskirtsClock());
+            ((Button)bindings.Resolve("TimeNight")).onClick.Invoke();
+            Assert.That(((Button)bindings.Resolve("TimeNight")).GetComponentInChildren<Text>().text, Is.EqualTo("夜晚"));
             ((Button)bindings.Resolve("Overview")).onClick.Invoke();
             for (int id = 1; id <= Client.Framework.Presentation.OutskirtsHex.Count; id++)
             for (int edge = 0; edge < 6; edge++)
@@ -301,20 +369,27 @@ namespace Client.Tests
             var click = new PointerEventData(EventSystem.current) { pointerId = -1, position = point, button = PointerEventData.InputButton.Left };
             ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerUpHandler);
-            Assert.That(((Text)bindings.Resolve("Detail")).text, Does.Contain("县城").And.Contain("34"));
+            Assert.That(((Text)bindings.Resolve("Detail")).text, Does.Contain("S_map_1_1").And.Contain("第 1 格").And.Contain("第 1 行，第 1 列"));
             uv = map.ViewCamera.WorldToViewportPoint(map.WorldRoot.transform.TransformPoint(Client.Framework.Presentation.OutskirtsHex.Center(17)));
             point = RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(
                 new Vector3(rect.rect.xMin + uv.x * rect.rect.width, rect.rect.yMin + uv.y * rect.rect.height)));
             click.position = point;
             ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerUpHandler);
-            Assert.That(((Text)bindings.Resolve("Detail")).text, Does.Contain("石料地").And.Contain("第 17 格").And.Contain("等级 6"));
+            Assert.That(((Text)bindings.Resolve("Detail")).text, Does.Contain("S_map_1_1").And.Contain("第 7 格").And.Contain("第 2 行，第 2 列"));
+            uv = map.ViewCamera.WorldToViewportPoint(map.WorldRoot.transform.TransformPoint(Client.Framework.Presentation.OutskirtsHex.Center(20)));
+            point = RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(
+                new Vector3(rect.rect.xMin + uv.x * rect.rect.width, rect.rect.yMin + uv.y * rect.rect.height)));
+            click.position = point;
+            ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(map.gameObject, click, ExecuteEvents.pointerUpHandler);
+            Assert.That(((Text)bindings.Resolve("Detail")).text, Does.Contain("我的主城").And.Contain("S_map_12_1").And.Contain("第 23 格"));
             yield return new WaitForEndOfFrame();
             var screenshot = ScreenCapture.CaptureScreenshotAsTexture();
             try
             {
-                Directory.CreateDirectory("Builds/CityOutskirts");
-                File.WriteAllBytes("Builds/CityOutskirts/overview.png", screenshot.EncodeToPNG());
+                Directory.CreateDirectory("Builds/Outskirts");
+                File.WriteAllBytes("Builds/Outskirts/overview.png", screenshot.EncodeToPNG());
             }
             finally { Object.Destroy(screenshot); }
             ((Button)bindings.Resolve("Back")).onClick.Invoke();
@@ -636,7 +711,7 @@ namespace Client.Tests
             public void Release() => gate.TrySetResult(true);
             public async Task<IViewHandle> OpenAsync(string viewId, CancellationToken token)
             {
-                if (viewId == "UICityOutskirts")
+                if (viewId == "UIOutskirts")
                 {
                     OpenRequested = true;
                     using (token.Register(() => gate.TrySetCanceled(token))) await gate.Task;
@@ -674,3 +749,4 @@ namespace Client.Tests
     }
 }
 #endif
+

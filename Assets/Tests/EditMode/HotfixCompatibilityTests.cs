@@ -76,7 +76,7 @@ namespace Client.Tests.EditMode
         [Test]
         public void ProbeRegistryAdaptsOnlyNamespaceAndPreservesGeneratedMessageBytes()
         {
-            const string generated = "Tests/Fixtures/HotfixAotProbe/Generated/";
+            const string generated = "Tool/Client/Fixtures/HotfixAotProbe/Generated/";
             var provenance = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(generated + "probe-provenance.json"));
             var manifest = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(generated + "Pristine/protocol-manifest.json"));
             string pristine = File.ReadAllText(generated + "Pristine/GameMessageRegistry.cs");

@@ -13,6 +13,8 @@ Shader "Client/OutskirtsSurface"
         _Layer3Tex ("HYGD terrain layer 3", 2D) = "white" {}
         _Layer3Dirt ("HYGD terrain soil 3", 2D) = "white" {}
         _TerrainLayers ("HYGD painted terrain mask", 2D) = "black" {}
+        _BaseLayerByGon ("HYGD base layer uses green channel", Float) = 0
+        _WaterColor ("HYGD water tint", Color) = (.285048,.8446,.96226,0)
         _WorldTerrainOverlay ("Apply world roads and biome mask", Range(0,1)) = 0
         _LocalGrassland ("Local beginner grassland", Float) = 0
         _OwnedHome ("Local owned home XZ", Vector) = (2,3.4641,0,0)
@@ -25,6 +27,7 @@ Shader "Client/OutskirtsSurface"
         _NormalStrength ("Normal strength", Range(0,1)) = 0
         _TextureBright ("Terrain brightness", Float) = 1
         _Color ("Tint", Color) = (1,1,1,1)
+        _VegetationTint ("Time-of-day vegetation tint", Color) = (1,1,1,1)
         _ReferenceSun ("HYGD daylight radiance", Vector) = (1.8,1.37,.86,0)
         _ReferenceAmbient ("HYGD daylight ambient", Vector) = (.262,.392,.631,0)
         _DirtMaskSize1 ("HYGD dirt scale 1", Float) = 735
@@ -36,6 +39,7 @@ Shader "Client/OutskirtsSurface"
         _colorlightsize ("HYGD color falloff", Float) = .2
         _ColorMix1 ("HYGD meadow color", Color) = (.87,.906,.698,1)
         _Terrain ("Continuous terrain", Float) = 0
+        _TerrainFlattenScale ("Terrain vertical flattening", Float) = 1
         _Cutoff ("Alpha cutoff", Range(0,1)) = 0
         _BakedAO ("HYGD architecture AO", 2D) = "white" {}
         _UseBakedAO ("Use HYGD architecture AO", Float) = 0
@@ -65,6 +69,7 @@ Shader "Client/OutskirtsSurface"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma target 3.5
             #pragma multi_compile_fwdbase nolightmap nodirlightmap nodynlightmap novertexlight
             #include "UnityCG.cginc"
             #include "AutoLight.cginc"
@@ -88,13 +93,14 @@ Shader "Client/OutskirtsSurface"
             sampler2D _Layer2Tex, _Layer2Dirt, _Layer3Tex, _Layer3Dirt, _TerrainLayers, _Layer2Normal, _Layer3Normal;
             float4 _Layer2Tex_ST, _Layer2Dirt_ST, _Layer3Tex_ST, _Layer3Dirt_ST, _TerrainLayers_ST, _Layer2Normal_ST, _Layer3Normal_ST;
             fixed4 _ColorMix2, _ColorMix3;
-            half _WorldTerrainOverlay;
+            half _WorldTerrainOverlay, _BaseLayerByGon;
+            fixed4 _WaterColor;
             half _LocalGrassland;
             float4 _OwnedHome;
             float4 _MainTex_ST, _DirtTex_ST, _TerrainMask_ST, _NormalMap_ST;
-            fixed4 _Color;
+            fixed4 _Color, _VegetationTint;
             float4 _ReferenceSun, _ReferenceAmbient;
-            float _Terrain;
+            float _Terrain, _TerrainFlattenScale;
             float _DirtMaskSize1, _DirtMaskSize2, _dirtsize, _dirtpower, _ColorMixMaskSize1, _ColorMixMaskSize2, _colorlightsize;
             fixed4 _ColorMix1;
             float _Cutoff;
@@ -120,8 +126,16 @@ Shader "Client/OutskirtsSurface"
                 o.uv = v.texcoord;
                 o.uv2 = v.texcoord1;
                 o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
-                o.normal = UnityObjectToWorldNormal(v.normal);
-                o.tangent = half4(UnityObjectToWorldDir(v.tangent.xyz), v.tangent.w * unity_WorldTransformParams.w);
+                float3 authoredNormal = v.normal;
+                float3 authoredTangent = v.tangent.xyz;
+                if (_Terrain > .5)
+                {
+                    // Preserve HYGD's authored shading basis while fitting its height to the local grid.
+                    authoredNormal.y *= _TerrainFlattenScale;
+                    authoredTangent.y /= max(.000001, _TerrainFlattenScale);
+                }
+                o.normal = UnityObjectToWorldNormal(authoredNormal);
+                o.tangent = half4(UnityObjectToWorldDir(authoredTangent), v.tangent.w * unity_WorldTransformParams.w);
                 TRANSFER_SHADOW(o);
                 return o;
             }
@@ -251,39 +265,7 @@ float3 mod3D289( float3 x ) { return x - floor( x / 289.0 ) * 289.0; }
 
             fixed4 TerrainLayers(VertexOutput input)
             {
-                fixed4 result = tex2D(_TerrainLayers, TRANSFORM_TEX(input.uv, _TerrainLayers)) * _WorldTerrainOverlay;
-                if (_LocalGrassland >= .5)
-                {
-                float2 p = input.world.xz;
-                float row = round(p.y / .8660254);
-                float best = 100000;
-                float2 nearest = 0;
-                for (int i = -1; i <= 1; i++)
-                {
-                    float r = row + i;
-                    float offset = (r - floor(r / 2) * 2) * .5;
-                    float2 center = float2(round(p.x - offset) + offset, r * .8660254);
-                    float distance = dot(p - center, p - center);
-                    if (distance < best) { best = distance; nearest = center; }
-                }
-                float cleared = 0;
-                float nr = round(nearest.y / .8660254);
-                float hr = round(_OwnedHome.y / .8660254);
-                float no = nr - floor(nr / 2) * 2;
-                float ho = hr - floor(hr / 2) * 2;
-                float nq = round(nearest.x - no * .5) - (nr - no) * .5;
-                float hq = round(_OwnedHome.x - ho * .5) - (hr - ho) * .5;
-                float2 axial = float2(nq - hq, nr - hr);
-                float ring = max(max(abs(axial.x), abs(axial.y)), abs(axial.x + axial.y));
-                if (ring <= _OwnedHome.z)
-                {
-                    float2 d = abs(p - nearest);
-                    float edge = max(d.x, dot(d, float2(.5, .8660254))) - .5;
-                    cleared = 1 - smoothstep(-.065, -.005, edge);
-                }
-                    result = fixed4(0, 0, 1 - cleared, 0);
-                }
-                return result;
+                return tex2D(_TerrainLayers, TRANSFORM_TEX(input.uv, _TerrainLayers)) * _WorldTerrainOverlay;
             }
 
             half3 SourceTerrainNormal(sampler2D normalMap, float2 uv, half strength)
@@ -308,18 +290,23 @@ float3 mod3D289( float3 x ) { return x - floor( x / 289.0 ) * 289.0; }
                     float soil = pow(saturate(mask * pow(perlin, 2) * pow(noise, 3)), _dirtsize) * _dirtpower;
                     fixed3 grass = SourceColor(tex2D(_MainTex, TRANSFORM_TEX(uv, _MainTex)).rgb);
                     fixed3 dirt = SourceColor(tex2D(_DirtTex, TRANSFORM_TEX(uv, _DirtTex)).rgb);
-                    fixed3 baseColor = lerp(grass, dirt, saturate(soil));
+                    fixed3 baseColor = lerp(grass, dirt, soil);
                     float colorMask = pow(saturate(pow(snoise(float3(uv, 0) * _ColorMixMaskSize2) * .5 + .5, 4.35) * (snoise(uv * _ColorMixMaskSize1) * .5 + .5)), _colorlightsize);
                     fixed3 blend = colorMask * SourceColor(_ColorMix1.rgb);
                     albedo = saturate(lerp(baseColor, 2 * baseColor * blend + baseColor * baseColor * (1 - 2 * blend), .5)) * _TextureBright;
-                    fixed3 layer2 = lerp(SourceColor(tex2D(_Layer2Tex, TRANSFORM_TEX(uv, _Layer2Tex)).rgb), SourceColor(tex2D(_Layer2Dirt, TRANSFORM_TEX(uv, _Layer2Dirt)).rgb), saturate(soil));
-                    fixed3 layer3 = lerp(SourceColor(tex2D(_Layer3Tex, TRANSFORM_TEX(uv, _Layer3Tex)).rgb), SourceColor(tex2D(_Layer3Dirt, TRANSFORM_TEX(uv, _Layer3Dirt)).rgb), saturate(soil));
+                    fixed3 layer2 = lerp(SourceColor(tex2D(_Layer2Tex, TRANSFORM_TEX(uv, _Layer2Tex)).rgb), SourceColor(tex2D(_Layer2Dirt, TRANSFORM_TEX(uv, _Layer2Dirt)).rgb), soil);
+                    fixed3 layer3 = lerp(SourceColor(tex2D(_Layer3Tex, TRANSFORM_TEX(uv, _Layer3Tex)).rgb), SourceColor(tex2D(_Layer3Dirt, TRANSFORM_TEX(uv, _Layer3Dirt)).rgb), soil);
                     fixed3 tint2 = colorMask * SourceColor(_ColorMix2.rgb);
                     fixed3 tint3 = colorMask * SourceColor(_ColorMix3.rgb);
-                    layer2 = saturate(lerp(layer2, 2 * layer2 * tint2 + layer2 * layer2 * (1 - 2 * tint2), .5)) * _TextureBright;
+                    layer2 = saturate(lerp(layer2, 2 * layer2 * tint2 + layer2 * layer2 * (1 - 2 * tint2), .5));
                     layer3 = saturate(lerp(layer3, 2 * layer3 * tint3 + layer3 * layer3 * (1 - 2 * tint3), .5)) * _TextureBright;
                     fixed4 layers = TerrainLayers(input);
-                    albedo = lerp(lerp(albedo, layer3, layers.b), layer2, layers.g);
+                    // WN_Terrain_Base: retain its authored layer mask and exact mix order.
+                    fixed3 baseLayer = _BaseLayerByGon > .5 ? layer2 : albedo;
+                    albedo = lerp(baseLayer, albedo, layers.r);
+                    albedo = lerp(albedo, layer3, layers.b);
+                    albedo = lerp(albedo, layer2 * _TextureBright, layers.g);
+                    albedo = lerp(albedo, SourceColor(_WaterColor.rgb), layers.a);
                 }
                 else
                 {
@@ -341,7 +328,7 @@ float3 mod3D289( float3 x ) { return x - floor( x / 289.0 ) * 289.0; }
                         half3 thirdDetail = SourceTerrainNormal(_Layer3Normal, TRANSFORM_TEX(input.uv, _Layer3Normal), _Layer3NormalStrength);
                         detail = lerp(lerp(grassDetail, detail, layers.r), thirdDetail, layers.b);
                         half3 blade = SourceTerrainNormal(_MacroNormal, TRANSFORM_TEX(input.uv, _MacroNormal), _MacroNormalStrength);
-                        detail = normalize(half3(blade.xy + detail.xy, blade.z * detail.z));
+                        detail = normalize(half3(blade.xy * detail.z + detail.xy * blade.z, blade.z * detail.z));
                     }
                     half3 tangent = dot(input.tangent.xyz, input.tangent.xyz) > .01 ? normalize(input.tangent.xyz) : half3(1, 0, 0);
                     half3 bitangent = cross(normal, tangent) * (input.tangent.w < 0 ? -1 : 1);
@@ -356,7 +343,7 @@ float3 mod3D289( float3 x ) { return x - floor( x / 289.0 ) * 289.0; }
                     float3 sunAo = 1 - (1 - ao) * (1 - saturate(_ReferenceSun.rgb));
                     light *= lerp(ao.xxx, sunAo, diffuse * shadow);
                 }
-                float3 result = albedo * SourceColor(_Color.rgb) * light;
+                float3 result = albedo * SourceColor(_Color.rgb) * SourceColor(_VegetationTint.rgb) * light;
                 if (_HeightLightEnabled > .5)
                 {
                     float nativeHeight = (input.world.y - _MapOriginY) * _NativeHeightScale + _NativeHeightOffset;

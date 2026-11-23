@@ -23,6 +23,7 @@ namespace Client.Framework.Presentation
         [SerializeField] private string[] buildingNames=Array.Empty<string>();
         [SerializeField] private float defaultZoomRatio=.62f;
         [SerializeField] private bool fillViewport;
+        [SerializeField] private float referenceDefaultDistance;
         [SerializeField] private bool pickGround;
         [SerializeField] private Vector3 groundFocus;
         [SerializeField] private Bounds groundBounds;
@@ -37,6 +38,8 @@ namespace Client.Framework.Presentation
         }
 
         public event Action<Vector3> GroundClicked;
+
+        public void ConfigureReferenceDistance(float distance) => referenceDefaultDistance = distance;
 
         public void ConfigureGroundView(Vector3 focus, Bounds bounds)
         {
@@ -74,7 +77,8 @@ namespace Client.Framework.Presentation
             }
         }
 
-        private const float GroundPitch = 42f;
+        public const float OutskirtsSpritePitch = 42f;
+        private const float GroundPitch = OutskirtsSpritePitch;
         private float GroundDepthScale => pickGround ? 1f / Mathf.Sin(GroundPitch * Mathf.Deg2Rad) : 1f;
         public void ConfigureFillViewport(bool value)
         {
@@ -203,14 +207,23 @@ namespace Client.Framework.Presentation
 #endif
             ViewCamera.orthographic = !pickGround;
             ViewCamera.fieldOfView = 29.5f;
-            // HYGD's world map uses perspective; the legacy main-city artwork stays orthographic.
+            // Keep the HYGD reference world-map framing: 42-degree pitch and 29.5-degree perspective FOV.
             ViewCamera.transform.rotation = Quaternion.Euler(pickGround ? GroundPitch : 90, 0, 0);
+            if (pickGround)
+            {
+                // A stale prefab must never flatten a pre-rendered sprite when camera framing changes.
+                foreach (var sprite in city.GetComponentsInChildren<SpriteRenderer>(true))
+                    sprite.transform.rotation = ViewCamera.transform.rotation;
+                foreach (var text in city.GetComponentsInChildren<TextMesh>(true))
+                    text.transform.rotation = ViewCamera.transform.rotation;
+            }
             ViewCamera.cullingMask = 1 << CityLayer;
             ViewCamera.clearFlags = CameraClearFlags.SolidColor;
             ViewCamera.backgroundColor = new Color(.07f, .11f, .12f, 1);
             ViewCamera.allowHDR = pickGround && postProcessMaterial != null;
             if (ViewCamera.allowHDR)
                 cameraObject.AddComponent<OutskirtsPostProcess>().Configure(postProcessMaterial);
+            if (pickGround) cameraObject.AddComponent<OutskirtsShadowQuality>();
             ViewCamera.allowMSAA = false;
             cameraDistance = pickGround ? Mathf.Max(CityBounds.size.magnitude * 1.45f, 14) :
                 Mathf.Max(CityBounds.size.magnitude * 2, 100);
@@ -282,7 +295,9 @@ namespace Client.Framework.Presentation
             var width = Mathf.Max(1, Mathf.RoundToInt(pixelWidth * resolutionScale));
             var height = Mathf.Max(1, Mathf.RoundToInt(pixelHeight * resolutionScale));
             if (texture != null && texture.width == width && texture.height == height) return;
-            var zoomRatio = initialZoom > 0 ? ViewCamera.orthographicSize / initialZoom : 1;
+            bool preserveReferenceDistance = pickGround && referenceDefaultDistance > 0 && initialZoom > 0;
+            float previousZoom = ViewCamera.orthographicSize;
+            var zoomRatio = initialZoom > 0 ? previousZoom / initialZoom : 1;
             var oldTexture = texture;
             var format = pickGround && postProcessMaterial != null && SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGBHalf)
                 ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB32;
@@ -296,7 +311,7 @@ namespace Client.Framework.Presentation
             output.texture = texture;
             output.uvRect = new Rect(0, 0, 1, 1);
             initialZoom = Mathf.Max(.01f, CityBounds.extents.z, CityBounds.extents.x / ViewCamera.aspect) * 1.08f;
-            ViewCamera.orthographicSize = Mathf.Clamp(initialZoom * zoomRatio, MinimumZoom, MaximumZoom);
+            ViewCamera.orthographicSize = Mathf.Clamp(preserveReferenceDistance ? previousZoom : initialZoom * zoomRatio, MinimumZoom, MaximumZoom);
             if (oldTexture != null) { oldTexture.Release(); DestroyOwned(oldTexture); }
             UpdateCamera();
         }
@@ -305,7 +320,10 @@ namespace Client.Framework.Presentation
         {
             if (!IsReady) return;
             center = pickGround ? WorldRoot.transform.TransformPoint(groundFocus) : CityBounds.center;
-            ViewCamera.orthographicSize = fillViewport ? MaximumZoom * .9f : initialZoom*defaultZoomRatio;
+            float defaultSize = pickGround && referenceDefaultDistance > 0
+                ? referenceDefaultDistance * Mathf.Tan(ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad)
+                : initialZoom * defaultZoomRatio;
+            ViewCamera.orthographicSize = fillViewport ? MaximumZoom * .9f : Mathf.Clamp(defaultSize, MinimumZoom, MaximumZoom);
             UpdateCamera();
         }
 
@@ -424,13 +442,21 @@ namespace Client.Framework.Presentation
             center.z = pickGround ? Mathf.Clamp(center.z, CityBounds.min.z, CityBounds.max.z) :
                 ClampAxis(center.z, CityBounds.min.z, CityBounds.max.z, halfHeight * GroundDepthScale);
             center.y = pickGround ? WorldRoot.transform.position.y : CityBounds.center.y;
-            float distance = pickGround ? halfHeight / Mathf.Tan(ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad) : cameraDistance;
+            float distance = !ViewCamera.orthographic ? halfHeight / Mathf.Tan(ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad) : cameraDistance;
             ViewCamera.transform.position = center - ViewCamera.transform.forward * distance;
+            if (pickGround) ViewCamera.GetComponent<OutskirtsShadowQuality>()?.Configure(distance);
             if (pickGround) ViewCamera.farClipPlane = Mathf.Max(cameraDistance * 4, distance * 4);
         }
 
         private bool TryGroundPoint(Vector2 uv, out Vector3 point)
         {
+            if (ViewCamera.orthographic)
+            {
+                point = center + new Vector3((uv.x * 2 - 1) * ViewCamera.orthographicSize * ViewCamera.aspect,
+                    0, (uv.y * 2 - 1) * ViewCamera.orthographicSize * GroundDepthScale);
+                point.y = WorldRoot.transform.position.y;
+                return true;
+            }
             // Inverse view-projection loses precision at the isolated render scene's Y=-10000.
             // Build the perspective direction in camera space before adding its world origin.
             float tangent = Mathf.Tan(ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad);

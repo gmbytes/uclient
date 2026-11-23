@@ -108,7 +108,7 @@ namespace Client.Editor.Build
             var profile=AssetDatabase.LoadAssetAtPath<LoginPresentationProfile>("Assets/Settings/Environment/LocalSimulationProfile.asset");
             profile.Version=version=="v1"?"F8 resource v1":"F8 resource v2";EditorUtility.SetDirty(profile);AssetDatabase.SaveAssets();
             var collection=configuration.CreateCollection();
-            string[] assets={"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/Common/UIViewDefinitions.asset","Assets/Content/UI/MainCity/UIMainCity.prefab",UI.CityOutskirtsUIBuilder.ViewPath,UI.CityOutskirtsUIBuilder.LayoutPath,"Assets/Settings/Environment/LocalSimulationProfile.asset"};
+            string[] assets={"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/Common/UIViewDefinitions.asset","Assets/Content/UI/MainCity/UIMainCity.prefab",UI.OutskirtsUIBuilder.ViewPath,UI.OutskirtsUIBuilder.LayoutPath,"Assets/Settings/Environment/LocalSimulationProfile.asset"};
             if(!collection.AddResource("f8/ui",null,null,LoadType.LoadFromFile,true)||!collection.AddResource("f8/profile",null,null,LoadType.LoadFromFile,true))throw new BuildFailedException("Native resources failed.");
             for(int i=0;i<assets.Length;i++){string name=assets[i].StartsWith("Assets/Settings/",StringComparison.Ordinal)?"f8/profile":"f8/ui";if(!collection.AssignAsset(AssetDatabase.AssetPathToGUID(assets[i]),name,null))throw new BuildFailedException("Native collection failed.");}
             if(!collection.Save())throw new BuildFailedException("Native collection save failed.");
@@ -134,7 +134,7 @@ namespace Client.Editor.Build
         private static void Sign(string directory,PlayerBaselineArchive.Archive archive,string version,string compiled)
         {
             var files=PlayerBaselineArchive.Inventory(directory);string[] names={"Client.Game.Protocol","Client.Game"};
-            string protocol=(string)JObject.Parse(File.ReadAllText("Tests/Fixtures/HotfixAotProbe/Generated/Pristine/protocol-manifest.json"))["schema_sha256"];
+            string protocol=(string)JObject.Parse(File.ReadAllText("Tool/Client/Fixtures/HotfixAotProbe/Generated/Pristine/protocol-manifest.json"))["schema_sha256"];
             var manifest=new JObject{["schemaVersion"]=1,["keyId"]="test-f8-native",["releaseId"]=version,["player"]=JObject.FromObject(new{playerBuildId=archive.playerBuildId,platform=archive.platform,architecture=archive.architecture,unityVersion=archive.unityVersion,contractVersion=archive.contractVersion,envelopeSha256=archive.envelopeSha256,aotMetadataSetId=archive.aotMetadataSetId}),["protocolSha256"]=protocol,["resourceVersionListPath"]="Resources/GameFrameworkVersion.dat",["files"]=new JArray(files.Select(f=>new JObject{["path"]=f.path,["length"]=f.length,["sha256"]=f.sha256,["kind"]=f.path.StartsWith("Metadata/")?"AotMetadata":f.path.StartsWith("Hotfix/")?"HotfixDll":f.path.StartsWith("References/")?"Configuration":"NativeResource"})),["assemblies"]=new JArray(names.Select(name=>{using(var module=dnlib.DotNet.ModuleDefMD.Load(File.ReadAllBytes(Path.Combine(compiled,name+".dll"))))return new JObject{["name"]=name,["path"]="Hotfix/"+name+".dll",["dependencies"]=new JArray(module.GetAssemblyRefs().Select(a=>a.Name.String))};})),["assemblyOrder"]=new JArray(names)};
             byte[] bytes=System.Text.Encoding.UTF8.GetBytes(manifest.ToString(Formatting.None));
             var verifier=(ManifestVerifier)Type.GetType("Client.Framework.HotUpdateProof.ProofProfile, Client.Framework").GetMethod("CreateVerifier").Invoke(null,null);

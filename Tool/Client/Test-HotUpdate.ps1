@@ -45,7 +45,7 @@ function StartServer {
     $commands.Add(@{action='owned-server-start';pid=$server.Id;port=$port})
 }
 if(-not$RunRoot){
-    $fixtureRoot=Join-Path $projectRoot 'Tests/Fixtures/HotfixAotProbe/Generated'
+    $fixtureRoot=Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixAotProbe/Generated'
     $provenance=Get-Content -LiteralPath (Join-Path $fixtureRoot 'Pristine/protocol-manifest.json') -Raw|ConvertFrom-Json
     foreach($p in $provenance.generated_sha256.PSObject.Properties){if((Hash (Join-Path $fixtureRoot ('Pristine/'+$p.Name)))-cne$p.Value){throw 'Protocol generated fixture provenance differs.'}}
     foreach($p in $provenance.source_sha256.PSObject.Properties){$source=if($p.Name-eq'tok/client/v1/client.proto'){Join-Path $env:SGAME_COMM_ROOT ('proto/'+$p.Name)}else{Join-Path $env:SGAME_COMM_ROOT ('proto/tests/fixtures/Protocols/F6AotProbe/'+$p.Name)};if((Hash $source)-cne$p.Value){throw 'Canonical protocol fixture source differs.'}}
@@ -59,14 +59,14 @@ if(-not$RunRoot){
     & "$PSScriptRoot/Build-LinkerPolicy.ps1" -UnityEditor $editor
     if($LASTEXITCODE-ne0){throw 'Linker helper failed.'}
     $key=[Security.Cryptography.RSA]::Create(2048);$keyPath=Join-Path $RunRoot 'ephemeral-test-key.xml';[IO.File]::WriteAllText($keyPath,$key.ToXmlString($true));$public=$key.ExportParameters($false);$key.Dispose()
-    $profile=(Get-Content -LiteralPath (Join-Path $projectRoot 'Tests/Fixtures/HotfixVersions/Profile.cs.txt') -Raw).Replace('__PORT__',[string]$port).Replace('__MODULUS__',[Convert]::ToBase64String($public.Modulus)).Replace('__EXPONENT__',[Convert]::ToBase64String($public.Exponent))
+    $profile=(Get-Content -LiteralPath (Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixVersions/Profile.cs.txt') -Raw).Replace('__PORT__',[string]$port).Replace('__MODULUS__',[Convert]::ToBase64String($public.Modulus)).Replace('__EXPONENT__',[Convert]::ToBase64String($public.Exponent))
     $temporary=@{
-        'Assets/Scripts/Framework/Bootstrap/F8Runtime.cs'='Tests/Fixtures/HotfixVersions/Runtime.cs.txt'
-        'Assets/Scripts/Game/F8Entry.cs'='Tests/Fixtures/HotfixVersions/Entry.cs.txt'
-        'Assets/Scripts/Game/F8VersionBranch.cs'='Tests/Fixtures/HotfixVersions/V1/VersionBranch.cs.txt'
-        'Assets/Scripts/Game/Protocol/F8ProtocolProbe.cs'='Tests/Fixtures/HotfixAotProbe/ProtocolProbe.cs.txt'
-        'Assets/Scripts/Game/Protocol/F8GeneratedMessage.cs'='Tests/Fixtures/HotfixAotProbe/Generated/Pristine/AotProbe.cs'
-        'Assets/Scripts/Game/Protocol/F8GeneratedRegistry.cs'='Tests/Fixtures/HotfixAotProbe/Generated/AdaptedRegistry.cs.txt'
+        'Assets/Scripts/Framework/Bootstrap/F8Runtime.cs'='Tool/Client/Fixtures/HotfixVersions/Runtime.cs.txt'
+        'Assets/Scripts/Game/F8Entry.cs'='Tool/Client/Fixtures/HotfixVersions/Entry.cs.txt'
+        'Assets/Scripts/Game/F8VersionBranch.cs'='Tool/Client/Fixtures/HotfixVersions/V1/VersionBranch.cs.txt'
+        'Assets/Scripts/Game/Protocol/F8ProtocolProbe.cs'='Tool/Client/Fixtures/HotfixAotProbe/ProtocolProbe.cs.txt'
+        'Assets/Scripts/Game/Protocol/F8GeneratedMessage.cs'='Tool/Client/Fixtures/HotfixAotProbe/Generated/Pristine/AotProbe.cs'
+        'Assets/Scripts/Game/Protocol/F8GeneratedRegistry.cs'='Tool/Client/Fixtures/HotfixAotProbe/Generated/AdaptedRegistry.cs.txt'
     }
     $pinPath='Assets/Scripts/Framework/HotUpdate/F8ProofProfile.cs'
     foreach($p in @($temporary.Keys)+$pinPath){if(Test-Path -LiteralPath (Join-Path $projectRoot $p)){throw "Owned generated profile already exists: $p"}}
@@ -84,10 +84,10 @@ if(-not$RunRoot){
         foreach($p in $restore|Where-Object{$_-like'*.asmdef'}){$j=Get-Content -LiteralPath (Join-Path $projectRoot $p) -Raw|ConvertFrom-Json;$ref=if($p-like'*Bootstrap*'){'UnityGameFramework.Runtime'}else{'Client.Protocol.Envelope'};if($j.references-notcontains$ref){$j.references+= $ref};Write-RunJson (Join-Path $projectRoot $p) $j}
         $publicRoot=Join-Path $RunRoot 'PublicInputs';New-Item -ItemType Directory -Path $publicRoot|Out-Null
         foreach($p in @($temporary.Keys)+$pinPath+$restore){if(-not(Test-Path -LiteralPath (Join-Path $projectRoot $p) -PathType Leaf)){continue};$destination=Join-Path $publicRoot $p;New-Item -ItemType Directory -Force (Split-Path -Parent $destination)|Out-Null;Copy-Item -LiteralPath (Join-Path $projectRoot $p) -Destination $destination}
-        Copy-Item -LiteralPath (Join-Path $projectRoot 'Tests/Fixtures/HotfixVersions') -Destination (Join-Path $publicRoot 'Templates') -Recurse
+        Copy-Item -LiteralPath (Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixVersions') -Destination (Join-Path $publicRoot 'Templates') -Recurse
         Write-RunJson (Join-Path $RunRoot 'public-input-hashes.json') (Inventory $publicRoot)
         foreach($version in @('Native','v2','throw')){
-            if($version-ne'Native'){$name=if($version-eq'v2'){'V2'}else{'ThrowOnStart'};Copy-Item -LiteralPath (Join-Path $projectRoot "Tests/Fixtures/HotfixVersions/$name/VersionBranch.cs.txt") -Destination (Join-Path $projectRoot 'Assets/Scripts/Game/F8VersionBranch.cs')}
+            if($version-ne'Native'){$name=if($version-eq'v2'){'V2'}else{'ThrowOnStart'};Copy-Item -LiteralPath (Join-Path $projectRoot "Tool/Client/Fixtures/HotfixVersions/$name/VersionBranch.cs.txt") -Destination (Join-Path $projectRoot 'Assets/Scripts/Game/F8VersionBranch.cs')}
             $args=@('-batchmode','-nographics','-quit','-projectPath',$projectRoot,'-buildTarget',$(if($Platform-eq'Android'){'Android'}else{'Win64'}),'-executeMethod','Client.Editor.Build.HotUpdateProofBuild.Run','-f8Output',(Join-Path $RunRoot 'Build'),'-f8Platform',$Platform,'-f8Mode',$(if($version-eq'Native'){'Native'}else{'Patch'}),'-f8Version',$version,'-f8Key',$keyPath,'-f8LinkerPolicy',(Join-Path $projectRoot 'Builds/LinkerPolicy/policy.json'),'-hybridclrSource','E:/sgame/client/Builds/dependencies/assembled-libil2cpp','-logFile',(Join-Path $RunRoot "Editor-$version.log"))
             Write-Host "F8_BUILD_PHASE $Platform $version $RunRoot"
             $sourceHashes=[ordered]@{};foreach($path in @(& git -C $projectRoot ls-files)+@(& git -C $projectRoot ls-files --others --exclude-standard)){if(Test-Path -LiteralPath (Join-Path $projectRoot $path) -PathType Leaf){$sourceHashes[$path]=Hash (Join-Path $projectRoot $path)}}

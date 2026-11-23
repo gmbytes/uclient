@@ -8,11 +8,11 @@ namespace Client.Tests
 {
     public sealed class OutskirtsPostProcessTests
     {
-        [Test, Category("CityOutskirts")]
+        [Test, Category("Outskirts")]
         public void ReferenceEffectsPreserveMidtonesAndSpreadOnlyBrightHighlights()
         {
             var template = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/Content/Materials/CityOutskirts/ReferencePostProcess.mat");
+                "Assets/Content/Materials/Outskirts/ReferencePostProcess.mat");
             Assert.That(template, Is.Not.Null);
             var host = new GameObject("Outskirts post-process verification", typeof(Camera));
             var camera = host.GetComponent<Camera>();

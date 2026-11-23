@@ -280,7 +280,7 @@ function Import-FrameworkEvidence([string]$Path,$Archive,[string]$Platform,[stri
                 }
             }
             if($source.id -ceq 'throw-on-start'){
-                $approved=Assert-FrameworkThrowFixture (Join-Path $PSScriptRoot '../../Tests/Fixtures/Delivery')
+                $approved=Assert-FrameworkThrowFixture (Join-Path $PSScriptRoot '../../Tool/Client/Fixtures/Delivery')
                 Require-FrameworkFact ($case.fault.fixtureContractSha256 -ceq $approved.contractSha256) 'E_THROW_PROVENANCE' 'Throw source contract must match the approved Tests-only fixture.'
             }
             foreach($sourceAttempt in $source.attempts){

@@ -29,7 +29,6 @@ namespace Client.Editor.UI
         }
         sealed class View:IViewHandle
         {public GameObject Root{get;set;}public void Close(){}}
-        [MenuItem("Game/MainCity/Build and Capture City Hall Details")]
         public static void BuildAndCapture(){MainCityUIBuilder.Build();Capture();}
         public static void Capture()
         {

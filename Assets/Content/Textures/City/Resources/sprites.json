@@ -1,0 +1,76 @@
+{
+  "sprites": [
+    {
+      "name": "ore_0",
+      "pivotX": 0.5387755102040817,
+      "pivotY": 0.0,
+      "width": 226
+    },
+    {
+      "name": "ore_1",
+      "pivotX": 0.4784688995215311,
+      "pivotY": 0.0,
+      "width": 174
+    },
+    {
+      "name": "ore_2",
+      "pivotX": 0.5215311004784688,
+      "pivotY": 0.104,
+      "width": 200
+    },
+    {
+      "name": "ore_3",
+      "pivotX": 0.5123762376237624,
+      "pivotY": 0.0,
+      "width": 143
+    },
+    {
+      "name": "wood_0",
+      "pivotX": 0.486159169550173,
+      "pivotY": 0.0,
+      "width": 281
+    },
+    {
+      "name": "wood_1",
+      "pivotX": 0.47029702970297027,
+      "pivotY": 0.19411764705882353,
+      "width": 166
+    },
+    {
+      "name": "wood_2",
+      "pivotX": 0.48514851485148514,
+      "pivotY": 0.19411764705882353,
+      "width": 196
+    },
+    {
+      "name": "wood_3",
+      "pivotX": 0.49257425742574257,
+      "pivotY": 0.0,
+      "width": 199
+    },
+    {
+      "name": "food_0",
+      "pivotX": 0.5,
+      "pivotY": 0.0,
+      "width": 277
+    },
+    {
+      "name": "food_1",
+      "pivotX": 0.5198019801980198,
+      "pivotY": 0.09411764705882353,
+      "width": 182
+    },
+    {
+      "name": "food_2",
+      "pivotX": 0.5,
+      "pivotY": 0.0,
+      "width": 202
+    },
+    {
+      "name": "food_3",
+      "pivotX": 0.5,
+      "pivotY": 0.0,
+      "width": 202
+    }
+  ]
+}

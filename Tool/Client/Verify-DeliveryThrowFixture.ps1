@@ -5,7 +5,7 @@ $ErrorActionPreference='Stop'
 . "$PSScriptRoot/Framework-IO.ps1"
 $output=New-FrameworkOutputDirectory $OutputDirectory
 $result=@{passed=$false;nativeAcceptance=$false;unityCompilation='NotRun'}
-try{$result=Assert-FrameworkThrowFixture (Join-Path $PSScriptRoot '../../Tests/Fixtures/Delivery')}catch{$result.error=$_.Exception.Message}
+try{$result=Assert-FrameworkThrowFixture (Join-Path $PSScriptRoot '../../Tool/Client/Fixtures/Delivery')}catch{$result.error=$_.Exception.Message}
 Write-FrameworkJsonNew (Join-Path $output 'throw-fixture-result.json') $result
 if(-not $result.passed){exit 1}
 Write-Host 'DELIVERY_THROW_SOURCE_PASS (source bytes only; Unity/native NotRun)'

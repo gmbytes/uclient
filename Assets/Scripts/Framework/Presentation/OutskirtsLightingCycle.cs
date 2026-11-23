@@ -24,12 +24,15 @@ namespace Client.Framework.Presentation
         public Quaternion sunRotation;
         public Color ambientColor;
         public float lightmapScale;
+        public Color vegetationTint = Color.white;
     }
 
     [Serializable]
     public sealed class OutskirtsLightingSettings
     {
         public int startHour;
+        public float environmentSwitchDelaySeconds = .6f;
+        public float lightmapTransitionSeconds = 1f;
         public OutskirtsLightingProfile[] phases;
 
         public int PhaseAt(DateTimeOffset gameTime)
@@ -52,12 +55,20 @@ namespace Client.Framework.Presentation
         [SerializeField] private Light referenceLight;
         [SerializeField] private OutskirtsLightingSettings settings;
         private readonly Dictionary<Material, Material> owned = new Dictionary<Material, Material>();
+        private readonly HashSet<Material> vegetation = new HashSet<Material>();
+        private Color currentVegetationTint = Color.white, transitionFromVegetationTint;
         private readonly List<GameObject> nightEffects = new List<GameObject>();
         private readonly List<GameObject> dayEffects = new List<GameObject>();
         private IOutskirtsClock clock = new LocalOutskirtsClock();
         private int phase = -1;
         private float nextRefresh;
         private bool initialized;
+        private bool snapNext = true;
+        private bool transitioning;
+        private bool environmentApplied;
+        private float transitionStart, transitionFromScale, currentLightmapScale;
+        private OutskirtsLightingProfile transitionTarget;
+        public bool IsTransitioning => transitioning;
         public string CurrentPhase => phase < 0 ? string.Empty : settings.phases[phase].name;
 
         public void Configure(Light light, OutskirtsLightingSettings value)
@@ -71,15 +82,20 @@ namespace Client.Framework.Presentation
         {
             clock = value ?? throw new ArgumentNullException(nameof(value));
             phase = -1;
+            snapNext = true;
+            transitioning = false;
             RefreshNow();
         }
 
         private void OnEnable() { if (Application.isPlaying) RefreshNow(); }
         private void Update()
         {
-            if (Time.unscaledTime < nextRefresh) return;
-            nextRefresh = Time.unscaledTime + 1;
-            RefreshNow();
+            if (Time.unscaledTime >= nextRefresh)
+            {
+                nextRefresh = Time.unscaledTime + 1;
+                RefreshNow();
+            }
+            UpdateTransition();
         }
 
         public void RefreshNow()
@@ -105,6 +121,8 @@ namespace Client.Framework.Presentation
                             instance.SetFloat("_MapOriginY", transform.position.y);
                             owned.Add(original, instance);
                         }
+                        if (original.name.IndexOf("tree", StringComparison.OrdinalIgnoreCase) >= 0 && instance.HasProperty("_VegetationTint"))
+                            vegetation.Add(instance);
                         materials[i] = instance;
                     }
                     renderer.sharedMaterials = materials;
@@ -113,8 +131,66 @@ namespace Client.Framework.Presentation
             }
             int next = settings.PhaseAt(clock.GameTime);
             if (next == phase) return;
+            bool first = phase < 0 || snapNext;
             phase = next;
             var profile = settings.phases[phase];
+            snapNext = false;
+            if (first)
+            {
+                transitioning = false;
+                currentLightmapScale = profile.lightmapScale;
+                ApplyEnvironment(profile);
+                ApplyLightmapScale(currentLightmapScale);
+                return;
+            }
+            // HYGD ColorLookupData.ChangeEnvironment delays the environment switch by .6s;
+            // GameSceneBuilding fades the baked lightmap scale over 1s in parallel.
+            transitionTarget = profile;
+            transitionStart = Time.unscaledTime;
+            transitionFromScale = currentLightmapScale;
+            transitionFromVegetationTint = currentVegetationTint;
+            environmentApplied = false;
+            transitioning = true;
+            UpdateTransition();
+        }
+
+        private void UpdateTransition()
+        {
+            if (!transitioning) return;
+            float elapsed = Time.unscaledTime - transitionStart;
+            float duration = Mathf.Max(.001f, settings.lightmapTransitionSeconds);
+            currentLightmapScale = Mathf.Lerp(transitionFromScale, transitionTarget.lightmapScale, Mathf.Clamp01(elapsed / duration));
+            ApplyLightmapScale(currentLightmapScale);
+            ApplyVegetationTint(Color.Lerp(transitionFromVegetationTint, transitionTarget.vegetationTint, Mathf.Clamp01(elapsed / duration)));
+            if (!environmentApplied && elapsed >= settings.environmentSwitchDelaySeconds)
+            {
+                ApplyEnvironment(transitionTarget);
+                environmentApplied = true;
+            }
+            if (environmentApplied && elapsed >= duration) transitioning = false;
+        }
+
+        private void ApplyLightmapScale(float value)
+        {
+            foreach (var material in owned.Values) material.SetFloat("_BakedLightmapScale", value);
+        }
+
+        private void ApplyVegetationTint(Color value)
+        {
+            currentVegetationTint = value;
+            foreach (var material in vegetation) material.SetColor("_VegetationTint", value);
+        }
+
+        private void ApplyEnvironment(OutskirtsLightingProfile profile)
+        {
+            foreach (var sprite in GetComponentsInChildren<SpriteRenderer>(true))
+                if (sprite.name == "ResourceSprite" || sprite.name == "HomeSprite")
+                {
+                    var tint = Color.white;
+                    tint.a = sprite.color.a;
+                    sprite.color = tint;
+                }
+            if (!transitioning) ApplyVegetationTint(profile.vegetationTint);
             referenceLight.color = profile.sunColor;
             referenceLight.intensity = profile.sunIntensity;
             referenceLight.transform.localRotation = profile.sunRotation;
@@ -124,7 +200,8 @@ namespace Client.Framework.Presentation
             {
                 material.SetVector("_ReferenceSun", profile.sunColor.linear * profile.sunIntensity);
                 material.SetVector("_ReferenceAmbient", profile.ambientColor.linear);
-                material.SetFloat("_BakedLightmapScale", profile.lightmapScale);
+                if (material.HasProperty("_ReferenceDiffuse"))
+                    material.SetFloat("_ReferenceDiffuse", Mathf.Max(0, Vector3.Dot(Vector3.up, -referenceLight.transform.forward)));
             }
         }
 
@@ -132,6 +209,7 @@ namespace Client.Framework.Presentation
         {
             foreach (var material in owned.Values)
                 if (Application.isPlaying) Destroy(material); else DestroyImmediate(material);
+            vegetation.Clear();
             owned.Clear();
         }
     }

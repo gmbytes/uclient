@@ -417,7 +417,7 @@ namespace Client.Tests.EditMode
 
         private VerifiedRelease Sign(string id, byte[] dll, string path = "Hotfix/Game.dll")
         {
-            var doc = JObject.Parse(File.ReadAllText("Tests/Fixtures/Releases/ManifestCases/valid-release.json"));
+            var doc = JObject.Parse(File.ReadAllText("Tool/Client/Fixtures/Releases/ManifestCases/valid-release.json"));
             doc["keyId"] = "test-f5"; doc["releaseId"] = id;
             doc["files"] = new JArray(Entry("Resources/GameFrameworkVersion.dat", new byte[] { 7, 8, 9 }, "NativeResource"), Entry(path, dll, "HotfixDll"));
             doc["assemblies"] = new JArray(new JObject { ["name"] = "Game", ["path"] = path, ["dependencies"] = new JArray("Client.Contracts") });

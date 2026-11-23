@@ -327,7 +327,7 @@ namespace Client.Tests.EditMode
         [Test]
         public void ArchivedUnsafePathVectorsAreRejectedByBothDocumentTypes()
         {
-            var cases = JArray.Parse(System.IO.File.ReadAllText("Tests/Fixtures/Releases/ManifestCases/unsafe-paths.json"));
+            var cases = JArray.Parse(System.IO.File.ReadAllText("Tool/Client/Fixtures/Releases/ManifestCases/unsafe-paths.json"));
             foreach (string path in cases.Values<string>()) ManifestRejectsUnsafePaths(path);
         }
 
@@ -357,8 +357,8 @@ namespace Client.Tests.EditMode
         }
 
         private static JObject Player() => new JObject { ["playerBuildId"] = "player-1", ["platform"] = "Windows", ["architecture"] = "x64", ["unityVersion"] = "2022.3.25f1", ["contractVersion"] = "1", ["envelopeSha256"] = HashA, ["aotMetadataSetId"] = "aot-1" };
-        private static JObject Manifest() => JObject.Parse(System.IO.File.ReadAllText("Tests/Fixtures/Releases/ManifestCases/valid-release.json"));
-        private static JObject Channel() => JObject.Parse(System.IO.File.ReadAllText("Tests/Fixtures/Releases/ManifestCases/valid-channel.json"));
+        private static JObject Manifest() => JObject.Parse(System.IO.File.ReadAllText("Tool/Client/Fixtures/Releases/ManifestCases/valid-release.json"));
+        private static JObject Channel() => JObject.Parse(System.IO.File.ReadAllText("Tool/Client/Fixtures/Releases/ManifestCases/valid-channel.json"));
         private static byte[] Bytes(JObject value) => Encoding.UTF8.GetBytes(value.ToString(Formatting.None));
         private byte[] Sign(byte[] bytes, RSA signer = null) => (signer ?? key).SignData(bytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         private static string Hash(byte[] bytes) { using (var sha = SHA256.Create()) return BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant(); }

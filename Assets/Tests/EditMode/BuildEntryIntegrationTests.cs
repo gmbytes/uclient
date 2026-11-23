@@ -120,7 +120,7 @@ namespace Client.Tests.EditMode
         }
         [Test] public void OfficialCompilerIncludesNewV2ParserOnlyInV2AndPreservesFixedCompiledReferences()
         {
-            string fixture=Path.GetFullPath("Tests/Fixtures/Delivery"),output=Path.GetFullPath("Builds/Tests/D1/OverlayCompiler/"+Guid.NewGuid().ToString("N"));
+            string fixture=Path.GetFullPath("Tool/Client/Fixtures/Delivery"),output=Path.GetFullPath("Builds/Tests/D1/OverlayCompiler/"+Guid.NewGuid().ToString("N"));
             string[] versions={"V1","V2"};string[] paths=versions.SelectMany(v=>Directory.GetFiles(Path.Combine(fixture,v),"*.cs",SearchOption.AllDirectories).Select(p=>p.Substring(Path.Combine(fixture,v).Length+1).Replace('\\','/'))).Distinct().ToArray();
             EditorApplication.LockReloadAssemblies();AssetDatabase.DisallowAutoRefresh();
             try

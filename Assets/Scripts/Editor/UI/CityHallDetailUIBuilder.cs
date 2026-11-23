@@ -20,7 +20,6 @@ namespace Client.Editor.UI
         static readonly Color Jade=new Color32(41,93,73,255);
         static readonly Color Vermilion=new Color32(143,48,35,255);
 
-        [MenuItem("Game/MainCity/Build City Hall Details")]
         public static void Build()=>MainCityUIBuilder.Build();
 
         public static IReadOnlyList<UIBindings.Binding> Attach(GameObject root,Font font)

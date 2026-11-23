@@ -15,7 +15,7 @@ if ((Test-Path -LiteralPath $fixture) -or (Test-Path -LiteralPath ($fixture + '.
 $unityArguments = @('-batchmode', '-nographics', '-quit', '-projectPath', $projectRoot, '-buildTarget', 'Win64', '-executeMethod', 'Client.Editor.Build.MinimalHotfixBuilder.Run', '-hotfixProofOutput', $output, '-logFile', (Join-Path $runRoot 'Editor.log'))
 $exitCode = -1
 try {
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'Tests/Fixtures/HotfixProof/HotfixProofFixture.cs.txt') -Destination $fixture
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'Tool/Client/Fixtures/HotfixProof/HotfixProofFixture.cs.txt') -Destination $fixture
     $exitCode = Invoke-Unity $editor $unityArguments
 }
 finally {

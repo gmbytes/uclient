@@ -17,7 +17,7 @@
 /*_BurstDebugInformation_DoNotShip/
 /*_BackUpThisFolder_ButDontShipItWithYourGame/
 
-# IDE and agent-local files. Nested .csproj files under Tests remain source.
+# IDE and agent-local files. Nested fixture .csproj files under Tool remain source.
 /.superpowers/
 /.vs/
 /.idea/

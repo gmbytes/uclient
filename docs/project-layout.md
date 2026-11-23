@@ -12,7 +12,7 @@
 - 窗口统一UI{Name}标识：UILogin.cs、UILogin.G.Bindings.cs、UILogin.prefab及UILogin.Config/Layout/Text.asset；手写和生成文件是同一partial类，细则见UI编辑规范。
 - 场景、Prefab、配置资产、可更新内容与脚本分别管理。
 - 第三方代码保留上游结构、版本和许可；自研代码不做本地 UPM 包。
-- Unity测试放`Assets/Tests`；包含多版同名C#类型的fixture和独立.NET测试工程放根目录`Tests`，防止被Unity自动编译。所有可编辑测试.proto也统一放comm/proto的隔离测试目录，客户端只留生成物和二进制向量。
+- Unity测试放`Assets/Tests`。构建和Unity验证依赖的多版本样本放`Tool/Client/Fixtures`，可编辑测试.proto放comm/proto。根目录Tests、独立.NET测试工程和配套协议互操作运行器已清理。
 - `Tool`只放开发和构建入口；`Builds`只放可再生成产物、日志和验收证据。
 
 ## 2. 完整目标结构
@@ -100,9 +100,6 @@ client/
 ├─ ProjectSettings/                        Unity工程设置，进入版本管理
 ├─ Tool/
 │  └─ Client/                              测试、构建、热更与验收入口
-├─ Tests/
-│  ├─ Fixtures/                            多版本DLL/协议二进制向量/坏补丁
-│  └─ Managed/                             独立.NET测试工程和纯C#测试源码
 ├─ Builds/                                 忽略的构建产物与测试证据
 │  ├─ Player/<platform>/<runId>/            Player、基线归档、构建结果
 │  ├─ Patch/<platform>/<releaseId>/         签名清单、DLL、元数据、资源包
@@ -158,9 +155,9 @@ Game目录名称本身不提供热更新隔离。Client.Game和Client.Game.Proto
 | 启动必需Prefab/组件 | Prefabs/App与Scripts/Framework/Bootstrap | 随主包；不引用热更类型和热更资源 |
 | 项目配置资产 | Settings对应目录 | 示例配置进Git；凭据/个人覆盖不进Git |
 | Unity测试 | Assets/Tests/EditMode或PlayMode | 带独立测试asmdef与Task Category |
-| DLL V1/V2同名类型、坏包、协议二进制向量 | 根Tests/Fixtures | 不放Assets防止多版本源码被一起编译 |
+| DLL V1/V2同名类型、坏包、协议二进制向量 | Tool/Client/Fixtures | 不放Assets防止多版本源码被一起编译 |
 | 可编辑协议测试源 | comm/proto/tests/fixtures | 与正式game源隔离，不参与正式协议收集 |
-| 独立.NET测试项目 | 根Tests/Managed | 显式引用纯C#源，不通配整个Scripts |
+| 独立.NET测试项目 | 已移除（独立.NET测试） | 显式引用纯C#源，不通配整个Scripts |
 | 构建/测试辅助脚本 | Tool/Client | 只编排，不承载客户端业务 |
 
 代码目录使用`Resource`单数，避免和Unity特殊目录`Resources`混淆。自研可更新资源统一进入GF资源收集，不另建可编辑的第二套资源索引。第三方TMP等必需资源按原工具管理。
@@ -182,7 +179,7 @@ E:/sgame/
 - `comm/tools/Managed/SGame.Client.Managed.csproj`改为显式Include `Assets/Scripts/Framework/Core`、`Protocol`、`Network/Core`及纯SessionContracts/ISessionClient等必要文件，继续排除Unity适配、UI、Bootstrap和Editor；禁止`Assets/Scripts/**/*.cs`大通配。
 - `comm/tools/Validate-Boundaries.ps1`改为检查新根和程序集依赖；必需目录缺失或扫描零文件应失败，不能跳过检查后显示成功。
 - Unity测试按程序集/测试全名或Category发现，移动文件不替代测试asmdef；runner仍拒绝零测试。
-- 根`Tests/Fixtures`和`Tests/Managed`继续放C#测试、DLL和二进制向量；可编辑.proto例外统一转到comm/proto/tests/fixtures，所有读取者显式更新，不能保留隐藏客户端协议副本。
+- 构建与Unity验证依赖的样本位于`Tool/Client/Fixtures`，可编辑.proto位于comm/proto/tests/fixtures。根Tests及独立.NET测试已移除。
 - 不复制tok内部RPC定义；7001内部gRPC不作为客户端协议。Tok demo登录使用TCP7000，详情见[接入契约](tok-demo-protocol.md)。
 
 ## 6. 版本管理与运行时路径
@@ -204,3 +201,5 @@ E:/sgame/
 - D1–D3统一构建/证据目录，核对工程不包含旧的自研Package路径。
 
 详细步骤与通过条件见[总计划](superpowers/plans/2026-10-28-csharp-hotupdate-framework.md)及其21个Task。
+
+2026-11-10 清理：根目录Tests及独立协议互操作运行器已删除。构建、热更新验证和Unity测试使用的Delivery、HotfixAotProbe、HotfixProof、HotfixVersions、LoginServer、Releases样本迁移到Tool/Client/Fixtures，调用路径已更新。Game/Build、Game/MainCity、Game/Outskirts和四个专项UI菜单已移除注册，生成和构建方法仍供脚本调用。

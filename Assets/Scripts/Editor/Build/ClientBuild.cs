@@ -25,9 +25,7 @@ namespace Client.Editor.Build
             }
             catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
         }
-        [MenuItem("Game/Build/Select Request")]
         private static void SelectRequest(){string path=EditorUtility.OpenFilePanel("Select client build request",Path.GetFullPath("Builds"),"json");if(!string.IsNullOrEmpty(path))EditorPrefs.SetString(MenuRequestPreference,path);}
-        [MenuItem("Game/Build/Execute Selected Request")]
         private static void ExecuteMenu(){LastMenuResult=Execute(ReadRequest(EditorPrefs.GetString(MenuRequestPreference)));Debug.Log("CLIENT_BUILD_RESULT "+LastMenuResult.ResultFile);}
         public static BuildRequest ReadRequest(string path)
         {

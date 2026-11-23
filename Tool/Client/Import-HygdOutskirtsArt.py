@@ -1,5 +1,6 @@
 from pathlib import Path
 import argparse, collections, json, os, re, subprocess, sys
+from OutskirtsAssetPaths import destination_for
 
 parser = argparse.ArgumentParser(description="Import original HYGD outskirts art and its GUID dependencies.")
 parser.add_argument("--source", type=Path, default=Path(r"E:/hygd/work/client"))
@@ -10,7 +11,6 @@ target = Path(__file__).resolve().parents[2]
 if not (target / "ProjectSettings/ProjectVersion.txt").is_file():
     raise RuntimeError("The importer must live in Tool/Client inside the Unity client.")
 os.chdir(target)
-bundle = Path("Assets/Content/CityOutskirts/HYGD")
 common = "Assets/Art/Environment/Common/main_map/Prefabs/"
 roots = {
     "RuntimeHome": common + "field2_playertown_YG_lv1_07.prefab",
@@ -105,10 +105,16 @@ print("DEPENDENCIES", len(included), collections.Counter(p.suffix.lower() for p 
 print("BYTES", sum((source / p).stat().st_size for p in included))
 print("SKIPPED", dict(skipped))
 print("UNRESOLVED", {g: sorted(p)[:2] for g,p in unknown.items()})
+destinations = {}
+for path in included:
+    dest = destination_for(path)
+    if dest in destinations:
+        raise RuntimeError(f"Destination name collision: {dest}: {destinations[dest]} vs {path}")
+    destinations[dest] = path
 if not args.write:
     sys.exit(0)
 for path,data in included.items():
-    dest = bundle / path.relative_to("Assets")
+    dest = destination_for(path)
     meta = read(source / (str(path) + ".meta"))
     guid = reference.search(meta)[1]
     if guid in dst and dst[guid] != dest:
@@ -118,15 +124,15 @@ for path,data in included.items():
         if stream.read(40).startswith(b"version https://git-lfs.github.com/spec/"):
             raise RuntimeError(f"Unhydrated LFS asset {original}")
 for path,data in included.items():
-    dest = bundle / path.relative_to("Assets")
+    dest = destination_for(path)
     dest.parent.mkdir(parents=True, exist_ok=True)
     if data is None:
         dest.write_bytes((source / path).read_bytes())
     else:
         dest.write_text(data, encoding="utf-8", newline="\n")
     dest.with_name(dest.name + ".meta").write_bytes((source / (str(path) + ".meta")).read_bytes())
-report = {"source": str(source), "roots": {key: str(bundle / Path(path).relative_to("Assets")).replace("\\","/") for key,path in roots.items()},
+report = {"source": str(source), "roots": {key: str(destination_for(path)).replace("\\","/") for key,path in roots.items()},
           "assets": [p.as_posix() for p in sorted(included)], "unresolvedSourceReferences": {g: sorted(p) for g,p in unknown.items()}}
-Path("Builds/CityOutskirts/hygd-art-import.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+Path("Builds/Outskirts/hygd-art-import.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

@@ -1,0 +1,261 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: field_gold_rocks_01
+  m_Shader: {fileID: 4800000, guid: af2f830648c6c424caa2d569b7c60289, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords:
+  - _HEIGHTLIGHTSWITCH_ON
+  - _LIGHTMAPON_ON
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _AO:
+        m_Texture: {fileID: 2800000, guid: b73549305e617734abe45a95dcfacd52, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _AO_mask:
+        m_Texture: {fileID: 2800000, guid: b73549305e617734abe45a95dcfacd52, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BakedAO:
+        m_Texture: {fileID: 2800000, guid: b73549305e617734abe45a95dcfacd52, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BakedLightmap:
+        m_Texture: {fileID: 2800000, guid: 3418d395372733c48948cf4089ac531b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 4eb7e31cf7b456d4c9726b2f84be60ab, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 2800000, guid: 0d5e4264300817840a5c29463da8a6c5, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailAlbedoMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailNormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DirtTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer2Dirt:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer2Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer2Tex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer3Dirt:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer3Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer3Tex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Lightmap:
+        m_Texture: {fileID: 2800000, guid: 3418d395372733c48948cf4089ac531b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MacroNormal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: 4eb7e31cf7b456d4c9726b2f84be60ab, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MetallicGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 2800000, guid: e0ef1ee4e8363ed499c0878ef48a0860, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _OcclusionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ParallaxMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SpecGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainLayers:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TextureCoverage:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _texcoord:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _texcoord2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AOScale: 0.214
+    - _AlphaClip: 0
+    - _AlphaCutoff: 0.5
+    - _BakedLightmapScale: 1
+    - _BaseLayerByGon: 0
+    - _Blend: 0
+    - _BumpScale: 1
+    - _ClearCoatMask: 0
+    - _ClearCoatSmoothness: 0
+    - _ColorMixMaskSize1: 300
+    - _ColorMixMaskSize2: 150
+    - _ConverageDetail: 5.48
+    - _CoverMask: 0
+    - _CoverMaskScale: 1
+    - _CoverThickness: 0.15
+    - _CoverageRange: 5
+    - _CoverageSwitch: 0
+    - _CoverageTextureSwitch: 0
+    - _Cull: 2
+    - _Cutoff: 0
+    - _DetailAlbedoMapScale: 1
+    - _DetailNormalMapScale: 1
+    - _DirtMaskSize1: 735
+    - _DirtMaskSize2: 645.8
+    - _DstBlend: 0
+    - _EmissionFromAlbedoAlpha: 0
+    - _EmissiveScale: 0.1
+    - _EmissiveStrength: 0.1
+    - _EmissivebyBasemap: 0
+    - _EnvironmentReflections: 1
+    - _GlossMapScale: 1
+    - _Glossiness: 0.14142135
+    - _GlossinessSource: 0
+    - _GlossyReflections: 1
+    - _GradientCoverHeight: 10
+    - _GroundCoverpower: 1
+    - _HeightLightBright: 1.65
+    - _HeightLightDark: 0.608
+    - _HeightLightEnabled: 1
+    - _HeightLightHeight: 5.4
+    - _HeightLightRange: 0.26
+    - _Heightlightdark: 0.608
+    - _Heightlightswitch: 1
+    - _Layer2NormalStrength: 0.611
+    - _Layer3NormalStrength: 0.719
+    - _LightmapOn: 1
+    - _LightmapScale: 0.5
+    - _LocalGrassland: 0
+    - _MacroNormalStrength: 0.877
+    - _MapOriginY: 0
+    - _Metallic: 0
+    - _Mode: 0
+    - _NativeHeightOffset: 0
+    - _NativeHeightScale: 5
+    - _NormalStrength: 1
+    - _OcclusionStrength: 1
+    - _Parallax: 0.02
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
+    - _Shininess: 0.01
+    - _Smoothness: 0
+    - _SmoothnessSource: 0
+    - _SmoothnessTextureChannel: 0
+    - _SpecSource: 0
+    - _SpecularHighlights: 1
+    - _SrcBlend: 1
+    - _Surface: 0
+    - _Terrain: 0
+    - _TerrainDetailContrast: 1
+    - _TerrainFlattenScale: 1
+    - _TextureBright: 1
+    - _UVSec: 0
+    - _UseBakedAO: 1
+    - _UseBakedLightmap: 1
+    - _WorkflowMode: 1
+    - _WorldTerrainOverlay: 0
+    - _ZWrite: 1
+    - _brightHeight: 5.4
+    - _colorlightsize: 0.2
+    - _dirtpower: 1.5
+    - _dirtsize: 0.33
+    - _heightlight: 1.65
+    - _heightrange: 0.26
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 0}
+    - _ColorMix1: {r: 0.87, g: 0.906, b: 0.698, a: 1}
+    - _ColorMix2: {r: 1, g: 1, b: 1, a: 1}
+    - _ColorMix3: {r: 1, g: 1, b: 1, a: 1}
+    - _CoverageColor: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Maincolor: {r: 1, g: 1, b: 1, a: 0}
+    - _OwnedHome: {r: 2, g: 3.4641, b: 0, a: 0}
+    - _ReferenceAmbient: {r: 0.039546248, g: 0.14126332, b: 0.4072403, a: 1}
+    - _ReferenceSun: {r: 0.48608822, g: 0.888415, b: 3, a: 3}
+    - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _VegetationTint: {r: 1, g: 1, b: 1, a: 1}
+    - _WaterColor: {r: 0.285048, g: 0.8446, b: 0.96226, a: 0}
+  m_BuildTextureStacks: []

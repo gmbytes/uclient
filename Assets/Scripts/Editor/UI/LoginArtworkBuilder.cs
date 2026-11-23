@@ -22,7 +22,6 @@ namespace Client.Editor.UI
         static readonly Color Ink = new Color(.035f, .026f, .018f, .96f);
         const float FormHeight = 552;
 
-        [MenuItem("Game/UI/Apply Three Kingdoms Login")]
         public static void Apply()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -165,7 +164,6 @@ namespace Client.Editor.UI
             finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
-        [MenuItem("Game/UI/Capture Three Kingdoms Login")]
         public static void Capture()
         {
             if (string.IsNullOrEmpty(UnityEngine.SceneManagement.SceneManager.GetActiveScene().path))
@@ -186,7 +184,6 @@ namespace Client.Editor.UI
             }
             Debug.Log("LOGIN_ARTWORK_CAPTURED");
         }
-        [MenuItem("Game/UI/Apply and Capture Three Kingdoms Login")]
         public static void ApplyAndCapture() { Apply(); Capture(); }
 
         static void MakeTexture(string name, bool button)

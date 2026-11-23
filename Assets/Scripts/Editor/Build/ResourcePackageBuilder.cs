@@ -18,7 +18,7 @@ namespace Client.Editor.Build
             AssetDatabase.SaveAssets();
             var collection=scope.CreateCollection();
             if(!collection.AddResource("client/ui",null,null,LoadType.LoadFromFile,true)||!collection.AddResource("client/profiles",null,null,LoadType.LoadFromFile,true))throw new BuildFailedException("Cannot create the native resource collection.");
-            foreach(string asset in new[]{"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/MainCity/UIMainCity.prefab",UI.CityOutskirtsUIBuilder.ViewPath,UI.CityOutskirtsUIBuilder.LayoutPath,"Assets/Content/UI/Common/UIViewDefinitions.asset","Assets/Settings/Environment/LocalSimulationProfile.asset","Assets/Settings/Environment/DevelopmentProfile.asset"})
+            foreach(string asset in new[]{"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/MainCity/UIMainCity.prefab",UI.OutskirtsUIBuilder.ViewPath,UI.OutskirtsUIBuilder.LayoutPath,"Assets/Content/UI/Common/UIViewDefinitions.asset","Assets/Settings/Environment/LocalSimulationProfile.asset","Assets/Settings/Environment/DevelopmentProfile.asset"})
                 if(!collection.AssignAsset(AssetDatabase.AssetPathToGUID(asset),asset.StartsWith("Assets/Settings/",StringComparison.Ordinal)?"client/profiles":"client/ui",null))throw new BuildFailedException("Cannot assign native resource: "+asset);
             if(!collection.Save())throw new BuildFailedException("Cannot save the effective native collection.");
             string captured=Path.Combine(result.OutputDirectory,"ResourceCollection.xml");File.Copy(scope.CollectionPath,captured);
@@ -27,7 +27,7 @@ namespace Client.Editor.Build
             Directory.CreateDirectory(builder.OutputDirectory);if(!builder.BuildResources())throw new BuildFailedException("Actual native GF Package build failed.");
             string output=Path.GetFullPath(Path.Combine(builder.OutputPackagePath,request.Platform==BuildPlatform.Android?"Android":"Windows64"));
             BuildFiles.CopyTree(output,Path.Combine(destination,"Resources"));
-            File.WriteAllText(Path.Combine(result.OutputDirectory,"resource-package.json"),JsonConvert.SerializeObject(new {collectionPath=scope.CollectionPath,collectionSha256=HotfixLoadPlan.Hash(File.ReadAllBytes(captured)),builderPath=scope.BuilderPath,outputPackagePath=output,files=PlayerBaselineArchive.Inventory(Path.Combine(destination,"Resources")),dependencies=AssetDatabase.GetDependencies(new[]{"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/MainCity/UIMainCity.prefab",UI.CityOutskirtsUIBuilder.ViewPath,UI.CityOutskirtsUIBuilder.LayoutPath,"Assets/Content/UI/Common/UIViewDefinitions.asset"},true)},Formatting.Indented)+"\n");
+            File.WriteAllText(Path.Combine(result.OutputDirectory,"resource-package.json"),JsonConvert.SerializeObject(new {collectionPath=scope.CollectionPath,collectionSha256=HotfixLoadPlan.Hash(File.ReadAllBytes(captured)),builderPath=scope.BuilderPath,outputPackagePath=output,files=PlayerBaselineArchive.Inventory(Path.Combine(destination,"Resources")),dependencies=AssetDatabase.GetDependencies(new[]{"Assets/Content/UI/Login/UILogin.prefab","Assets/Content/UI/MainCity/UIMainCity.prefab",UI.OutskirtsUIBuilder.ViewPath,UI.OutskirtsUIBuilder.LayoutPath,"Assets/Content/UI/Common/UIViewDefinitions.asset"},true)},Formatting.Indented)+"\n");
             result.EvidenceFiles.Add(captured);result.EvidenceFiles.Add(Path.Combine(result.OutputDirectory,"resource-package.json"));
         }
     }

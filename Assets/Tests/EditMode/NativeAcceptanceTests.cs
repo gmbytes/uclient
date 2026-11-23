@@ -107,7 +107,7 @@ namespace Client.Tests.EditMode
             using(var key=new RSACryptoServiceProvider(2048){PersistKeyInCsp=false})
             {
                 var verifier=(ManifestVerifier)Activator.CreateInstance(typeof(ManifestVerifier),BindingFlags.Instance|BindingFlags.NonPublic,null,new object[]{new Dictionary<string,RSAParameters>{{"test-f4",key.ExportParameters(false)}}},null);
-                byte[] json=File.ReadAllBytes("Tests/Fixtures/Releases/ManifestCases/valid-release.json");
+                byte[] json=File.ReadAllBytes("Tool/Client/Fixtures/Releases/ManifestCases/valid-release.json");
                 var release=verifier.Verify(json,key.SignData(json,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1),new PlayerIdentity("player-1","Windows","x64","2022.3.25f1","1",new string('a',64),"aot-1"));
                 using(var evidence=new NativeEvidence(root,(NativeAcceptanceOptions)Options(true,"{\"runId\":\"run\",\"caseId\":\"transfer\"}")))
                 {

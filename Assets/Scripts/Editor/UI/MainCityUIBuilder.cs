@@ -30,7 +30,6 @@ namespace Client.Editor.UI
                 catch(Exception error){File.WriteAllText("Builds/MainCity/rebuild-result.txt",error.ToString());Debug.LogException(error);}
             };
         }
-        [MenuItem("Game/MainCity/Build Main City UI")]
         public static void Build()
         {
             var model=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Content/Prefabs/MainCity/MainCity.prefab");
@@ -64,7 +63,7 @@ namespace Client.Editor.UI
                 safe.Find("Dynamic").gameObject.SetActive(false);
                 var cityDetailBindings=CityHallDetailUIBuilder.Attach(root,font);
                 var mainUIBindings=MainCityHudUIBuilder.Attach(root,font);
-                CityOutskirtsUIBuilder.AttachEntry(root);
+                OutskirtsUIBuilder.AttachEntry(root);
                 var bindings=root.GetComponent<UIBindings>();
                 bindings.Configure(new[]{Binding("Map",map)}.Concat(cityDetailBindings).Concat(mainUIBindings).ToArray(),null);
                 var staticLayout=safe.GetComponent<AdaptiveLayout>();

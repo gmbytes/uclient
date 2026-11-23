@@ -24,7 +24,6 @@ namespace Client.Editor.City
             "Assets/Content/Shaders/MainCity"
         };
 
-        [MenuItem("Game/MainCity/Prepare Resources")]
         public static void PrepareResources()
         {
             if (EditorApplication.isPlaying)

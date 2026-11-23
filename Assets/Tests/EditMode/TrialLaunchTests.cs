@@ -325,7 +325,7 @@ namespace Client.Tests.EditMode
         private void Install(string id)
         {
             byte[] native={7,8,9};byte[] dll=Encoding.UTF8.GetBytes(id);
-            var doc=JObject.Parse(File.ReadAllText("Tests/Fixtures/Releases/ManifestCases/valid-release.json"));
+            var doc=JObject.Parse(File.ReadAllText("Tool/Client/Fixtures/Releases/ManifestCases/valid-release.json"));
             doc["keyId"]="f7-test";doc["releaseId"]=id;
             doc["files"]=new JArray(FileEntry("Resources/GameFrameworkVersion.dat",native,"NativeResource"),FileEntry("Hotfix/Game.dll",dll,"HotfixDll"));
             doc["assemblies"]=new JArray(new JObject{["name"]="Game",["path"]="Hotfix/Game.dll",["dependencies"]=new JArray("Client.Contracts")});doc["assemblyOrder"]=new JArray("Game");
